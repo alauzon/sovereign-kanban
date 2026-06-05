@@ -10,20 +10,6 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
-    services:
-      mariadb:
-        image: mariadb:latest
-        env:
-          MYSQL_DATABASE: nextcloud
-          MYSQL_USER: nextcloud
-          MYSQL_PASSWORD: nextcloud
-          MYSQL_ROOT_PASSWORD: root
-        options: >-
-          --health-cmd="mysqladmin ping"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
-
     steps:
       - uses: actions/checkout@v4
 
@@ -50,8 +36,3 @@ jobs:
 
       - name: Run PHPUnit tests
         run: vendor/bin/phpunit apps/sovereign-kanban-md-persistence/tests/Unit/Kanban/
-        env:
-          MYSQL_HOST: localhost
-          MYSQL_DATABASE: nextcloud
-          MYSQL_USER: nextcloud
-          MYSQL_PASSWORD: nextcloud
