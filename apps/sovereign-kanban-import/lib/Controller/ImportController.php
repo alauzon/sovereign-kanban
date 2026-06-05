@@ -26,26 +26,35 @@ final class ImportController extends Controller {
 	/**
 	 * Import all Deck boards and cards to Sovereign Kanban.
 	 *
-	 * @NoAdminRequired
+	 * @param string $userId User ID to import for (optional)
 	 * @return JSONResponse
 	 */
-	public function import(): JSONResponse {
+	public function import(string $userId = ''): JSONResponse {
 		try {
-			$result = $this->importer->import();
+			$result = $this->importer->import($userId);
+
+			$message = sprintf(
+				'Successfully imported %d boards with %d total cards',
+				$result['boards'],
+				$result['cards'],
+			);
+
+			if (!empty($result['errors'])) {
+				$message .= sprintf(' (%d errors)', count($result['errors']));
+			}
 
 			return new JSONResponse([
 				'success' => true,
-				'imported' => $result,
-				'message' => sprintf(
-					'Successfully imported %d boards with %d total cards',
-					$result['boards'],
-					$result['cards'],
-				),
+				'boards_imported' => $result['boards'],
+				'cards_imported' => $result['cards'],
+				'errors' => $result['errors'] ?? [],
+				'message' => $message,
 			]);
 		} catch (\Exception $e) {
 			return new JSONResponse([
 				'success' => false,
 				'error' => $e->getMessage(),
+				'message' => 'Import failed. Ensure Deck app is installed and you have admin rights.',
 			], 400);
 		}
 	}
