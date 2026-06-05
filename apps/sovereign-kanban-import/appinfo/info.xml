@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<info xmlns="http://nextcloud.com/schema/apps">
+	<id>sovereign-kanban-import</id>
+	<name>Sovereign Kanban — Migration from Deck</name>
+	<summary>Migrate your Nextcloud Deck cards to Sovereign Kanban</summary>
+	<description>
+		One-time migration tool to import all your Deck boards and cards
+		into Sovereign Kanban's file-based storage.
+
+		After successful import, you can safely uninstall this app.
+		Installation: occ app:install sovereign-kanban-import
+		Uninstall: occ app:remove sovereign-kanban-import
+	</description>
+	<version>1.0.0</version>
+	<licence>AGPL-3.0-or-later</licence>
+	<author>Alain Lauzon</author>
+	<author mail="alauzon@alainlauzon.com">Alain</author>
+	<namespace>OCA\SovereignKanbanImport</namespace>
+	<category>migration</category>
+	<website>https://serveursdupeuple.net</website>
+	<documentation>https://github.com/alauzon/sovereign-kanban-md-persistence</documentation>
+	<require min-version="33" max-version="34"/>
+	<require-php min-version="8.2"/>
+	<dependencies>
+		<nextcloud min-version="33" max-version="34"/>
+		<app>deck</app>
+		<app>sovereign-kanban-md-persistence</app>
+	</dependencies>
+</info>
