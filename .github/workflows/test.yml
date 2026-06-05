@@ -47,11 +47,9 @@ jobs:
 
       - name: Install dependencies
         run: composer install --no-progress --prefer-dist --optimize-autoloader
-        working-directory: apps/sovereign-kanban-md-persistence
 
       - name: Run PHPUnit tests
-        run: vendor/bin/phpunit tests/
-        working-directory: apps/sovereign-kanban-md-persistence
+        run: vendor/bin/phpunit apps/sovereign-kanban-md-persistence/tests/Unit/Kanban/
         env:
           MYSQL_HOST: localhost
           MYSQL_DATABASE: nextcloud
