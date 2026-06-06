@@ -62,7 +62,19 @@
 			});
 
 			const head = el('div', 'sk-column-head');
-			head.appendChild(el('span', null, name));
+			head.appendChild(el('span', 'sk-column-name', name));
+			const colActions = el('span', 'sk-column-actions');
+			const colBtn = function (label, title, fn) {
+				const b = el('button', 'sk-col-btn', label);
+				b.title = title;
+				b.addEventListener('click', fn);
+				return b;
+			};
+			colActions.appendChild(colBtn('◀', 'Déplacer à gauche', function () { moveColumn(name, -1); }));
+			colActions.appendChild(colBtn('▶', 'Déplacer à droite', function () { moveColumn(name, 1); }));
+			colActions.appendChild(colBtn('✎', 'Renommer', function () { renameColumnPrompt(name); }));
+			colActions.appendChild(colBtn('✕', 'Supprimer la colonne', function () { removeColumnConfirm(name); }));
+			head.appendChild(colActions);
 			head.appendChild(el('span', 'sk-count', String(cards.length)));
 			col.appendChild(head);
 
@@ -99,6 +111,43 @@
 
 			boardEl.appendChild(col);
 		});
+
+		const addColumn = el('button', 'sk-add-column', '+ Colonne');
+		addColumn.addEventListener('click', addColumnPrompt);
+		boardEl.appendChild(addColumn);
+	}
+
+	function columnsUrl() { return boardUrl(currentId) + '/columns'; }
+
+	async function addColumnPrompt() {
+		const name = window.prompt('Nom de la nouvelle colonne');
+		if (!name || !name.trim()) { return; }
+		const res = await api('POST', columnsUrl(), { name: name.trim() });
+		if (res.ok) { reload(currentId); } else { window.alert('Erreur ' + res.status); }
+	}
+
+	async function renameColumnPrompt(from) {
+		const to = window.prompt('Renommer la colonne', from);
+		if (!to || !to.trim() || to.trim() === from) { return; }
+		const res = await api('PUT', columnsUrl() + '/rename', { from: from, to: to.trim() });
+		if (res.ok) { reload(currentId); } else { window.alert('Erreur ' + res.status); }
+	}
+
+	async function removeColumnConfirm(name) {
+		if (!window.confirm('Supprimer la colonne « ' + name + ' » et ses cartes ?')) { return; }
+		const res = await api('DELETE', columnsUrl(), { name: name });
+		if (res.ok) { reload(currentId); } else { window.alert('Erreur ' + res.status); }
+	}
+
+	async function moveColumn(name, dir) {
+		const cols = (currentBoard().columns || []).slice();
+		const i = cols.indexOf(name);
+		const j = i + dir;
+		if (i < 0 || j < 0 || j >= cols.length) { return; }
+		cols[i] = cols[j];
+		cols[j] = name;
+		const res = await api('PUT', columnsUrl() + '/reorder', { columns: cols });
+		if (res.ok) { reload(currentId); } else { window.alert('Erreur ' + res.status); }
 	}
 
 	function showAddCard(colEl, columnName) {

@@ -76,6 +76,39 @@ final class BoardTest extends TestCase {
 		$this->assertSame('#e85444', $board->color);
 	}
 
+	public function testAddColumnAppends(): void {
+		$board = new Board(id: 'b', name: 'B', color: '#000', columns: ['Backlog', 'Fait']);
+
+		$updated = $board->addColumn('En cours');
+
+		$this->assertSame(['Backlog', 'Fait', 'En cours'], $updated->columns);
+		$this->assertSame(['Backlog', 'Fait'], $board->columns, 'original unchanged');
+	}
+
+	public function testRenameColumnReplacesInPlace(): void {
+		$board = new Board(id: 'b', name: 'B', color: '#000', columns: ['Backlog', 'En cours', 'Fait']);
+
+		$updated = $board->renameColumn('En cours', 'En traitement');
+
+		$this->assertSame(['Backlog', 'En traitement', 'Fait'], $updated->columns);
+	}
+
+	public function testRemoveColumnDropsIt(): void {
+		$board = new Board(id: 'b', name: 'B', color: '#000', columns: ['Backlog', 'En cours', 'Fait']);
+
+		$updated = $board->removeColumn('En cours');
+
+		$this->assertSame(['Backlog', 'Fait'], $updated->columns);
+	}
+
+	public function testWithColumnsReplacesOrder(): void {
+		$board = new Board(id: 'b', name: 'B', color: '#000', columns: ['Backlog', 'En cours', 'Fait']);
+
+		$updated = $board->withColumns(['Fait', 'Backlog', 'En cours']);
+
+		$this->assertSame(['Fait', 'Backlog', 'En cours'], $updated->columns);
+	}
+
 	public function testToArrayShapesBoardForTheApi(): void {
 		$board = new Board(
 			id: 'projets-sdp',

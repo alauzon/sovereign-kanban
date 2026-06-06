@@ -3,7 +3,9 @@
 namespace OCA\SovereignKanbanMdPersistence\Tests\Unit\Kanban;
 
 use OCA\SovereignKanbanMdPersistence\Kanban\Board;
+use OCA\SovereignKanbanMdPersistence\Kanban\Card;
 use OCA\SovereignKanbanMdPersistence\Kanban\FileBoardRepository;
+use OCA\SovereignKanbanMdPersistence\Kanban\FileCardRepository;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -108,6 +110,56 @@ final class FileBoardRepositoryTest extends TestCase {
 
 		$this->assertDirectoryDoesNotExist($this->rootDir . '/projets-sdp');
 		$this->assertSame([], $this->repo->list());
+	}
+
+	public function testAddColumnCreatesFolderAndUpdatesYml(): void {
+		$this->repo->create(Board::create('Projets', '#000'));
+
+		$this->repo->addColumn('projets', 'Révision');
+
+		$board = $this->repo->find('projets');
+		$this->assertContains('Révision', $board->columns);
+		$this->assertNotEmpty(glob($this->rootDir . '/projets/*-Révision'), 'column folder created');
+	}
+
+	public function testReorderColumnsUpdatesYmlOnly(): void {
+		$this->repo->create(Board::create('Projets', '#000'));
+
+		$this->repo->reorderColumns('projets', ['Archivé', 'Backlog', 'En cours', 'Terminé']);
+
+		$this->assertSame(
+			['Archivé', 'Backlog', 'En cours', 'Terminé'],
+			$this->repo->find('projets')->columns,
+		);
+	}
+
+	public function testRemoveColumnDeletesFolder(): void {
+		$this->repo->create(Board::create('Projets', '#000'));
+		$this->assertDirectoryExists($this->rootDir . '/projets/04-Archivé');
+
+		$this->repo->removeColumn('projets', 'Archivé');
+
+		$this->assertNotContains('Archivé', $this->repo->find('projets')->columns);
+		$this->assertDirectoryDoesNotExist($this->rootDir . '/projets/04-Archivé');
+	}
+
+	public function testRenameColumnRenamesFolderAndResyncsCardFrontmatter(): void {
+		$this->repo->create(Board::create('Projets', '#000'));
+		$cardRepo = new FileCardRepository($this->rootDir . '/projets');
+		$card = Card::create('Tâche', '01-Backlog');
+		$cardRepo->save($card);
+
+		$this->repo->renameColumn('projets', 'Backlog', 'À faire');
+
+		$board = $this->repo->find('projets');
+		$this->assertContains('À faire', $board->columns);
+		$this->assertNotContains('Backlog', $board->columns);
+		$this->assertNotEmpty(glob($this->rootDir . '/projets/*-À faire'), 'folder renamed');
+
+		// The card moved with the folder, and its frontmatter column was resynced.
+		$found = (new FileCardRepository($this->rootDir . '/projets'))->findById($card->id);
+		$this->assertNotNull($found);
+		$this->assertSame('01-À faire', $found->column);
 	}
 
 	protected function tearDown(): void {

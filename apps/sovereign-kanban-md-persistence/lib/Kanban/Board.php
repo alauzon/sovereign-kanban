@@ -87,6 +87,44 @@ final class Board {
 	}
 
 	/**
+	 * Return a copy with a column appended.
+	 */
+	public function addColumn(string $name): self {
+		return $this->withColumns([...$this->columns, $name]);
+	}
+
+	/**
+	 * Return a copy with a column renamed in place.
+	 */
+	public function renameColumn(string $from, string $to): self {
+		return $this->withColumns(
+			array_map(static fn (string $c): string => $c === $from ? $to : $c, $this->columns),
+		);
+	}
+
+	/**
+	 * Return a copy with a column removed.
+	 */
+	public function removeColumn(string $name): self {
+		return $this->withColumns(
+			array_filter($this->columns, static fn (string $c): bool => $c !== $name),
+		);
+	}
+
+	/**
+	 * Return a copy with a new ordered set of columns.
+	 */
+	public function withColumns(array $columns): self {
+		return new self(
+			id: $this->id,
+			name: $this->name,
+			color: $this->color,
+			columns: array_values($columns),
+			created_at: $this->created_at,
+		);
+	}
+
+	/**
 	 * Serialize board config as YAML for .board.yml.
 	 */
 	public function toYaml(): string {

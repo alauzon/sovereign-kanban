@@ -127,6 +127,84 @@ final class BoardController extends Controller {
 	}
 
 	/**
+	 * Add a column to a board.
+	 */
+	#[NoAdminRequired]
+	public function addColumn(string $boardId, string $name): DataResponse {
+		$repository = $this->repository();
+		if ($repository === null || !preg_match('/^[a-z0-9-]+$/', $boardId)) {
+			return new DataResponse(['error' => 'unavailable'], 400);
+		}
+		$name = trim($name);
+		if ($name === '') {
+			return new DataResponse(['error' => 'name_required'], 400);
+		}
+
+		$board = $repository->addColumn($boardId, $name);
+
+		return $board === null
+			? new DataResponse(['error' => 'board_not_found'], 404)
+			: new DataResponse(['board' => $board->toArray()], 201);
+	}
+
+	/**
+	 * Rename a column.
+	 */
+	#[NoAdminRequired]
+	public function renameColumn(string $boardId, string $from, string $to): DataResponse {
+		$repository = $this->repository();
+		if ($repository === null || !preg_match('/^[a-z0-9-]+$/', $boardId)) {
+			return new DataResponse(['error' => 'unavailable'], 400);
+		}
+		$to = trim($to);
+		if ($to === '') {
+			return new DataResponse(['error' => 'name_required'], 400);
+		}
+
+		$board = $repository->renameColumn($boardId, $from, $to);
+
+		return $board === null
+			? new DataResponse(['error' => 'board_not_found'], 404)
+			: new DataResponse(['board' => $board->toArray()]);
+	}
+
+	/**
+	 * Remove a column (and its cards).
+	 */
+	#[NoAdminRequired]
+	public function removeColumn(string $boardId, string $name): DataResponse {
+		$repository = $this->repository();
+		if ($repository === null || !preg_match('/^[a-z0-9-]+$/', $boardId)) {
+			return new DataResponse(['error' => 'unavailable'], 400);
+		}
+
+		$board = $repository->removeColumn($boardId, $name);
+
+		return $board === null
+			? new DataResponse(['error' => 'board_not_found'], 404)
+			: new DataResponse(['board' => $board->toArray()]);
+	}
+
+	/**
+	 * Reorder a board's columns.
+	 *
+	 * @param string[] $columns The full ordered list of column names.
+	 */
+	#[NoAdminRequired]
+	public function reorderColumns(string $boardId, array $columns): DataResponse {
+		$repository = $this->repository();
+		if ($repository === null || !preg_match('/^[a-z0-9-]+$/', $boardId)) {
+			return new DataResponse(['error' => 'unavailable'], 400);
+		}
+
+		$board = $repository->reorderColumns($boardId, $columns);
+
+		return $board === null
+			? new DataResponse(['error' => 'board_not_found'], 404)
+			: new DataResponse(['board' => $board->toArray()]);
+	}
+
+	/**
 	 * Build a FileBoardRepository rooted at the current user's Kanban
 	 * folder, or null if no user is logged in.
 	 */
