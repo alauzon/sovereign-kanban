@@ -83,6 +83,9 @@
 	background: var(--color-primary-element); color: var(--color-primary-element-text);
 	border-color: var(--color-primary-element);
 }
+.sk-btn-danger { color: var(--color-error, #e9322d); border-color: var(--color-error, #e9322d); background: transparent; }
+.sk-btn-danger:hover { background: var(--color-error, #e9322d); color: #fff; }
+.sk-detail-actions { display: flex; justify-content: space-between; gap: 10px; }
 
 /* Create / edit form */
 .sk-form {

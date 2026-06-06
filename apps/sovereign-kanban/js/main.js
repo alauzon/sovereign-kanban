@@ -233,12 +233,24 @@
 		comments.appendChild(commentInput);
 		comments.appendChild(commentAdd);
 
+		const del = el('button', 'sk-btn sk-btn-danger', 'Supprimer');
+		del.addEventListener('click', async function () {
+			if (!window.confirm('Supprimer cette carte ?')) { return; }
+			del.disabled = true;
+			const res = await api('DELETE', cardUrl(currentId, card.id));
+			if (res.ok) { panel.hidden = true; loadCards(currentBoard()); }
+			else { del.disabled = false; window.alert('Erreur ' + res.status); }
+		});
+		const actions = el('div', 'sk-detail-actions');
+		actions.appendChild(del);
+		actions.appendChild(save);
+
 		box.appendChild(close);
 		box.appendChild(titleInput);
 		box.appendChild(dueRow);
 		box.appendChild(assigneesRow);
 		box.appendChild(bodyArea);
-		box.appendChild(save);
+		box.appendChild(actions);
 		box.appendChild(comments);
 		panel.appendChild(backdrop);
 		panel.appendChild(box);
@@ -336,6 +348,17 @@
 		form.appendChild(colorInput);
 		form.appendChild(submit);
 		form.appendChild(cancel);
+		if (mode === 'edit') {
+			const del = el('button', 'sk-btn sk-btn-danger', 'Supprimer le tableau');
+			del.addEventListener('click', async function () {
+				if (!window.confirm('Supprimer le tableau « ' + board.name + ' » et son contenu ?')) { return; }
+				del.disabled = true;
+				const res = await api('DELETE', boardUrl(board.id));
+				if (res.ok) { form.hidden = true; await reload(null); }
+				else { del.disabled = false; window.alert('Erreur ' + res.status); }
+			});
+			form.appendChild(del);
+		}
 		nameInput.focus();
 	}
 

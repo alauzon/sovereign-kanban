@@ -127,6 +127,31 @@ final class FileCardRepository {
 	}
 
 	/**
+	 * Delete a card by id, wherever it lives.
+	 */
+	public function deleteById(string $cardId): void {
+		$cardDir = $this->findCardDirAnywhere($cardId);
+		if ($cardDir !== null) {
+			$this->removeRecursive($cardDir);
+		}
+	}
+
+	/**
+	 * Recursively remove a directory using native PHP calls (keeps PHP's
+	 * stat cache consistent, unlike shelling out to rm).
+	 */
+	private function removeRecursive(string $path): void {
+		$items = new \RecursiveIteratorIterator(
+			new \RecursiveDirectoryIterator($path, \FilesystemIterator::SKIP_DOTS),
+			\RecursiveIteratorIterator::CHILD_FIRST,
+		);
+		foreach ($items as $item) {
+			$item->isDir() ? rmdir($item->getPathname()) : unlink($item->getPathname());
+		}
+		rmdir($path);
+	}
+
+	/**
 	 * Locate a card's directory across all columns, or null if absent.
 	 */
 	private function findCardDirAnywhere(string $cardId): ?string {

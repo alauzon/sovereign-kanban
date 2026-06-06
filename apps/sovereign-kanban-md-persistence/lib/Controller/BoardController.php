@@ -109,6 +109,24 @@ final class BoardController extends Controller {
 	}
 
 	/**
+	 * Delete a board and its entire folder.
+	 */
+	#[NoAdminRequired]
+	public function destroy(string $boardId): DataResponse {
+		$repository = $this->repository();
+		if ($repository === null) {
+			return new DataResponse(['error' => 'not_logged_in'], 401);
+		}
+		if (!preg_match('/^[a-z0-9-]+$/', $boardId)) {
+			return new DataResponse(['error' => 'invalid_board_id'], 400);
+		}
+
+		$repository->delete($boardId);
+
+		return new DataResponse(['deleted' => true]);
+	}
+
+	/**
 	 * Build a FileBoardRepository rooted at the current user's Kanban
 	 * folder, or null if no user is logged in.
 	 */

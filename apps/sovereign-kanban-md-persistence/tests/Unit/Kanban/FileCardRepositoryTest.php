@@ -180,6 +180,16 @@ final class FileCardRepositoryTest extends TestCase {
         $this->assertSame('02-En cours', $moved->column, 'Frontmatter column should follow the move');
     }
 
+    public function testDeleteByIdRemovesCardFromAnyColumn(): void {
+        $card = Card::create(title: 'Delete me', column: '02-En cours');
+        $this->repo->save($card);
+        $this->assertNotNull($this->repo->findById($card->id));
+
+        $this->repo->deleteById($card->id);
+
+        $this->assertNull($this->repo->findById($card->id));
+    }
+
     protected function tearDown(): void {
         if (is_dir($this->testDir)) {
             system('rm -rf ' . escapeshellarg($this->testDir));

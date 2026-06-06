@@ -150,6 +150,21 @@ final class CardController extends Controller {
 	}
 
 	/**
+	 * Delete a card.
+	 */
+	#[NoAdminRequired]
+	public function destroy(string $boardId, string $cardId): DataResponse {
+		$repository = $this->repository($boardId);
+		if ($repository === null || !$this->validCardId($cardId)) {
+			return new DataResponse(['error' => 'unavailable'], 400);
+		}
+
+		$repository->deleteById($cardId);
+
+		return new DataResponse(['deleted' => true]);
+	}
+
+	/**
 	 * Move a card to another column (drag-drop). toColumn is a clean name.
 	 */
 	#[NoAdminRequired]
