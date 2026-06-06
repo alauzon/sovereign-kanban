@@ -21,7 +21,8 @@ use OCP\IUserSession;
  * REST API for boards.
  *
  * Thin Nextcloud boundary: resolves the current user's Kanban folder on
- * disk, delegates to the pure FileBoardRepository, returns JSON.
+ * disk, delegates to the pure FileBoardRepository, returns JSON. Reads are
+ * CSRF-exempt (browser GET); writes require the request token.
  */
 final class BoardController extends Controller {
 
@@ -35,26 +36,91 @@ final class BoardController extends Controller {
 
 	/**
 	 * List the current user's boards.
-	 *
-	 * @return DataResponse JSON: {"boards": [{id, name, color, columns}, ...]}
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
 	public function index(): DataResponse {
-		$user = $this->userSession->getUser();
-		if ($user === null) {
+		$repository = $this->repository();
+		if ($repository === null) {
 			return new DataResponse(['error' => 'not_logged_in'], 401);
 		}
 
-		$dataDir = (string) $this->config->getSystemValue('datadirectory', '/var/www/nextcloud/data');
-		$kanbanRoot = rtrim($dataDir, '/') . '/' . $user->getUID() . '/files/Kanban';
-
-		$repository = new FileBoardRepository($kanbanRoot);
 		$boards = array_map(
 			static fn (Board $board): array => $board->toArray(),
 			$repository->list(),
 		);
 
 		return new DataResponse(['boards' => $boards]);
+	}
+
+	/**
+	 * Create a board from a name + color.
+	 *
+	 * @param string $name Human name (slugified into a stable id).
+	 * @param string $color Hex color for the board.
+	 */
+	#[NoAdminRequired]
+	public function create(string $name, string $color = '#0082c9'): DataResponse {
+		$repository = $this->repository();
+		if ($repository === null) {
+			return new DataResponse(['error' => 'not_logged_in'], 401);
+		}
+
+		$name = trim($name);
+		if ($name === '') {
+			return new DataResponse(['error' => 'name_required'], 400);
+		}
+
+		$board = Board::create($name, $color);
+		$repository->create($board);
+
+		return new DataResponse(['board' => $board->toArray()], 201);
+	}
+
+	/**
+	 * Update a board's name and/or color. The id (slug) stays stable.
+	 *
+	 * @param string $boardId Board slug (whitelisted to [a-z0-9-]).
+	 */
+	#[NoAdminRequired]
+	public function update(string $boardId, ?string $name = null, ?string $color = null): DataResponse {
+		$repository = $this->repository();
+		if ($repository === null) {
+			return new DataResponse(['error' => 'not_logged_in'], 401);
+		}
+		if (!preg_match('/^[a-z0-9-]+$/', $boardId)) {
+			return new DataResponse(['error' => 'invalid_board_id'], 400);
+		}
+
+		$board = $repository->find($boardId);
+		if ($board === null) {
+			return new DataResponse(['error' => 'board_not_found'], 404);
+		}
+
+		if ($name !== null && trim($name) !== '') {
+			$board = $board->withName(trim($name));
+		}
+		if ($color !== null && $color !== '') {
+			$board = $board->withColor($color);
+		}
+		$repository->save($board);
+
+		return new DataResponse(['board' => $board->toArray()]);
+	}
+
+	/**
+	 * Build a FileBoardRepository rooted at the current user's Kanban
+	 * folder, or null if no user is logged in.
+	 */
+	private function repository(): ?FileBoardRepository {
+		$user = $this->userSession->getUser();
+		if ($user === null) {
+			return null;
+		}
+
+		$dataDir = (string) $this->config->getSystemValue('datadirectory', '/var/www/nextcloud/data');
+		$kanbanRoot = rtrim($dataDir, '/') . '/' . $user->getUID() . '/files/Kanban';
+
+		return new FileBoardRepository($kanbanRoot);
 	}
 }

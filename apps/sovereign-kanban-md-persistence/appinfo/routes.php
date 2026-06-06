@@ -8,6 +8,8 @@
 return [
 	'routes' => [
 		['name' => 'board#index', 'url' => '/api/v1/boards', 'verb' => 'GET'],
+		['name' => 'board#create', 'url' => '/api/v1/boards', 'verb' => 'POST'],
+		['name' => 'board#update', 'url' => '/api/v1/boards/{boardId}', 'verb' => 'PUT'],
 		['name' => 'card#index', 'url' => '/api/v1/boards/{boardId}/cards', 'verb' => 'GET'],
 	],
 ];
