@@ -11,5 +11,8 @@ return [
 		['name' => 'board#create', 'url' => '/api/v1/boards', 'verb' => 'POST'],
 		['name' => 'board#update', 'url' => '/api/v1/boards/{boardId}', 'verb' => 'PUT'],
 		['name' => 'card#index', 'url' => '/api/v1/boards/{boardId}/cards', 'verb' => 'GET'],
+		['name' => 'card#create', 'url' => '/api/v1/boards/{boardId}/cards', 'verb' => 'POST'],
+		['name' => 'card#show', 'url' => '/api/v1/boards/{boardId}/cards/{cardId}', 'verb' => 'GET'],
+		['name' => 'card#update', 'url' => '/api/v1/boards/{boardId}/cards/{cardId}', 'verb' => 'PUT'],
 	],
 ];

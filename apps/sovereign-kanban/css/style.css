@@ -99,3 +99,36 @@
 	width: 40px; height: 34px; padding: 2px; border: 1px solid var(--color-border);
 	border-radius: var(--border-radius, 8px); background: var(--color-main-background); cursor: pointer;
 }
+
+/* Add card */
+.sk-add-card {
+	margin: 0 12px 12px; padding: 6px 10px; text-align: left;
+	border: 1px dashed var(--color-border); border-radius: var(--border-radius, 8px);
+	background: transparent; color: var(--color-text-maxcontrast); cursor: pointer; font-size: 13px;
+}
+.sk-add-card:hover { background: var(--color-background-hover); color: var(--color-main-text); }
+.sk-add-form { display: flex; gap: 6px; padding: 0 12px 12px; }
+.sk-add-form .sk-input { min-width: 0; flex: 1; }
+
+/* Card detail overlay */
+.sk-detail { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center; }
+.sk-detail-backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, .4); }
+.sk-detail-box {
+	position: relative; z-index: 1; width: min(620px, 92vw);
+	background: var(--color-main-background); border-radius: var(--border-radius-large, 12px);
+	box-shadow: 0 8px 30px rgba(0, 0, 0, .25); padding: 24px;
+	display: flex; flex-direction: column; gap: 14px;
+}
+.sk-detail-close {
+	position: absolute; top: 12px; right: 12px; width: 32px; height: 32px;
+	border: none; border-radius: 50%; background: var(--color-background-hover);
+	cursor: pointer; font-size: 14px; color: var(--color-main-text);
+}
+.sk-detail-title { font-size: 18px; font-weight: 600; width: 100%; box-sizing: border-box; }
+.sk-detail-body {
+	min-height: 220px; resize: vertical; padding: 12px; box-sizing: border-box;
+	border: 1px solid var(--color-border); border-radius: var(--border-radius, 8px);
+	background: var(--color-main-background); color: var(--color-main-text);
+	font-family: monospace; font-size: 13px; line-height: 1.5;
+}
+.sk-detail-box .sk-btn-primary { align-self: flex-end; }

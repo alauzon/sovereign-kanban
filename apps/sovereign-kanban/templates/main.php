@@ -4,9 +4,8 @@
  * @copyright 2026 Alain Lauzon
  * @license AGPL-3.0-or-later
  *
- * Main Kanban board shell. The board selector, toolbar, forms and columns
- * are rendered by js/main.js from live data served by the md-persistence
- * backend API.
+ * Main Kanban board shell. The selector, toolbar, forms, columns and card
+ * detail panel are rendered by js/main.js from the md-persistence API.
  */
 
 \OCP\Util::addStyle('sovereign-kanban', 'style');
@@ -32,3 +31,5 @@
 		<p class="sk-loading">Chargement des tableaux…</p>
 	</div>
 </div>
+
+<div id="sk-detail" class="sk-detail" hidden></div>

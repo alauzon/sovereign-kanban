@@ -18,10 +18,10 @@ use OCP\IRequest;
 use OCP\IUserSession;
 
 /**
- * REST API for cards of a board.
+ * REST API for the cards of a board.
  *
  * Thin Nextcloud boundary: resolves the board folder on disk, delegates to
- * the pure FileCardRepository, returns cards grouped by column as JSON.
+ * the pure FileCardRepository. Reads are CSRF-exempt; writes need the token.
  */
 final class CardController extends Controller {
 
@@ -35,30 +35,15 @@ final class CardController extends Controller {
 
 	/**
 	 * List a board's cards, grouped by column.
-	 *
-	 * @param string $boardId Board slug (whitelisted to [a-z0-9-]).
-	 * @return DataResponse JSON: {"cards": {"Backlog": [{id, title, ...}], ...}}
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
 	public function index(string $boardId): DataResponse {
-		$user = $this->userSession->getUser();
-		if ($user === null) {
-			return new DataResponse(['error' => 'not_logged_in'], 401);
+		$repository = $this->repository($boardId);
+		if ($repository === null) {
+			return new DataResponse(['error' => 'unavailable'], 400);
 		}
 
-		// Whitelist the slug — also blocks path traversal (no '/', '..', '.').
-		if (!preg_match('/^[a-z0-9-]+$/', $boardId)) {
-			return new DataResponse(['error' => 'invalid_board_id'], 400);
-		}
-
-		$dataDir = (string) $this->config->getSystemValue('datadirectory', '/var/www/nextcloud/data');
-		$boardDir = rtrim($dataDir, '/') . '/' . $user->getUID() . '/files/Kanban/' . $boardId;
-		if (!is_dir($boardDir)) {
-			return new DataResponse(['error' => 'board_not_found'], 404);
-		}
-
-		$repository = new FileCardRepository($boardDir);
 		$cardsByColumn = [];
 		foreach ($repository->listByColumn() as $column => $cards) {
 			$cardsByColumn[$column] = array_map(
@@ -68,5 +53,119 @@ final class CardController extends Controller {
 		}
 
 		return new DataResponse(['cards' => $cardsByColumn]);
+	}
+
+	/**
+	 * Show a single card, including its description body.
+	 */
+	#[NoAdminRequired]
+	#[NoCSRFRequired]
+	public function show(string $boardId, string $cardId): DataResponse {
+		$repository = $this->repository($boardId);
+		if ($repository === null || !$this->validCardId($cardId)) {
+			return new DataResponse(['error' => 'unavailable'], 400);
+		}
+
+		$card = $repository->findById($cardId);
+		if ($card === null) {
+			return new DataResponse(['error' => 'card_not_found'], 404);
+		}
+
+		return new DataResponse(['card' => $this->detail($card)]);
+	}
+
+	/**
+	 * Create a card in a column (clean column name, mapped to its folder).
+	 */
+	#[NoAdminRequired]
+	public function create(string $boardId, string $title, string $column): DataResponse {
+		$repository = $this->repository($boardId);
+		if ($repository === null) {
+			return new DataResponse(['error' => 'unavailable'], 400);
+		}
+
+		$title = trim($title);
+		if ($title === '') {
+			return new DataResponse(['error' => 'title_required'], 400);
+		}
+
+		$folder = $repository->resolveColumnFolder($column);
+		if ($folder === null) {
+			return new DataResponse(['error' => 'invalid_column'], 400);
+		}
+
+		$card = Card::create($title, $folder);
+		$repository->save($card);
+
+		return new DataResponse(['card' => $this->detail($card)], 201);
+	}
+
+	/**
+	 * Update a card's title and/or description body.
+	 */
+	#[NoAdminRequired]
+	public function update(string $boardId, string $cardId, ?string $title = null, ?string $description = null): DataResponse {
+		$repository = $this->repository($boardId);
+		if ($repository === null || !$this->validCardId($cardId)) {
+			return new DataResponse(['error' => 'unavailable'], 400);
+		}
+
+		$card = $repository->findById($cardId);
+		if ($card === null) {
+			return new DataResponse(['error' => 'card_not_found'], 404);
+		}
+
+		$updated = new Card(
+			id: $card->id,
+			title: ($title !== null && trim($title) !== '') ? trim($title) : $card->title,
+			column: $card->column,
+			description: $description ?? $card->description,
+			created_at: $card->created_at,
+			assignees: $card->assignees,
+		);
+		$repository->update($updated);
+
+		return new DataResponse(['card' => $this->detail($updated)]);
+	}
+
+	/**
+	 * Full card shape for the detail view (includes the description body).
+	 *
+	 * @return array{id: string, title: string, column: string, description: string, assignees: list<string>}
+	 */
+	private function detail(Card $card): array {
+		return [
+			'id' => $card->id,
+			'title' => $card->title,
+			'column' => $card->column,
+			'description' => $card->description,
+			'assignees' => array_values($card->assignees),
+		];
+	}
+
+	/**
+	 * A card id is a UUID — whitelist blocks path traversal.
+	 */
+	private function validCardId(string $cardId): bool {
+		return (bool) preg_match('/^[0-9a-fA-F-]+$/', $cardId);
+	}
+
+	/**
+	 * Build a FileCardRepository rooted at a board folder, or null if the
+	 * user is absent, the board id is invalid, or the board does not exist.
+	 */
+	private function repository(string $boardId): ?FileCardRepository {
+		$user = $this->userSession->getUser();
+		if ($user === null || !preg_match('/^[a-z0-9-]+$/', $boardId)) {
+			return null;
+		}
+
+		$dataDir = (string) $this->config->getSystemValue('datadirectory', '/var/www/nextcloud/data');
+		$boardDir = rtrim($dataDir, '/') . '/' . $user->getUID() . '/files/Kanban/' . $boardId;
+		if (!is_dir($boardDir)) {
+			return null;
+		}
+
+		return new FileCardRepository($boardDir);
 	}
 }

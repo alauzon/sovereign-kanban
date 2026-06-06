@@ -114,6 +114,45 @@ final class FileCardRepositoryTest extends TestCase {
         $this->assertSame([], $byColumn['En cours']);
     }
 
+    public function testResolveColumnFolderMapsCleanNameToPrefixedFolder(): void {
+        // setUp created '01-Backlog' and '02-En cours'.
+        $this->assertSame('01-Backlog', $this->repo->resolveColumnFolder('Backlog'));
+        $this->assertSame('02-En cours', $this->repo->resolveColumnFolder('En cours'));
+        $this->assertNull($this->repo->resolveColumnFolder('Inexistante'));
+    }
+
+    public function testFindByIdReturnsCardFromAnyColumn(): void {
+        $card = Card::create(title: 'Find me', column: '02-En cours');
+        $this->repo->save($card);
+
+        $found = $this->repo->findById($card->id);
+
+        $this->assertInstanceOf(Card::class, $found);
+        $this->assertSame('Find me', $found->title);
+        $this->assertSame('02-En cours', $found->column);
+        $this->assertNull($this->repo->findById('00000000-no-such-card'));
+    }
+
+    public function testUpdateRewritesCardInPlacePreservingId(): void {
+        $card = Card::create(title: 'Original', column: '01-Backlog');
+        $this->repo->save($card);
+
+        $updated = new Card(
+            id: $card->id,
+            title: 'Edited title',
+            column: '01-Backlog',
+            description: 'New body text',
+            created_at: $card->created_at,
+            assignees: [],
+        );
+        $this->repo->update($updated);
+
+        $found = $this->repo->findById($card->id);
+        $this->assertSame('Edited title', $found->title);
+        $this->assertSame('New body text', $found->description);
+        $this->assertSame($card->id, $found->id);
+    }
+
     protected function tearDown(): void {
         if (is_dir($this->testDir)) {
             system('rm -rf ' . escapeshellarg($this->testDir));

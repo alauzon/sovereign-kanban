@@ -68,6 +68,53 @@ final class FileCardRepository {
 	}
 
 	/**
+	 * Resolve a clean column name to its NN-prefixed folder name.
+	 *
+	 * The UI works with clean names ('Backlog'); on disk the folders are
+	 * ordered with a numeric prefix ('01-Backlog'). Returns null if no
+	 * matching column folder exists.
+	 */
+	public function resolveColumnFolder(string $cleanName): ?string {
+		foreach (glob($this->baseDir . '/*', GLOB_ONLYDIR) ?: [] as $columnDir) {
+			if (preg_replace('/^\d+-/', '', basename($columnDir)) === $cleanName) {
+				return basename($columnDir);
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Find a card by id across all columns, or null if absent.
+	 */
+	public function findById(string $cardId): ?Card {
+		foreach (glob($this->baseDir . '/*', GLOB_ONLYDIR) ?: [] as $columnDir) {
+			$cardDir = $this->findCardDir($columnDir, $cardId);
+			if ($cardDir !== null && is_file($cardDir . '/card.md')) {
+				return Card::fromMarkdown(file_get_contents($cardDir . '/card.md'));
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Rewrite an existing card's card.md in place.
+	 *
+	 * Keeps the card directory (id prefix is stable); only the file content
+	 * changes. Throws if the card is not found in its column.
+	 */
+	public function update(Card $card): void {
+		$cardDir = $this->findCardDir($this->baseDir . '/' . $card->column, $card->id);
+		if ($cardDir === null) {
+			throw new \RuntimeException('Card not found: ' . $card->id);
+		}
+
+		$content = $card->toYAMLFrontmatter() . "\n\n" . $card->description;
+		file_put_contents($cardDir . '/card.md', $content);
+	}
+
+	/**
 	 * Move a card from one column to another.
 	 *
 	 * Preserves UUID and directory name.

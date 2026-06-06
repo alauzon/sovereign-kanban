@@ -2,9 +2,8 @@
  * @copyright 2026 Alain Lauzon
  * @license AGPL-3.0-or-later
  *
- * Loads boards and their cards from the md-persistence backend, renders them
- * live, and lets the user create / edit boards. Cards CRUD and drag-drop come
- * next.
+ * Sovereign Kanban frontend: boards (list/create/edit) + cards (list/create/
+ * edit). Comments, column management and drag-drop come next.
  */
 
 (function () {
@@ -19,7 +18,8 @@
 		return (window.OC && OC.generateUrl) ? OC.generateUrl(BOARDS_PATH) : BOARDS_PATH;
 	}
 	function boardUrl(id) { return boardsUrl() + '/' + encodeURIComponent(id); }
-	function cardsUrl(id) { return boardUrl(id) + '/cards'; }
+	function cardsUrl(boardId) { return boardUrl(boardId) + '/cards'; }
+	function cardUrl(boardId, cardId) { return cardsUrl(boardId) + '/' + encodeURIComponent(cardId); }
 	function token() { return (window.OC && OC.requestToken) ? OC.requestToken : ''; }
 
 	function el(tag, className, text) {
@@ -38,28 +38,75 @@
 		return fetch(url, opts);
 	}
 
+	function currentBoard() {
+		return boards.find(function (b) { return b.id === currentId; }) || null;
+	}
+
+	/* ---- Columns + cards ---- */
+
 	function renderColumns(board, cardsByColumn) {
 		const boardEl = document.getElementById('sk-board');
 		boardEl.innerHTML = '';
 		(board.columns || []).forEach(function (name) {
 			const cards = (cardsByColumn && cardsByColumn[name]) || [];
 			const col = el('section', 'sk-column');
+
 			const head = el('div', 'sk-column-head');
 			head.appendChild(el('span', null, name));
 			head.appendChild(el('span', 'sk-count', String(cards.length)));
 			col.appendChild(head);
+
 			const cardsEl = el('div', 'sk-cards');
 			cards.forEach(function (card) {
 				const art = el('article', 'sk-card');
 				art.appendChild(el('h3', null, card.title));
+				art.addEventListener('click', function () { openCard(card.id); });
 				cardsEl.appendChild(art);
 			});
 			col.appendChild(cardsEl);
+
+			const add = el('button', 'sk-add-card', '+ Carte');
+			add.addEventListener('click', function () { showAddCard(col, name); });
+			col.appendChild(add);
+
 			boardEl.appendChild(col);
 		});
 	}
 
+	function showAddCard(colEl, columnName) {
+		if (colEl.querySelector('.sk-add-form')) {
+			colEl.querySelector('.sk-add-form input').focus();
+			return;
+		}
+		const form = el('div', 'sk-add-form');
+		const input = el('input', 'sk-input');
+		input.type = 'text';
+		input.placeholder = 'Titre de la carte';
+		const submit = el('button', 'sk-btn sk-btn-primary', 'Ajouter');
+
+		const doAdd = async function () {
+			const title = input.value.trim();
+			if (!title) { input.focus(); return; }
+			submit.disabled = true;
+			const res = await api('POST', cardsUrl(currentId), { title: title, column: columnName });
+			if (res.ok) {
+				loadCards(currentBoard());
+			} else {
+				submit.disabled = false;
+				window.alert('Erreur ' + res.status);
+			}
+		};
+		submit.addEventListener('click', doAdd);
+		input.addEventListener('keydown', function (e) { if (e.key === 'Enter') doAdd(); });
+
+		form.appendChild(input);
+		form.appendChild(submit);
+		colEl.appendChild(form);
+		input.focus();
+	}
+
 	async function loadCards(board) {
+		if (!board) return;
 		let cardsByColumn = {};
 		try {
 			const res = await api('GET', cardsUrl(board.id));
@@ -70,6 +117,62 @@
 		} catch (e) { /* keep empty columns */ }
 		renderColumns(board, cardsByColumn);
 	}
+
+	/* ---- Card detail / edit ---- */
+
+	async function openCard(cardId) {
+		const res = await api('GET', cardUrl(currentId, cardId));
+		if (!res.ok) { window.alert('Erreur ' + res.status); return; }
+		const data = await res.json();
+		renderDetail(data.card);
+	}
+
+	function renderDetail(card) {
+		const panel = document.getElementById('sk-detail');
+		panel.hidden = false;
+		panel.innerHTML = '';
+
+		const backdrop = el('div', 'sk-detail-backdrop');
+		backdrop.addEventListener('click', function () { panel.hidden = true; });
+
+		const box = el('div', 'sk-detail-box');
+		const close = el('button', 'sk-detail-close', '✕');
+		close.addEventListener('click', function () { panel.hidden = true; });
+
+		const titleInput = el('input', 'sk-input sk-detail-title');
+		titleInput.type = 'text';
+		titleInput.value = card.title;
+
+		const bodyArea = el('textarea', 'sk-detail-body');
+		bodyArea.value = card.description || '';
+		bodyArea.placeholder = 'Description (Markdown)…';
+
+		const save = el('button', 'sk-btn sk-btn-primary', 'Enregistrer');
+		save.addEventListener('click', async function () {
+			save.disabled = true;
+			const res = await api('PUT', cardUrl(currentId, card.id), {
+				title: titleInput.value.trim(),
+				description: bodyArea.value,
+			});
+			if (res.ok) {
+				panel.hidden = true;
+				loadCards(currentBoard());
+			} else {
+				save.disabled = false;
+				window.alert('Erreur ' + res.status);
+			}
+		});
+
+		box.appendChild(close);
+		box.appendChild(titleInput);
+		box.appendChild(bodyArea);
+		box.appendChild(save);
+		panel.appendChild(backdrop);
+		panel.appendChild(box);
+		titleInput.focus();
+	}
+
+	/* ---- Board selector + create/edit ---- */
 
 	function renderSelector() {
 		const nav = document.getElementById('sk-boards');
@@ -89,14 +192,14 @@
 	function select(id) {
 		currentId = id;
 		renderSelector();
-		const board = boards.find(function (b) { return b.id === id; });
+		const board = currentBoard();
 		if (board) {
 			renderColumns(board, {});
 			loadCards(board);
 		}
 	}
 
-	function showForm(mode, board) {
+	function showBoardForm(mode, board) {
 		const form = document.getElementById('sk-form');
 		form.hidden = false;
 		form.innerHTML = '';
@@ -161,11 +264,11 @@
 
 	function init() {
 		document.getElementById('sk-new-board').addEventListener('click', function () {
-			showForm('create', null);
+			showBoardForm('create', null);
 		});
 		document.getElementById('sk-edit-board').addEventListener('click', function () {
-			const board = boards.find(function (b) { return b.id === currentId; });
-			if (board) showForm('edit', board);
+			const board = currentBoard();
+			if (board) showBoardForm('edit', board);
 		});
 		reload(null).catch(function (e) {
 			showMessage('Impossible de joindre l’API : ' + e.message);
