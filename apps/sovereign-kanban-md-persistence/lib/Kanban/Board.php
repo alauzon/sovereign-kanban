@@ -73,6 +73,20 @@ final class Board {
 	}
 
 	/**
+	 * Shape the board for the JSON API (frontend consumption).
+	 *
+	 * @return array{id: string, name: string, color: string, columns: list<string>}
+	 */
+	public function toArray(): array {
+		return [
+			'id' => $this->id,
+			'name' => $this->name,
+			'color' => $this->color,
+			'columns' => array_values($this->columns),
+		];
+	}
+
+	/**
 	 * Serialize board config as YAML for .board.yml.
 	 */
 	public function toYaml(): string {

@@ -1,0 +1,28 @@
+{
+    "name": "sovereign-kanban/md-persistence-app",
+    "description": "Sovereign Kanban — file-based persistence backend (Nextcloud app)",
+    "type": "nextcloud-app",
+    "license": "AGPL-3.0-or-later",
+    "authors": [
+        {
+            "name": "Alain Lauzon",
+            "email": "alauzon@alainlauzon.com"
+        }
+    ],
+    "require": {
+        "php": ">=8.1",
+        "ramsey/uuid": "^4.7",
+        "symfony/yaml": "^6.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "OCA\\SovereignKanbanMdPersistence\\": "lib/"
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "platform": {
+            "php": "8.3"
+        }
+    }
+}

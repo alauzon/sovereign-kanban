@@ -75,4 +75,23 @@ final class BoardTest extends TestCase {
 		$this->assertSame('Projets SdP', $recolored->name);
 		$this->assertSame('#e85444', $board->color);
 	}
+
+	public function testToArrayShapesBoardForTheApi(): void {
+		$board = new Board(
+			id: 'projets-sdp',
+			name: 'Projets SdP',
+			color: '#e85444',
+			columns: ['Backlog', 'En cours'],
+		);
+
+		$this->assertSame(
+			[
+				'id' => 'projets-sdp',
+				'name' => 'Projets SdP',
+				'color' => '#e85444',
+				'columns' => ['Backlog', 'En cours'],
+			],
+			$board->toArray(),
+		);
+	}
 }
