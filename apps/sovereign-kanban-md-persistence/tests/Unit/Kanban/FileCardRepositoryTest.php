@@ -88,6 +88,32 @@ final class FileCardRepositoryTest extends TestCase {
         $this->assertCount(0, $dir, "Card directory should be deleted");
     }
 
+    public function testListByColumnGroupsCardsUnderCleanColumnNames(): void {
+        $this->repo->save(Card::create(title: 'First', column: '01-Backlog'));
+        $this->repo->save(Card::create(title: 'Second', column: '01-Backlog'));
+        $this->repo->save(Card::create(title: 'Third', column: '02-En cours'));
+
+        $byColumn = $this->repo->listByColumn();
+
+        // Keys are clean column names (NN- prefix stripped).
+        $this->assertArrayHasKey('Backlog', $byColumn);
+        $this->assertArrayHasKey('En cours', $byColumn);
+        $this->assertCount(2, $byColumn['Backlog']);
+        $this->assertCount(1, $byColumn['En cours']);
+        $this->assertContainsOnlyInstancesOf(Card::class, $byColumn['Backlog']);
+
+        $titles = array_map(static fn (Card $c) => $c->title, $byColumn['Backlog']);
+        sort($titles);
+        $this->assertSame(['First', 'Second'], $titles);
+    }
+
+    public function testListByColumnReturnsEmptyArraysForEmptyColumns(): void {
+        $byColumn = $this->repo->listByColumn();
+
+        $this->assertSame([], $byColumn['Backlog']);
+        $this->assertSame([], $byColumn['En cours']);
+    }
+
     protected function tearDown(): void {
         if (is_dir($this->testDir)) {
             system('rm -rf ' . escapeshellarg($this->testDir));

@@ -2,18 +2,21 @@
  * @copyright 2026 Alain Lauzon
  * @license AGPL-3.0-or-later
  *
- * Loads boards from the md-persistence backend and renders them live.
- * Cards are not fetched yet (a cards endpoint comes next); columns render
- * empty for now.
+ * Loads boards and their cards from the md-persistence backend and renders
+ * them live. Drag-drop and card editing come next.
  */
 
 (function () {
 	'use strict';
 
-	const API_PATH = '/apps/sovereign-kanban-md-persistence/api/v1/boards';
+	const BOARDS_PATH = '/apps/sovereign-kanban-md-persistence/api/v1/boards';
 
-	function apiUrl() {
-		return (window.OC && OC.generateUrl) ? OC.generateUrl(API_PATH) : API_PATH;
+	function boardsUrl() {
+		return (window.OC && OC.generateUrl) ? OC.generateUrl(BOARDS_PATH) : BOARDS_PATH;
+	}
+
+	function cardsUrl(boardId) {
+		return boardsUrl() + '/' + encodeURIComponent(boardId) + '/cards';
 	}
 
 	function el(tag, className, text) {
@@ -23,16 +26,24 @@
 		return node;
 	}
 
-	function renderColumns(board) {
+	function renderColumns(board, cardsByColumn) {
 		const boardEl = document.getElementById('sk-board');
 		boardEl.innerHTML = '';
 		(board.columns || []).forEach(function (name) {
+			const cards = (cardsByColumn && cardsByColumn[name]) || [];
 			const col = el('section', 'sk-column');
 			const head = el('div', 'sk-column-head');
 			head.appendChild(el('span', null, name));
-			head.appendChild(el('span', 'sk-count', '0'));
+			head.appendChild(el('span', 'sk-count', String(cards.length)));
 			col.appendChild(head);
-			col.appendChild(el('div', 'sk-cards'));
+
+			const cardsEl = el('div', 'sk-cards');
+			cards.forEach(function (card) {
+				const art = el('article', 'sk-card');
+				art.appendChild(el('h3', null, card.title));
+				cardsEl.appendChild(art);
+			});
+			col.appendChild(cardsEl);
 			boardEl.appendChild(col);
 		});
 	}
@@ -52,13 +63,28 @@
 	}
 
 	function showMessage(msg) {
-		document.getElementById('sk-board').innerHTML = '';
-		document.getElementById('sk-board').appendChild(el('p', 'sk-loading', msg));
+		const boardEl = document.getElementById('sk-board');
+		boardEl.innerHTML = '';
+		boardEl.appendChild(el('p', 'sk-loading', msg));
+	}
+
+	async function loadCards(board) {
+		let cardsByColumn = {};
+		try {
+			const res = await fetch(cardsUrl(board.id), { headers: { 'OCS-APIRequest': 'true' } });
+			if (res.ok) {
+				const data = await res.json();
+				cardsByColumn = data.cards || {};
+			}
+		} catch (e) {
+			// Keep the empty columns already shown.
+		}
+		renderColumns(board, cardsByColumn);
 	}
 
 	async function load() {
 		try {
-			const res = await fetch(apiUrl(), { headers: { 'OCS-APIRequest': 'true' } });
+			const res = await fetch(boardsUrl(), { headers: { 'OCS-APIRequest': 'true' } });
 			if (!res.ok) {
 				showMessage('Erreur ' + res.status + ' au chargement des tableaux.');
 				return;
@@ -70,13 +96,12 @@
 				showMessage('Aucun tableau. Crée un dossier sous Files/Kanban/ pour commencer.');
 				return;
 			}
-			let current = boards[0];
 			const select = function (board) {
-				current = board;
-				renderSelector(boards, current.id, select);
-				renderColumns(current);
+				renderSelector(boards, board.id, select);
+				renderColumns(board, {});
+				loadCards(board);
 			};
-			select(current);
+			select(boards[0]);
 		} catch (e) {
 			showMessage('Impossible de joindre l’API : ' + e.message);
 		}

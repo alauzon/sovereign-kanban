@@ -42,6 +42,32 @@ final class FileCardRepository {
 	}
 
 	/**
+	 * List all cards grouped by column.
+	 *
+	 * Scans each column folder under baseDir, reads every card.md, and
+	 * groups the cards by clean column name (NN- prefix stripped). Empty
+	 * columns map to an empty array.
+	 *
+	 * @return array<string, Card[]>
+	 */
+	public function listByColumn(): array {
+		$result = [];
+		foreach (glob($this->baseDir . '/*', GLOB_ONLYDIR) ?: [] as $columnDir) {
+			$cleanName = preg_replace('/^\d+-/', '', basename($columnDir));
+			$cards = [];
+			foreach (glob($columnDir . '/*', GLOB_ONLYDIR) ?: [] as $cardDir) {
+				$cardFile = $cardDir . '/card.md';
+				if (is_file($cardFile)) {
+					$cards[] = Card::fromMarkdown(file_get_contents($cardFile));
+				}
+			}
+			$result[$cleanName] = $cards;
+		}
+
+		return $result;
+	}
+
+	/**
 	 * Move a card from one column to another.
 	 *
 	 * Preserves UUID and directory name.

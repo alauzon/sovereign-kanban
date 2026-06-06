@@ -12,6 +12,7 @@ namespace OCA\SovereignKanbanMdPersistence\Kanban;
 
 use Ramsey\Uuid\Uuid;
 use DateTime;
+use Symfony\Component\Yaml\Yaml;
 
 /**
  * Immutable Card value object.
@@ -39,6 +40,60 @@ final class Card {
 			title: $title,
 			column: $column,
 		);
+	}
+
+	/**
+	 * Rebuild a Card from a card.md file's content.
+	 *
+	 * Splits the YAML frontmatter (between --- markers) from the Markdown
+	 * body; the body becomes the description.
+	 */
+	public static function fromMarkdown(string $content): self {
+		if (preg_match('/^---\R(.*?)\R---\R?(.*)$/s', $content, $matches)) {
+			$frontmatter = Yaml::parse($matches[1]) ?? [];
+			$body = ltrim($matches[2], "\r\n");
+		} else {
+			$frontmatter = [];
+			$body = $content;
+		}
+
+		return new self(
+			id: (string) ($frontmatter['id'] ?? ''),
+			title: (string) ($frontmatter['title'] ?? ''),
+			column: (string) ($frontmatter['column'] ?? ''),
+			description: $body,
+			created_at: self::parseCreatedAt($frontmatter['created_at'] ?? null),
+			assignees: $frontmatter['assignees'] ?? [],
+		);
+	}
+
+	/**
+	 * Parse a created_at value that YAML may give us as an ISO string or,
+	 * for timestamps, as a Unix epoch integer.
+	 */
+	private static function parseCreatedAt(mixed $raw): DateTime {
+		if ($raw === null || $raw === '') {
+			return new DateTime();
+		}
+		if (is_int($raw)) {
+			return (new DateTime())->setTimestamp($raw);
+		}
+
+		return new DateTime((string) $raw);
+	}
+
+	/**
+	 * Shape the card for the JSON API (frontend consumption).
+	 *
+	 * @return array{id: string, title: string, column: string, assignees: list<string>}
+	 */
+	public function toArray(): array {
+		return [
+			'id' => $this->id,
+			'title' => $this->title,
+			'column' => $this->column,
+			'assignees' => array_values($this->assignees),
+		];
 	}
 
 	/**

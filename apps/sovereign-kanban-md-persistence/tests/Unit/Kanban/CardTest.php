@@ -69,4 +69,63 @@ final class CardTest extends TestCase {
         $this->assertArrayHasKey('column', $parsed);
         $this->assertArrayHasKey('created_at', $parsed);
     }
+
+    public function testFromMarkdownParsesFrontmatterAndBody(): void {
+        $content = "---\n"
+            . "id: abc-123\n"
+            . "title: Configurer le mail\n"
+            . "column: 01-Backlog\n"
+            . "created_at: 2026-06-05T10:00:00Z\n"
+            . "assignees:\n  - alain\n"
+            . "---\n\n"
+            . "Intégrer SMTP et tester l'envoi.";
+
+        $card = Card::fromMarkdown($content);
+
+        $this->assertSame('abc-123', $card->id);
+        $this->assertSame('Configurer le mail', $card->title);
+        $this->assertSame('01-Backlog', $card->column);
+        $this->assertSame("Intégrer SMTP et tester l'envoi.", $card->description);
+        $this->assertSame(['alain'], $card->assignees);
+    }
+
+    public function testFromMarkdownRoundTripsToYAMLFrontmatter(): void {
+        $original = new Card(
+            id: 'rt-1',
+            title: 'Round trip',
+            column: '02-En cours',
+            description: 'Body text',
+            created_at: new \DateTime('2026-06-05T10:00:00Z'),
+            assignees: ['alain', 'steve'],
+        );
+
+        $reparsed = Card::fromMarkdown($original->toYAMLFrontmatter() . "\n\n" . $original->description);
+
+        $this->assertSame($original->id, $reparsed->id);
+        $this->assertSame($original->title, $reparsed->title);
+        $this->assertSame($original->column, $reparsed->column);
+        $this->assertSame($original->description, $reparsed->description);
+        $this->assertSame($original->assignees, $reparsed->assignees);
+    }
+
+    public function testToArrayShapesCardForTheApi(): void {
+        $card = new Card(
+            id: 'abc',
+            title: 'Task',
+            column: '01-Backlog',
+            description: 'desc',
+            created_at: new \DateTime('2026-06-05T10:00:00Z'),
+            assignees: ['alain', 'steve'],
+        );
+
+        $this->assertSame(
+            [
+                'id' => 'abc',
+                'title' => 'Task',
+                'column' => '01-Backlog',
+                'assignees' => ['alain', 'steve'],
+            ],
+            $card->toArray(),
+        );
+    }
 }
