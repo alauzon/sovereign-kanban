@@ -173,6 +173,22 @@ final class FileCardRepository {
 
 		$toDir = $this->baseDir . '/' . $toColumn . '/' . basename($fromDir);
 		rename($fromDir, $toDir);
+
+		// Keep the card's frontmatter column in sync with its new folder.
+		$cardFile = $toDir . '/card.md';
+		if (is_file($cardFile)) {
+			$card = Card::fromMarkdown(file_get_contents($cardFile));
+			$moved = new Card(
+				id: $card->id,
+				title: $card->title,
+				column: $toColumn,
+				description: $card->description,
+				created_at: $card->created_at,
+				assignees: $card->assignees,
+				due_date: $card->due_date,
+			);
+			file_put_contents($cardFile, $moved->toYAMLFrontmatter() . "\n\n" . $moved->description);
+		}
 	}
 
 	/**

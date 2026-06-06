@@ -150,6 +150,33 @@ final class CardController extends Controller {
 	}
 
 	/**
+	 * Move a card to another column (drag-drop). toColumn is a clean name.
+	 */
+	#[NoAdminRequired]
+	public function move(string $boardId, string $cardId, string $toColumn): DataResponse {
+		$repository = $this->repository($boardId);
+		if ($repository === null || !$this->validCardId($cardId)) {
+			return new DataResponse(['error' => 'unavailable'], 400);
+		}
+
+		$card = $repository->findById($cardId);
+		if ($card === null) {
+			return new DataResponse(['error' => 'card_not_found'], 404);
+		}
+
+		$targetFolder = $repository->resolveColumnFolder($toColumn);
+		if ($targetFolder === null) {
+			return new DataResponse(['error' => 'invalid_column'], 400);
+		}
+
+		if ($targetFolder !== $card->column) {
+			$repository->moveCard($cardId, $card->column, $targetFolder);
+		}
+
+		return new DataResponse(['card' => $this->detail($repository->findById($cardId))]);
+	}
+
+	/**
 	 * List a card's comments.
 	 */
 	#[NoAdminRequired]

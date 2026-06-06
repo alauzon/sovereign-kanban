@@ -34,6 +34,8 @@
 	transition: box-shadow .15s, transform .15s;
 }
 .sk-card:hover { box-shadow: 0 3px 8px rgba(0, 0, 0, .12); transform: translateY(-1px); }
+.sk-card.sk-dragging { opacity: .4; }
+.sk-column.sk-dragover { outline: 2px dashed var(--color-primary-element); outline-offset: -2px; }
 .sk-card h3 { margin: 0 0 8px; font-size: 14px; font-weight: 500; }
 .sk-card.sk-done h3 { text-decoration: line-through; color: var(--color-text-maxcontrast); }
 .sk-labels { display: flex; flex-wrap: wrap; gap: 5px; }

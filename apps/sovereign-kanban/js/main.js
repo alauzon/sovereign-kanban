@@ -51,6 +51,15 @@
 		(board.columns || []).forEach(function (name) {
 			const cards = (cardsByColumn && cardsByColumn[name]) || [];
 			const col = el('section', 'sk-column');
+			col.dataset.column = name;
+			col.addEventListener('dragover', function (e) { e.preventDefault(); col.classList.add('sk-dragover'); });
+			col.addEventListener('dragleave', function () { col.classList.remove('sk-dragover'); });
+			col.addEventListener('drop', function (e) {
+				e.preventDefault();
+				col.classList.remove('sk-dragover');
+				const cardId = e.dataTransfer.getData('text/plain');
+				if (cardId) moveCardTo(cardId, name);
+			});
 
 			const head = el('div', 'sk-column-head');
 			head.appendChild(el('span', null, name));
@@ -60,6 +69,13 @@
 			const cardsEl = el('div', 'sk-cards');
 			cards.forEach(function (card) {
 				const art = el('article', 'sk-card');
+				art.draggable = true;
+				art.addEventListener('dragstart', function (e) {
+					e.dataTransfer.setData('text/plain', card.id);
+					e.dataTransfer.effectAllowed = 'move';
+					art.classList.add('sk-dragging');
+				});
+				art.addEventListener('dragend', function () { art.classList.remove('sk-dragging'); });
 				art.appendChild(el('h3', null, card.title));
 				const assignees = card.assignees || [];
 				if (card.due_date || assignees.length) {
@@ -128,6 +144,12 @@
 			}
 		} catch (e) { /* keep empty columns */ }
 		renderColumns(board, cardsByColumn);
+	}
+
+	async function moveCardTo(cardId, toColumn) {
+		const res = await api('PUT', cardUrl(currentId, cardId) + '/move', { toColumn: toColumn });
+		if (!res.ok) { window.alert('Erreur ' + res.status); }
+		loadCards(currentBoard());
 	}
 
 	/* ---- Card detail / edit ---- */

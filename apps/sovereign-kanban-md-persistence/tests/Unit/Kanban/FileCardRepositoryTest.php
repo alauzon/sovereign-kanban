@@ -170,6 +170,16 @@ final class FileCardRepositoryTest extends TestCase {
         $this->assertSame("Deuxième\nsur deux lignes", $list[1]->body);
     }
 
+    public function testMoveCardUpdatesFrontmatterColumn(): void {
+        $card = Card::create(title: 'Mover', column: '01-Backlog');
+        $this->repo->save($card);
+
+        $this->repo->moveCard($card->id, '01-Backlog', '02-En cours');
+
+        $moved = $this->repo->findById($card->id);
+        $this->assertSame('02-En cours', $moved->column, 'Frontmatter column should follow the move');
+    }
+
     protected function tearDown(): void {
         if (is_dir($this->testDir)) {
             system('rm -rf ' . escapeshellarg($this->testDir));
