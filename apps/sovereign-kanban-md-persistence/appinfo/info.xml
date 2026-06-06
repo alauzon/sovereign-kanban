@@ -4,7 +4,7 @@
 	<name>Sovereign Kanban — Persistence</name>
 	<summary>File-based persistence backend for Sovereign Kanban</summary>
 	<description>Reads and writes Kanban boards and cards as flat Markdown files (.md with YAML frontmatter) and .board.yml in Nextcloud Files. Exposes a REST API consumed by the Sovereign Kanban UI. The data is never owned by a proprietary table.</description>
-	<version>1.0.7</version>
+	<version>1.0.8</version>
 	<licence>AGPL-3.0-or-later</licence>
 	<author>Alain Lauzon</author>
 	<namespace>SovereignKanbanMdPersistence</namespace>

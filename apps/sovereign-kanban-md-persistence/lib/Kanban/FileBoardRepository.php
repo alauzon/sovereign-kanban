@@ -2,7 +2,7 @@
 
 /**
  * @file
- * FileBoardRepository — File-based persistence for boards.
+ * FileBoardRepository — persistence for boards via a Storage abstraction.
  *
  * @author Alain Lauzon <alauzon@alainlauzon.com>
  * @generated Claude (Opus 4.8)
@@ -10,89 +10,77 @@
 
 namespace OCA\SovereignKanbanMdPersistence\Kanban;
 
+use OCA\SovereignKanbanMdPersistence\Storage\Storage;
 use DateTime;
 use Symfony\Component\Yaml\Yaml;
 
 /**
- * Repository for boards stored as directories under the Kanban root.
+ * Repository for boards, rooted at the Kanban root Storage.
  *
- * Directory layout:
- *   {rootDir}/{board-slug}/.board.yml
- *   {rootDir}/{board-slug}/01-Backlog/  02-En cours/  ...
+ * Layout (relative to the Kanban root):
+ *   {board-slug}/.board.yml
+ *   {board-slug}/01-Backlog/  02-En cours/  ...
  *
- * The board id (slug) is the folder name and stays stable, so a rename
- * only rewrites .board.yml — the folder never moves.
+ * The board id (slug) is the folder name and stays stable; a rename only
+ * rewrites .board.yml. The Storage decides raw-filesystem (tests) vs the
+ * Nextcloud Files API (production).
  */
 final class FileBoardRepository {
 
 	public function __construct(
-		private string $rootDir,
+		private readonly Storage $storage,
 	) {
 	}
 
 	/**
-	 * Create a board: its folder, .board.yml, and numbered column folders.
+	 * Create a board: its .board.yml and numbered column folders.
 	 */
 	public function create(Board $board): void {
-		$dir = $this->boardDir($board->id);
-		if (!is_dir($dir)) {
-			mkdir($dir, 0755, true);
-		}
-
-		file_put_contents($dir . '/.board.yml', $board->toYaml());
-
+		$this->storage->write($board->id . '/.board.yml', $board->toYaml());
 		foreach (array_values($board->columns) as $index => $name) {
-			$columnDir = sprintf('%s/%02d-%s', $dir, $index + 1, $name);
-			if (!is_dir($columnDir)) {
-				mkdir($columnDir, 0755, true);
-			}
+			$this->storage->makeDir(sprintf('%s/%02d-%s', $board->id, $index + 1, $name));
 		}
 	}
 
 	/**
-	 * Persist board config changes (rename, recolor).
-	 *
-	 * Only rewrites .board.yml; the folder is keyed by the stable slug.
+	 * Persist board config changes (rename, recolor) — .board.yml only.
 	 */
 	public function save(Board $board): void {
-		$dir = $this->boardDir($board->id);
-		if (!is_dir($dir)) {
-			mkdir($dir, 0755, true);
-		}
-
-		file_put_contents($dir . '/.board.yml', $board->toYaml());
+		$this->storage->write($board->id . '/.board.yml', $board->toYaml());
 	}
 
 	/**
-	 * List all boards found under the root.
+	 * List all boards.
 	 *
 	 * @return Board[]
 	 */
 	public function list(): array {
 		$boards = [];
-		foreach (glob($this->rootDir . '/*/.board.yml') as $ymlFile) {
-			$boards[] = $this->loadFromYml($ymlFile);
+		foreach ($this->storage->childDirectories('') as $slug) {
+			$yml = $slug . '/.board.yml';
+			if ($this->storage->exists($yml)) {
+				$boards[] = $this->loadFromYml($this->storage->read($yml));
+			}
 		}
 
 		return $boards;
 	}
 
 	/**
-	 * Load a single board by id (slug), or null if it does not exist.
+	 * Load a single board by id (slug), or null.
 	 */
 	public function find(string $id): ?Board {
-		$ymlFile = $this->boardDir($id) . '/.board.yml';
+		$yml = $id . '/.board.yml';
 
-		return is_file($ymlFile) ? $this->loadFromYml($ymlFile) : null;
+		return $this->storage->exists($yml) ? $this->loadFromYml($this->storage->read($yml)) : null;
 	}
 
 	/**
 	 * Delete a board and its entire folder.
 	 */
 	public function delete(string $id): void {
-		$dir = $this->boardDir($id);
-		if (is_dir($dir)) {
-			$this->removeRecursive($dir);
+		if ($this->storage->exists($id)) {
+			$this->storage->delete($id);
 		}
 	}
 
@@ -108,12 +96,8 @@ final class FileBoardRepository {
 		$updated = $board->addColumn($name);
 		$this->save($updated);
 
-		$dir = $this->boardDir($boardId);
-		$index = count(glob($dir . '/*', GLOB_ONLYDIR) ?: []) + 1;
-		$columnDir = sprintf('%s/%02d-%s', $dir, $index, $name);
-		if (!is_dir($columnDir)) {
-			mkdir($columnDir, 0755, true);
-		}
+		$index = count($this->storage->childDirectories($boardId)) + 1;
+		$this->storage->makeDir(sprintf('%s/%02d-%s', $boardId, $index, $name));
 
 		return $updated;
 	}
@@ -131,14 +115,13 @@ final class FileBoardRepository {
 		$updated = $board->renameColumn($from, $to);
 		$this->save($updated);
 
-		$dir = $this->boardDir($boardId);
-		$fromDir = $this->columnFolderPath($dir, $from);
-		if ($fromDir !== null) {
-			$prefix = preg_match('/^(\d+-)/', basename($fromDir), $m) ? $m[1] : '';
-			$toDir = $dir . '/' . $prefix . $to;
-			if ($fromDir !== $toDir) {
-				rename($fromDir, $toDir);
-				$this->resyncCardColumns($toDir);
+		$fromFolder = $this->columnFolder($boardId, $from);
+		if ($fromFolder !== null) {
+			$prefix = preg_match('/^(\d+-)/', $fromFolder, $m) ? $m[1] : '';
+			$toFolder = $prefix . $to;
+			if ($fromFolder !== $toFolder) {
+				$this->storage->move($boardId . '/' . $fromFolder, $boardId . '/' . $toFolder);
+				$this->resyncCardColumns($boardId, $toFolder);
 			}
 		}
 
@@ -157,17 +140,16 @@ final class FileBoardRepository {
 		$updated = $board->removeColumn($name);
 		$this->save($updated);
 
-		$columnDir = $this->columnFolderPath($this->boardDir($boardId), $name);
-		if ($columnDir !== null) {
-			$this->removeRecursive($columnDir);
+		$folder = $this->columnFolder($boardId, $name);
+		if ($folder !== null) {
+			$this->storage->delete($boardId . '/' . $folder);
 		}
 
 		return $updated;
 	}
 
 	/**
-	 * Reorder columns. Display order comes from .board.yml, so this only
-	 * rewrites the config — no folder changes needed.
+	 * Reorder columns (display order lives in .board.yml — config only).
 	 */
 	public function reorderColumns(string $boardId, array $orderedNames): ?Board {
 		$board = $this->find($boardId);
@@ -184,10 +166,10 @@ final class FileBoardRepository {
 	/**
 	 * Find a column folder inside a board by its clean (NN-stripped) name.
 	 */
-	private function columnFolderPath(string $boardDir, string $cleanName): ?string {
-		foreach (glob($boardDir . '/*', GLOB_ONLYDIR) ?: [] as $columnDir) {
-			if (preg_replace('/^\d+-/', '', basename($columnDir)) === $cleanName) {
-				return $columnDir;
+	private function columnFolder(string $boardId, string $cleanName): ?string {
+		foreach ($this->storage->childDirectories($boardId) as $folder) {
+			if (preg_replace('/^\d+-/', '', $folder) === $cleanName) {
+				return $folder;
 			}
 		}
 
@@ -195,62 +177,37 @@ final class FileBoardRepository {
 	}
 
 	/**
-	 * Rewrite the 'column' frontmatter of every card in a column folder to
-	 * match the folder's (possibly new) name.
+	 * Rewrite the 'column' frontmatter of every card in a column folder.
 	 */
-	private function resyncCardColumns(string $columnDir): void {
-		$folderName = basename($columnDir);
-		foreach (glob($columnDir . '/*', GLOB_ONLYDIR) ?: [] as $cardDir) {
-			$file = $cardDir . '/card.md';
-			if (!is_file($file)) {
+	private function resyncCardColumns(string $boardId, string $columnFolder): void {
+		$base = $boardId . '/' . $columnFolder;
+		foreach ($this->storage->childDirectories($base) as $cardFolder) {
+			$file = $base . '/' . $cardFolder . '/card.md';
+			if (!$this->storage->exists($file)) {
 				continue;
 			}
-			$card = Card::fromMarkdown(file_get_contents($file));
-			if ($card->column === $folderName) {
+			$card = Card::fromMarkdown($this->storage->read($file));
+			if ($card->column === $columnFolder) {
 				continue;
 			}
 			$synced = new Card(
 				id: $card->id,
 				title: $card->title,
-				column: $folderName,
+				column: $columnFolder,
 				description: $card->description,
 				created_at: $card->created_at,
 				assignees: $card->assignees,
 				due_date: $card->due_date,
 			);
-			file_put_contents($file, $synced->toYAMLFrontmatter() . "\n\n" . $synced->description);
+			$this->storage->write($file, $synced->toYAMLFrontmatter() . "\n\n" . $synced->description);
 		}
 	}
 
 	/**
-	 * Recursively remove a directory using native PHP calls.
-	 *
-	 * Native unlink()/rmdir() keep PHP's stat cache consistent, unlike
-	 * shelling out to rm.
+	 * Rebuild a Board from .board.yml content.
 	 */
-	private function removeRecursive(string $path): void {
-		$items = new \RecursiveIteratorIterator(
-			new \RecursiveDirectoryIterator($path, \FilesystemIterator::SKIP_DOTS),
-			\RecursiveIteratorIterator::CHILD_FIRST,
-		);
-		foreach ($items as $item) {
-			$item->isDir() ? rmdir($item->getPathname()) : unlink($item->getPathname());
-		}
-		rmdir($path);
-	}
-
-	/**
-	 * Absolute path to a board's folder.
-	 */
-	private function boardDir(string $id): string {
-		return $this->rootDir . '/' . $id;
-	}
-
-	/**
-	 * Rebuild a Board from a .board.yml file.
-	 */
-	private function loadFromYml(string $ymlFile): Board {
-		$data = Yaml::parse(file_get_contents($ymlFile));
+	private function loadFromYml(string $content): Board {
+		$data = Yaml::parse($content);
 
 		return new Board(
 			id: $data['id'],

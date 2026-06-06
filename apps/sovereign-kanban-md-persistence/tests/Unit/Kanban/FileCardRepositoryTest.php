@@ -5,6 +5,7 @@ namespace OCA\SovereignKanbanMdPersistence\Tests\Unit\Kanban;
 use OCA\SovereignKanbanMdPersistence\Kanban\Card;
 use OCA\SovereignKanbanMdPersistence\Kanban\Comment;
 use OCA\SovereignKanbanMdPersistence\Kanban\FileCardRepository;
+use OCA\SovereignKanbanMdPersistence\Storage\LocalStorage;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -23,7 +24,7 @@ final class FileCardRepositoryTest extends TestCase {
         mkdir($this->testDir . '/01-Backlog');
         mkdir($this->testDir . '/02-En cours');
 
-        $this->repo = new FileCardRepository($this->testDir);
+        $this->repo = new FileCardRepository(new LocalStorage($this->testDir));
     }
 
     public function testSaveCardCreatesDirectoryWithCorrectName(): void {

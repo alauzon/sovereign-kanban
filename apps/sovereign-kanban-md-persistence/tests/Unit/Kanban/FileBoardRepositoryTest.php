@@ -6,6 +6,7 @@ use OCA\SovereignKanbanMdPersistence\Kanban\Board;
 use OCA\SovereignKanbanMdPersistence\Kanban\Card;
 use OCA\SovereignKanbanMdPersistence\Kanban\FileBoardRepository;
 use OCA\SovereignKanbanMdPersistence\Kanban\FileCardRepository;
+use OCA\SovereignKanbanMdPersistence\Storage\LocalStorage;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -23,7 +24,7 @@ final class FileBoardRepositoryTest extends TestCase {
 	protected function setUp(): void {
 		$this->rootDir = sys_get_temp_dir() . '/kanban-boards-' . uniqid();
 		mkdir($this->rootDir);
-		$this->repo = new FileBoardRepository($this->rootDir);
+		$this->repo = new FileBoardRepository(new LocalStorage($this->rootDir));
 	}
 
 	public function testCreateWritesBoardYml(): void {
@@ -145,7 +146,7 @@ final class FileBoardRepositoryTest extends TestCase {
 
 	public function testRenameColumnRenamesFolderAndResyncsCardFrontmatter(): void {
 		$this->repo->create(Board::create('Projets', '#000'));
-		$cardRepo = new FileCardRepository($this->rootDir . '/projets');
+		$cardRepo = new FileCardRepository(new LocalStorage($this->rootDir . '/projets'));
 		$card = Card::create('Tâche', '01-Backlog');
 		$cardRepo->save($card);
 
@@ -157,7 +158,7 @@ final class FileBoardRepositoryTest extends TestCase {
 		$this->assertNotEmpty(glob($this->rootDir . '/projets/*-À faire'), 'folder renamed');
 
 		// The card moved with the folder, and its frontmatter column was resynced.
-		$found = (new FileCardRepository($this->rootDir . '/projets'))->findById($card->id);
+		$found = (new FileCardRepository(new LocalStorage($this->rootDir . '/projets')))->findById($card->id);
 		$this->assertNotNull($found);
 		$this->assertSame('01-À faire', $found->column);
 	}

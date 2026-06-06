@@ -9,11 +9,13 @@ namespace OCA\SovereignKanbanMdPersistence\Controller;
 
 use OCA\SovereignKanbanMdPersistence\Kanban\Board;
 use OCA\SovereignKanbanMdPersistence\Kanban\FileBoardRepository;
+use OCA\SovereignKanbanMdPersistence\Storage\NextcloudStorage;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\DataResponse;
-use OCP\IConfig;
+use OCP\Files\Folder;
+use OCP\Files\IRootFolder;
 use OCP\IRequest;
 use OCP\IUserSession;
 
@@ -29,7 +31,7 @@ final class BoardController extends Controller {
 	public function __construct(
 		IRequest $request,
 		private readonly IUserSession $userSession,
-		private readonly IConfig $config,
+		private readonly IRootFolder $rootFolder,
 	) {
 		parent::__construct('sovereign-kanban-md-persistence', $request);
 	}
@@ -214,9 +216,14 @@ final class BoardController extends Controller {
 			return null;
 		}
 
-		$dataDir = (string) $this->config->getSystemValue('datadirectory', '/var/www/nextcloud/data');
-		$kanbanRoot = rtrim($dataDir, '/') . '/' . $user->getUID() . '/files/Kanban';
+		$userFolder = $this->rootFolder->getUserFolder($user->getUID());
+		$kanban = $userFolder->nodeExists('Kanban')
+			? $userFolder->get('Kanban')
+			: $userFolder->newFolder('Kanban');
+		if (!$kanban instanceof Folder) {
+			return null;
+		}
 
-		return new FileBoardRepository($kanbanRoot);
+		return new FileBoardRepository(new NextcloudStorage($kanban));
 	}
 }

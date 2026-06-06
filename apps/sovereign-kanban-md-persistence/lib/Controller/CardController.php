@@ -10,11 +10,13 @@ namespace OCA\SovereignKanbanMdPersistence\Controller;
 use OCA\SovereignKanbanMdPersistence\Kanban\Card;
 use OCA\SovereignKanbanMdPersistence\Kanban\Comment;
 use OCA\SovereignKanbanMdPersistence\Kanban\FileCardRepository;
+use OCA\SovereignKanbanMdPersistence\Storage\NextcloudStorage;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\DataResponse;
-use OCP\IConfig;
+use OCP\Files\Folder;
+use OCP\Files\IRootFolder;
 use OCP\IRequest;
 use OCP\IUserSession;
 
@@ -29,7 +31,7 @@ final class CardController extends Controller {
 	public function __construct(
 		IRequest $request,
 		private readonly IUserSession $userSession,
-		private readonly IConfig $config,
+		private readonly IRootFolder $rootFolder,
 	) {
 		parent::__construct('sovereign-kanban-md-persistence', $request);
 	}
@@ -269,12 +271,16 @@ final class CardController extends Controller {
 			return null;
 		}
 
-		$dataDir = (string) $this->config->getSystemValue('datadirectory', '/var/www/nextcloud/data');
-		$boardDir = rtrim($dataDir, '/') . '/' . $user->getUID() . '/files/Kanban/' . $boardId;
-		if (!is_dir($boardDir)) {
+		$userFolder = $this->rootFolder->getUserFolder($user->getUID());
+		$path = 'Kanban/' . $boardId;
+		if (!$userFolder->nodeExists($path)) {
+			return null;
+		}
+		$boardFolder = $userFolder->get($path);
+		if (!$boardFolder instanceof Folder) {
 			return null;
 		}
 
-		return new FileCardRepository($boardDir);
+		return new FileCardRepository(new NextcloudStorage($boardFolder));
 	}
 }
