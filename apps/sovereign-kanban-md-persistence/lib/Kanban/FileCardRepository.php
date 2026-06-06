@@ -88,10 +88,52 @@ final class FileCardRepository {
 	 * Find a card by id across all columns, or null if absent.
 	 */
 	public function findById(string $cardId): ?Card {
+		$cardDir = $this->findCardDirAnywhere($cardId);
+
+		return ($cardDir !== null && is_file($cardDir . '/card.md'))
+			? Card::fromMarkdown(file_get_contents($cardDir . '/card.md'))
+			: null;
+	}
+
+	/**
+	 * Append a comment to a card's comments.md.
+	 */
+	public function addComment(string $cardId, Comment $comment): void {
+		$cardDir = $this->findCardDirAnywhere($cardId);
+		if ($cardDir === null) {
+			throw new \RuntimeException('Card not found: ' . $cardId);
+		}
+
+		$file = $cardDir . '/comments.md';
+		$existing = is_file($file) ? rtrim(file_get_contents($file), "\n") : '';
+		$separator = $existing === '' ? '' : "\n\n";
+		file_put_contents($file, $existing . $separator . $comment->toMarkdown());
+	}
+
+	/**
+	 * List a card's comments in document order (empty if none).
+	 *
+	 * @return Comment[]
+	 */
+	public function listComments(string $cardId): array {
+		$cardDir = $this->findCardDirAnywhere($cardId);
+		if ($cardDir === null) {
+			return [];
+		}
+
+		$file = $cardDir . '/comments.md';
+
+		return is_file($file) ? Comment::parseAll(file_get_contents($file)) : [];
+	}
+
+	/**
+	 * Locate a card's directory across all columns, or null if absent.
+	 */
+	private function findCardDirAnywhere(string $cardId): ?string {
 		foreach (glob($this->baseDir . '/*', GLOB_ONLYDIR) ?: [] as $columnDir) {
 			$cardDir = $this->findCardDir($columnDir, $cardId);
-			if ($cardDir !== null && is_file($cardDir . '/card.md')) {
-				return Card::fromMarkdown(file_get_contents($cardDir . '/card.md'));
+			if ($cardDir !== null) {
+				return $cardDir;
 			}
 		}
 

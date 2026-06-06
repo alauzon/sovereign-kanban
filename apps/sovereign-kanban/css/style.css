@@ -132,3 +132,19 @@
 	font-family: monospace; font-size: 13px; line-height: 1.5;
 }
 .sk-detail-box .sk-btn-primary { align-self: flex-end; }
+
+/* Comments */
+.sk-comments { border-top: 1px solid var(--color-border); padding-top: 16px; display: flex; flex-direction: column; gap: 10px; }
+.sk-comments-title { margin: 0; font-size: 14px; }
+.sk-comments-list { display: flex; flex-direction: column; gap: 10px; max-height: 240px; overflow-y: auto; }
+.sk-comment {
+	background: var(--color-background-hover);
+	border-radius: var(--border-radius, 8px); padding: 8px 12px;
+}
+.sk-comment-meta { font-size: 12px; color: var(--color-text-maxcontrast); margin-bottom: 4px; }
+.sk-comment-body { font-size: 14px; white-space: pre-wrap; }
+.sk-comment-input {
+	min-height: 60px; resize: vertical; padding: 8px 10px; box-sizing: border-box;
+	border: 1px solid var(--color-border); border-radius: var(--border-radius, 8px);
+	background: var(--color-main-background); color: var(--color-main-text); font-size: 13px;
+}

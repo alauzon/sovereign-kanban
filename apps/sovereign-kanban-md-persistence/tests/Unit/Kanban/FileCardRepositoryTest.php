@@ -3,6 +3,7 @@
 namespace OCA\SovereignKanbanMdPersistence\Tests\Unit\Kanban;
 
 use OCA\SovereignKanbanMdPersistence\Kanban\Card;
+use OCA\SovereignKanbanMdPersistence\Kanban\Comment;
 use OCA\SovereignKanbanMdPersistence\Kanban\FileCardRepository;
 use PHPUnit\Framework\TestCase;
 
@@ -151,6 +152,22 @@ final class FileCardRepositoryTest extends TestCase {
         $this->assertSame('Edited title', $found->title);
         $this->assertSame('New body text', $found->description);
         $this->assertSame($card->id, $found->id);
+    }
+
+    public function testAddAndListComments(): void {
+        $card = Card::create(title: 'With comments', column: '01-Backlog');
+        $this->repo->save($card);
+
+        $this->assertSame([], $this->repo->listComments($card->id));
+
+        $this->repo->addComment($card->id, Comment::create('admin', 'Premier commentaire'));
+        $this->repo->addComment($card->id, Comment::create('alain', "Deuxième\nsur deux lignes"));
+
+        $list = $this->repo->listComments($card->id);
+        $this->assertCount(2, $list);
+        $this->assertSame('Premier commentaire', $list[0]->body);
+        $this->assertSame('alain', $list[1]->author);
+        $this->assertSame("Deuxième\nsur deux lignes", $list[1]->body);
     }
 
     protected function tearDown(): void {

@@ -20,6 +20,7 @@
 	function boardUrl(id) { return boardsUrl() + '/' + encodeURIComponent(id); }
 	function cardsUrl(boardId) { return boardUrl(boardId) + '/cards'; }
 	function cardUrl(boardId, cardId) { return cardsUrl(boardId) + '/' + encodeURIComponent(cardId); }
+	function commentsUrl(boardId, cardId) { return cardUrl(boardId, cardId) + '/comments'; }
 	function token() { return (window.OC && OC.requestToken) ? OC.requestToken : ''; }
 
 	function el(tag, className, text) {
@@ -163,13 +164,57 @@
 			}
 		});
 
+		const comments = el('div', 'sk-comments');
+		comments.appendChild(el('h4', 'sk-comments-title', 'Commentaires'));
+		const list = el('div', 'sk-comments-list');
+		comments.appendChild(list);
+		const commentInput = el('textarea', 'sk-comment-input');
+		commentInput.placeholder = 'Ajouter un commentaire…';
+		const commentAdd = el('button', 'sk-btn sk-btn-primary', 'Commenter');
+		commentAdd.addEventListener('click', async function () {
+			const body = commentInput.value.trim();
+			if (!body) { commentInput.focus(); return; }
+			commentAdd.disabled = true;
+			const res = await api('POST', commentsUrl(currentId, card.id), { body: body });
+			commentAdd.disabled = false;
+			if (res.ok) { commentInput.value = ''; loadComments(card.id, list); }
+			else { window.alert('Erreur ' + res.status); }
+		});
+		comments.appendChild(commentInput);
+		comments.appendChild(commentAdd);
+
 		box.appendChild(close);
 		box.appendChild(titleInput);
 		box.appendChild(bodyArea);
 		box.appendChild(save);
+		box.appendChild(comments);
 		panel.appendChild(backdrop);
 		panel.appendChild(box);
 		titleInput.focus();
+		loadComments(card.id, list);
+	}
+
+	async function loadComments(cardId, listEl) {
+		listEl.innerHTML = '';
+		let comments = [];
+		try {
+			const res = await api('GET', commentsUrl(currentId, cardId));
+			if (res.ok) { const data = await res.json(); comments = data.comments || []; }
+		} catch (e) { /* none */ }
+		if (comments.length === 0) {
+			listEl.appendChild(el('p', 'sk-loading', 'Aucun commentaire.'));
+			return;
+		}
+		comments.forEach(function (c) {
+			const item = el('div', 'sk-comment');
+			item.appendChild(el('div', 'sk-comment-meta', c.author + ' — ' + formatDate(c.created_at)));
+			item.appendChild(el('div', 'sk-comment-body', c.body));
+			listEl.appendChild(item);
+		});
+	}
+
+	function formatDate(iso) {
+		try { return new Date(iso).toLocaleString('fr-CA'); } catch (e) { return iso; }
 	}
 
 	/* ---- Board selector + create/edit ---- */

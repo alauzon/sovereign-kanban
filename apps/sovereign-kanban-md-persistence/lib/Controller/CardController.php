@@ -8,6 +8,7 @@
 namespace OCA\SovereignKanbanMdPersistence\Controller;
 
 use OCA\SovereignKanbanMdPersistence\Kanban\Card;
+use OCA\SovereignKanbanMdPersistence\Kanban\Comment;
 use OCA\SovereignKanbanMdPersistence\Kanban\FileCardRepository;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
@@ -126,6 +127,51 @@ final class CardController extends Controller {
 		$repository->update($updated);
 
 		return new DataResponse(['card' => $this->detail($updated)]);
+	}
+
+	/**
+	 * List a card's comments.
+	 */
+	#[NoAdminRequired]
+	#[NoCSRFRequired]
+	public function comments(string $boardId, string $cardId): DataResponse {
+		$repository = $this->repository($boardId);
+		if ($repository === null || !$this->validCardId($cardId)) {
+			return new DataResponse(['error' => 'unavailable'], 400);
+		}
+
+		$comments = array_map(
+			static fn (Comment $comment): array => $comment->toArray(),
+			$repository->listComments($cardId),
+		);
+
+		return new DataResponse(['comments' => $comments]);
+	}
+
+	/**
+	 * Add a comment to a card, authored by the current user.
+	 */
+	#[NoAdminRequired]
+	public function addComment(string $boardId, string $cardId, string $body): DataResponse {
+		$repository = $this->repository($boardId);
+		$user = $this->userSession->getUser();
+		if ($repository === null || $user === null || !$this->validCardId($cardId)) {
+			return new DataResponse(['error' => 'unavailable'], 400);
+		}
+
+		$body = trim($body);
+		if ($body === '') {
+			return new DataResponse(['error' => 'body_required'], 400);
+		}
+		if ($repository->findById($cardId) === null) {
+			return new DataResponse(['error' => 'card_not_found'], 404);
+		}
+
+		$author = $user->getDisplayName() ?: $user->getUID();
+		$comment = Comment::create($author, $body);
+		$repository->addComment($cardId, $comment);
+
+		return new DataResponse(['comment' => $comment->toArray()], 201);
 	}
 
 	/**
