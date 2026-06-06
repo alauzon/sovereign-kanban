@@ -41,3 +41,22 @@
 	font-size: 11px; padding: 1px 8px; border-radius: 12px;
 	background: var(--c, #888); color: #fff; font-weight: 500;
 }
+
+/* Board selector */
+.sk-boards { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 20px; }
+.sk-board-tab {
+	display: inline-flex; align-items: center; gap: 8px;
+	padding: 6px 14px; border: 1px solid var(--color-border);
+	border-radius: var(--border-radius-pill, 100px);
+	background: var(--color-main-background); cursor: pointer;
+	font-size: 13px; color: var(--color-main-text);
+}
+.sk-board-tab:hover { background: var(--color-background-hover); }
+.sk-board-tab.is-active {
+	border-color: var(--color-primary-element);
+	background: var(--color-primary-element-light, var(--color-background-hover));
+	font-weight: 600;
+}
+.sk-board-dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
+
+.sk-loading { color: var(--color-text-maxcontrast); font-size: 14px; padding: 20px 4px; }
