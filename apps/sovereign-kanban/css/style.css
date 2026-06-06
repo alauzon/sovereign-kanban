@@ -148,3 +148,19 @@
 	border: 1px solid var(--color-border); border-radius: var(--border-radius, 8px);
 	background: var(--color-main-background); color: var(--color-main-text); font-size: 13px;
 }
+
+/* Detail fields (due date, assignees) */
+.sk-field { display: flex; flex-direction: column; gap: 4px; }
+.sk-field-label { font-size: 12px; color: var(--color-text-maxcontrast); }
+.sk-field .sk-input { width: 100%; box-sizing: border-box; }
+
+/* Card meta badges */
+.sk-card-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.sk-due {
+	font-size: 11px; padding: 1px 8px; border-radius: 12px;
+	background: var(--color-warning, #e9a700); color: #fff; font-weight: 500;
+}
+.sk-assignee {
+	font-size: 11px; padding: 1px 8px; border-radius: 12px;
+	background: var(--color-background-dark); color: var(--color-main-text);
+}

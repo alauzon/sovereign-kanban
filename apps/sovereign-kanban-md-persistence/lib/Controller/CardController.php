@@ -105,7 +105,14 @@ final class CardController extends Controller {
 	 * Update a card's title and/or description body.
 	 */
 	#[NoAdminRequired]
-	public function update(string $boardId, string $cardId, ?string $title = null, ?string $description = null): DataResponse {
+	public function update(
+		string $boardId,
+		string $cardId,
+		?string $title = null,
+		?string $description = null,
+		?string $due_date = null,
+		?array $assignees = null,
+	): DataResponse {
 		$repository = $this->repository($boardId);
 		if ($repository === null || !$this->validCardId($cardId)) {
 			return new DataResponse(['error' => 'unavailable'], 400);
@@ -116,13 +123,26 @@ final class CardController extends Controller {
 			return new DataResponse(['error' => 'card_not_found'], 404);
 		}
 
+		// due_date: null = leave unchanged, '' = clear, else set.
+		$newDue = $card->due_date;
+		if ($due_date !== null) {
+			$newDue = ($due_date === '') ? null : substr($due_date, 0, 10);
+		}
+
+		// assignees: null = leave unchanged, else replace (trimmed, non-empty).
+		$newAssignees = $card->assignees;
+		if ($assignees !== null) {
+			$newAssignees = array_values(array_filter(array_map('trim', $assignees), static fn ($a) => $a !== ''));
+		}
+
 		$updated = new Card(
 			id: $card->id,
 			title: ($title !== null && trim($title) !== '') ? trim($title) : $card->title,
 			column: $card->column,
 			description: $description ?? $card->description,
 			created_at: $card->created_at,
-			assignees: $card->assignees,
+			assignees: $newAssignees,
+			due_date: $newDue,
 		);
 		$repository->update($updated);
 
@@ -185,6 +205,7 @@ final class CardController extends Controller {
 			'title' => $card->title,
 			'column' => $card->column,
 			'description' => $card->description,
+			'due_date' => $card->due_date,
 			'assignees' => array_values($card->assignees),
 		];
 	}

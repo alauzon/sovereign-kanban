@@ -116,6 +116,7 @@ final class CardTest extends TestCase {
             description: 'desc',
             created_at: new \DateTime('2026-06-05T10:00:00Z'),
             assignees: ['alain', 'steve'],
+            due_date: '2026-06-15',
         );
 
         $this->assertSame(
@@ -123,9 +124,48 @@ final class CardTest extends TestCase {
                 'id' => 'abc',
                 'title' => 'Task',
                 'column' => '01-Backlog',
+                'due_date' => '2026-06-15',
                 'assignees' => ['alain', 'steve'],
             ],
             $card->toArray(),
         );
+    }
+
+    public function testToArrayDueDateNullWhenUnset(): void {
+        $card = Card::create(title: 'No deadline', column: '01-Backlog');
+
+        $this->assertNull($card->toArray()['due_date']);
+    }
+
+    public function testFromMarkdownParsesDueDateAndAssignees(): void {
+        $content = "---\n"
+            . "id: d1\n"
+            . "title: Échéance\n"
+            . "column: 01-Backlog\n"
+            . "due_date: 2026-06-15\n"
+            . "assignees:\n  - alain\n  - steve\n"
+            . "---\n\nCorps.";
+
+        $card = Card::fromMarkdown($content);
+
+        $this->assertSame('2026-06-15', $card->due_date);
+        $this->assertSame(['alain', 'steve'], $card->assignees);
+    }
+
+    public function testToYAMLFrontmatterIncludesDueDateAndAssignees(): void {
+        $card = new Card(
+            id: 'd2',
+            title: 'T',
+            column: '01-Backlog',
+            description: '',
+            created_at: new \DateTime('2026-06-05T10:00:00Z'),
+            assignees: ['alain'],
+            due_date: '2026-06-20',
+        );
+
+        $yaml = $card->toYAMLFrontmatter();
+
+        $this->assertStringContainsString('due_date: 2026-06-20', $yaml);
+        $this->assertStringContainsString("assignees:\n  - alain", $yaml);
     }
 }

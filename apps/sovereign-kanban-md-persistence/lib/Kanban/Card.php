@@ -28,6 +28,7 @@ final class Card {
 		public readonly string $description = '',
 		public readonly DateTime $created_at = new DateTime(),
 		public readonly array $assignees = [],
+		public readonly ?string $due_date = null,
 	) {
 	}
 
@@ -64,7 +65,24 @@ final class Card {
 			description: $body,
 			created_at: self::parseCreatedAt($frontmatter['created_at'] ?? null),
 			assignees: $frontmatter['assignees'] ?? [],
+			due_date: self::parseDueDate($frontmatter['due_date'] ?? null),
 		);
+	}
+
+	/**
+	 * Normalize a due_date (YAML may give an ISO string or a Unix timestamp)
+	 * to a plain 'Y-m-d' string, or null when unset.
+	 */
+	private static function parseDueDate(mixed $raw): ?string {
+		if ($raw === null || $raw === '') {
+			return null;
+		}
+		if (is_int($raw)) {
+			// YAML date → midnight-UTC timestamp; format in UTC to keep the day.
+			return gmdate('Y-m-d', $raw);
+		}
+
+		return substr((string) $raw, 0, 10);
 	}
 
 	/**
@@ -92,6 +110,7 @@ final class Card {
 			'id' => $this->id,
 			'title' => $this->title,
 			'column' => $this->column,
+			'due_date' => $this->due_date,
 			'assignees' => array_values($this->assignees),
 		];
 	}
@@ -108,6 +127,10 @@ final class Card {
 			'column' => $this->column,
 			'created_at' => $this->created_at->format('Y-m-d\TH:i:s\Z'),
 		];
+
+		if ($this->due_date !== null) {
+			$frontmatter['due_date'] = $this->due_date;
+		}
 
 		if (!empty($this->assignees)) {
 			$frontmatter['assignees'] = $this->assignees;

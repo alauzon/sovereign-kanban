@@ -61,6 +61,17 @@
 			cards.forEach(function (card) {
 				const art = el('article', 'sk-card');
 				art.appendChild(el('h3', null, card.title));
+				const assignees = card.assignees || [];
+				if (card.due_date || assignees.length) {
+					const meta = el('div', 'sk-card-meta');
+					if (card.due_date) {
+						meta.appendChild(el('span', 'sk-due', '📅 ' + card.due_date));
+					}
+					assignees.forEach(function (a) {
+						meta.appendChild(el('span', 'sk-assignee', a));
+					});
+					art.appendChild(meta);
+				}
 				art.addEventListener('click', function () { openCard(card.id); });
 				cardsEl.appendChild(art);
 			});
@@ -144,6 +155,21 @@
 		titleInput.type = 'text';
 		titleInput.value = card.title;
 
+		const dueInput = el('input', 'sk-input');
+		dueInput.type = 'date';
+		dueInput.value = card.due_date || '';
+		const dueRow = el('label', 'sk-field');
+		dueRow.appendChild(el('span', 'sk-field-label', 'Date limite'));
+		dueRow.appendChild(dueInput);
+
+		const assigneesInput = el('input', 'sk-input');
+		assigneesInput.type = 'text';
+		assigneesInput.placeholder = 'alain, steve';
+		assigneesInput.value = (card.assignees || []).join(', ');
+		const assigneesRow = el('label', 'sk-field');
+		assigneesRow.appendChild(el('span', 'sk-field-label', 'Assignés (séparés par des virgules)'));
+		assigneesRow.appendChild(assigneesInput);
+
 		const bodyArea = el('textarea', 'sk-detail-body');
 		bodyArea.value = card.description || '';
 		bodyArea.placeholder = 'Description (Markdown)…';
@@ -154,6 +180,8 @@
 			const res = await api('PUT', cardUrl(currentId, card.id), {
 				title: titleInput.value.trim(),
 				description: bodyArea.value,
+				due_date: dueInput.value,
+				assignees: assigneesInput.value.split(',').map(function (s) { return s.trim(); }).filter(Boolean),
 			});
 			if (res.ok) {
 				panel.hidden = true;
@@ -185,6 +213,8 @@
 
 		box.appendChild(close);
 		box.appendChild(titleInput);
+		box.appendChild(dueRow);
+		box.appendChild(assigneesRow);
 		box.appendChild(bodyArea);
 		box.appendChild(save);
 		box.appendChild(comments);
