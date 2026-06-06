@@ -1,0 +1,43 @@
+/**
+ * @copyright 2026 Alain Lauzon
+ * @license AGPL-3.0-or-later
+ */
+
+#sk-app { padding: 24px; max-width: 100%; box-sizing: border-box; }
+.sk-header h1 { margin: 0 0 4px; font-size: 24px; }
+.sk-subtitle { color: var(--color-text-maxcontrast); margin: 0 0 20px; font-size: 13px; }
+.sk-subtitle code { background: var(--color-background-dark); padding: 1px 5px; border-radius: 4px; }
+
+.sk-board { display: flex; gap: 16px; align-items: flex-start; overflow-x: auto; padding-bottom: 12px; }
+.sk-column {
+	background: var(--color-background-hover);
+	border-radius: var(--border-radius-large, 12px);
+	min-width: 280px; max-width: 320px; flex: 1 0 280px;
+	display: flex; flex-direction: column;
+}
+.sk-column-head {
+	display: flex; justify-content: space-between; align-items: center;
+	padding: 14px 16px; font-weight: 600; font-size: 14px;
+	border-bottom: 1px solid var(--color-border);
+}
+.sk-count {
+	background: var(--color-primary-element); color: var(--color-primary-element-text);
+	border-radius: 20px; padding: 1px 9px; font-size: 12px; font-weight: 600;
+}
+.sk-cards { padding: 12px; display: flex; flex-direction: column; gap: 10px; min-height: 40px; }
+.sk-card {
+	background: var(--color-main-background);
+	border: 1px solid var(--color-border);
+	border-radius: var(--border-radius, 8px);
+	padding: 12px 14px; cursor: grab;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, .06);
+	transition: box-shadow .15s, transform .15s;
+}
+.sk-card:hover { box-shadow: 0 3px 8px rgba(0, 0, 0, .12); transform: translateY(-1px); }
+.sk-card h3 { margin: 0 0 8px; font-size: 14px; font-weight: 500; }
+.sk-card.sk-done h3 { text-decoration: line-through; color: var(--color-text-maxcontrast); }
+.sk-labels { display: flex; flex-wrap: wrap; gap: 5px; }
+.sk-label {
+	font-size: 11px; padding: 1px 8px; border-radius: 12px;
+	background: var(--c, #888); color: #fff; font-weight: 500;
+}

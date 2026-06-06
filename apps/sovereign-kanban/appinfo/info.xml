@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<info xmlns="http://nextcloud.com/schema/apps">
+	<id>sovereign-kanban</id>
+	<name>Sovereign Kanban</name>
+	<summary>Tableau Kanban souverain — cartes en fichiers Markdown</summary>
+	<description>Un tableau Kanban dont chaque carte est un fichier .md (frontmatter YAML) dans Nextcloud Files. Remplace Deck : données souveraines, portables, versionnables.</description>
+	<version>1.0.0</version>
+	<licence>AGPL-3.0-or-later</licence>
+	<author>Alain Lauzon</author>
+	<namespace>SovereignKanban</namespace>
+	<category>organization</category>
+	<website>https://serveursdupeuple.net</website>
+	<repository>https://github.com/alauzon/sovereign-kanban.git</repository>
+	<nextcloud min-version="33" max-version="34"/>
+	<navigations>
+		<navigation>
+			<name>Sovereign Kanban</name>
+			<route>sovereign-kanban.page.index</route>
+			<order>10</order>
+		</navigation>
+	</navigations>
+</info>
