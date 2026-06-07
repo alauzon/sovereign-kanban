@@ -136,10 +136,15 @@
 .sk-add-form .sk-input { min-width: 0; flex: 1; }
 
 /* Card detail overlay */
-.sk-detail { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center; }
-.sk-detail-backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, .4); }
+.sk-detail {
+	position: fixed; inset: 0; z-index: 2000;
+	display: flex; align-items: flex-start; justify-content: center;
+	overflow-y: auto; padding: 4vh 0;
+}
+.sk-detail-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, .4); }
 .sk-detail-box {
 	position: relative; z-index: 1; width: min(620px, 92vw);
+	margin: 0 16px 4vh; align-self: flex-start;
 	background: var(--color-main-background); border-radius: var(--border-radius-large, 12px);
 	box-shadow: 0 8px 30px rgba(0, 0, 0, .25); padding: 24px;
 	display: flex; flex-direction: column; gap: 14px;
@@ -147,7 +152,7 @@
 .sk-detail-close {
 	position: absolute; top: 12px; right: 12px; width: 32px; height: 32px;
 	border: none; border-radius: 50%; background: var(--color-background-hover);
-	cursor: pointer; font-size: 14px; color: var(--color-main-text);
+	cursor: pointer; font-size: 16px; line-height: 1; color: var(--color-main-text); z-index: 2;
 }
 .sk-detail-title { font-size: 18px; font-weight: 600; width: 100%; box-sizing: border-box; }
 .sk-detail-body {
