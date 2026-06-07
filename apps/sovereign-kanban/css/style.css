@@ -156,17 +156,17 @@
 }
 .sk-detail-title { font-size: 18px; font-weight: 600; width: 100%; box-sizing: border-box; }
 .sk-detail-body {
-	min-height: 220px; resize: vertical; padding: 12px; box-sizing: border-box;
+	min-height: 130px; resize: vertical; padding: 12px; box-sizing: border-box;
 	border: 1px solid var(--color-border); border-radius: var(--border-radius, 8px);
 	background: var(--color-main-background); color: var(--color-main-text);
 	font-family: monospace; font-size: 13px; line-height: 1.5;
 }
 .sk-detail-editor {
-	min-height: 220px; border: 1px solid var(--color-border);
+	min-height: 130px; border: 1px solid var(--color-border);
 	border-radius: var(--border-radius, 8px); padding: 4px 8px;
 	background: var(--color-main-background);
 }
-.sk-detail-editor .editor, .sk-detail-editor .text-editor { min-height: 200px; }
+.sk-detail-editor .editor, .sk-detail-editor .text-editor { min-height: 120px; }
 .sk-detail-box .sk-btn-primary { align-self: flex-end; }
 
 /* Comments */

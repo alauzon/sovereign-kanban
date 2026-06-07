@@ -215,13 +215,18 @@
 	function loadTextEditor() {
 		if (textEditorPromise) { return textEditorPromise; }
 		const base = (window.OC && OC.getRootPath) ? OC.getRootPath() : '';
-		textEditorPromise = import(/* webpackIgnore: true */ base + '/apps/text/js/text-editor.mjs')
+		const url = base + '/apps/text/js/text-editor.mjs';
+		console.log('[SK] import du module Text:', url);
+		textEditorPromise = import(/* webpackIgnore: true */ url)
 			.then(function (mod) {
-				if (mod && typeof mod.createEditor === 'function') { return mod.createEditor; }
-				if (window.OCA && window.OCA.Text && window.OCA.Text.createEditor) { return window.OCA.Text.createEditor; }
+				console.log('[SK] module chargé. exports:', mod ? Object.keys(mod) : null,
+					'| OCA.Text:', (window.OCA && window.OCA.Text) ? Object.keys(window.OCA.Text) : 'absent');
+				if (mod && typeof mod.createEditor === 'function') { console.log('[SK] createEditor: via module'); return mod.createEditor; }
+				if (window.OCA && window.OCA.Text && window.OCA.Text.createEditor) { console.log('[SK] createEditor: via OCA.Text'); return window.OCA.Text.createEditor; }
+				console.warn('[SK] createEditor INTROUVABLE');
 				return null;
 			})
-			.catch(function () { return null; });
+			.catch(function (e) { console.error('[SK] échec import text-editor.mjs:', e); return null; });
 		return textEditorPromise;
 	}
 
@@ -279,18 +284,27 @@
 				fallback.hidden = false;
 				return;
 			}
-			createEditor({
-				el: editorEl,
-				content: descriptionMarkdown,
-				useSession: false,
-				autofocus: false,
-				onUpdate: function (data) { descriptionMarkdown = data.markdown; },
-			}).then(function (instance) {
-				editorInstance = instance;
-			}).catch(function () {
+			try {
+				const result = createEditor({
+					el: editorEl,
+					content: descriptionMarkdown,
+					useSession: false,
+					autofocus: false,
+					onUpdate: function (data) { descriptionMarkdown = data.markdown; },
+				});
+				Promise.resolve(result).then(function (instance) {
+					console.log('[SK] éditeur monté', instance);
+					editorInstance = instance;
+				}).catch(function (e) {
+					console.error('[SK] createEditor a rejeté:', e);
+					editorEl.hidden = true;
+					fallback.hidden = false;
+				});
+			} catch (e) {
+				console.error('[SK] createEditor a levé (sync):', e);
 				editorEl.hidden = true;
 				fallback.hidden = false;
-			});
+			}
 		});
 
 		const save = el('button', 'sk-btn sk-btn-primary', 'Enregistrer');
