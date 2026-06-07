@@ -10,6 +10,7 @@ namespace OCA\SovereignKanbanMdPersistence\Controller;
 use OCA\SovereignKanbanMdPersistence\Kanban\Card;
 use OCA\SovereignKanbanMdPersistence\Kanban\Comment;
 use OCA\SovereignKanbanMdPersistence\Kanban\FileCardRepository;
+use OCA\SovereignKanbanMdPersistence\Service\MarkdownRenderer;
 use OCA\SovereignKanbanMdPersistence\Storage\NextcloudStorage;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
@@ -32,6 +33,7 @@ final class CardController extends Controller {
 		IRequest $request,
 		private readonly IUserSession $userSession,
 		private readonly IRootFolder $rootFolder,
+		private readonly MarkdownRenderer $markdown,
 	) {
 		parent::__construct('sovereign-kanban-md-persistence', $request);
 	}
@@ -205,7 +207,7 @@ final class CardController extends Controller {
 		}
 
 		$comments = array_map(
-			static fn (Comment $comment): array => $comment->toArray(),
+			fn (Comment $comment): array => $comment->toArray() + ['body_html' => $this->markdown->toHtml($comment->body)],
 			$repository->listComments($cardId),
 		);
 

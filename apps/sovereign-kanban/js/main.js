@@ -459,21 +459,9 @@
 		const comments = el('div', 'sk-comments');
 		comments.appendChild(el('h4', 'sk-comments-title', 'Commentaires'));
 		const list = el('div', 'sk-comments-list');
+		// Add box on top, newest comments first (loadComments reverses).
+		comments.appendChild(renderAddComment(card.id, list));
 		comments.appendChild(list);
-		const commentInput = el('textarea', 'sk-comment-input');
-		commentInput.placeholder = 'Ajouter un commentaire…';
-		const commentAdd = el('button', 'sk-btn sk-btn-primary', 'Commenter');
-		commentAdd.addEventListener('click', async function () {
-			const body = commentInput.value.trim();
-			if (!body) { commentInput.focus(); return; }
-			commentAdd.disabled = true;
-			const res = await api('POST', commentsUrl(currentId, card.id), { body: body });
-			commentAdd.disabled = false;
-			if (res.ok) { commentInput.value = ''; loadComments(card.id, list); }
-			else { window.alert('Erreur ' + res.status); }
-		});
-		comments.appendChild(commentInput);
-		comments.appendChild(commentAdd);
 
 		const del = el('button', 'sk-btn sk-btn-danger', 'Supprimer');
 		del.addEventListener('click', async function () {
@@ -504,6 +492,67 @@
 		loadComments(card.id, list);
 	}
 
+	/**
+	 * The "add a comment" box, shown above the list. Collapsed to a placeholder;
+	 * a click expands the Text editor (Markdown) with Commenter / Annuler.
+	 */
+	function renderAddComment(cardId, listEl) {
+		const wrap = el('div', 'sk-comment-add');
+		const placeholder = el('div', 'sk-comment-addph', 'Ajouter un commentaire…');
+		placeholder.addEventListener('click', function () {
+			if (wrap.querySelector('.sk-comment-editwrap')) { return; }
+			placeholder.hidden = true;
+
+			let md = '';
+			let editor = null;
+			const editwrap = el('div', 'sk-comment-editwrap');
+			const editorEl = el('div', 'sk-comment-editor');
+			const fallback = el('textarea', 'sk-comment-input');
+			fallback.placeholder = 'Commentaire (Markdown)…';
+			fallback.hidden = true;
+			fallback.addEventListener('input', function () { md = fallback.value; });
+
+			loadTextEditor().then(function (createEditor) {
+				if (!createEditor) { editorEl.hidden = true; fallback.hidden = false; return; }
+				try {
+					const result = createEditor({
+						el: editorEl, content: '', useSession: false, autofocus: true,
+						onUpdate: function (data) { md = data.markdown; },
+					});
+					Promise.resolve(result).then(function (inst) { editor = inst; })
+						.catch(function () { editorEl.hidden = true; fallback.hidden = false; });
+				} catch (e) { editorEl.hidden = true; fallback.hidden = false; }
+			});
+
+			const cleanup = function () {
+				if (editor && typeof editor.destroy === 'function') { try { editor.destroy(); } catch (e) { /* ignore */ } }
+			};
+			const reset = function () { cleanup(); editwrap.remove(); placeholder.hidden = false; };
+
+			const add = el('button', 'sk-btn sk-btn-primary', 'Commenter');
+			add.addEventListener('click', async function () {
+				const body = (md || '').trim();
+				if (!body) { return; }
+				add.disabled = true;
+				const res = await api('POST', commentsUrl(currentId, cardId), { body: body });
+				if (res.ok) { reset(); loadComments(cardId, listEl); }
+				else { add.disabled = false; window.alert('Erreur ' + res.status); }
+			});
+			const cancel = el('button', 'sk-btn', 'Annuler');
+			cancel.addEventListener('click', reset);
+
+			const actions = el('div', 'sk-comment-editactions');
+			actions.appendChild(add);
+			actions.appendChild(cancel);
+			editwrap.appendChild(editorEl);
+			editwrap.appendChild(fallback);
+			editwrap.appendChild(actions);
+			wrap.appendChild(editwrap);
+		});
+		wrap.appendChild(placeholder);
+		return wrap;
+	}
+
 	async function loadComments(cardId, listEl) {
 		listEl.innerHTML = '';
 		let comments = [];
@@ -515,7 +564,8 @@
 			listEl.appendChild(el('p', 'sk-loading', 'Aucun commentaire.'));
 			return;
 		}
-		comments.forEach(function (c) {
+		// Newest first.
+		comments.slice().reverse().forEach(function (c) {
 			listEl.appendChild(renderComment(c, cardId, listEl));
 		});
 	}
@@ -541,7 +591,9 @@
 		meta.appendChild(del);
 		item.appendChild(meta);
 
-		const body = el('div', 'sk-comment-body', c.body);
+		const body = el('div', 'sk-comment-body sk-rich');
+		// Rendered Markdown (sanitized server-side); raw text as a fallback.
+		if (c.body_html) { body.innerHTML = c.body_html; } else { body.textContent = c.body; }
 		body.title = 'Cliquer pour éditer';
 		body.addEventListener('click', function () { editComment(c, cardId, listEl, item, body); });
 		item.appendChild(body);

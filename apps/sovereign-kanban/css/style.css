@@ -201,10 +201,11 @@
 	margin: 0; border-radius: 0; overflow-y: auto;
 }
 .sk-detail-box.sk-fullscreen .sk-detail-resize { display: none; }
-.sk-detail-box.sk-fullscreen .sk-detail-editor { min-height: 55vh; }
+/* Moderate editor height so the box still scrolls down to the comments. */
+.sk-detail-box.sk-fullscreen .sk-detail-editor { min-height: 32vh; }
 .sk-detail-box.sk-fullscreen .sk-detail-editor .editor,
-.sk-detail-box.sk-fullscreen .sk-detail-editor .text-editor { min-height: 52vh; }
-.sk-detail-box.sk-fullscreen .sk-detail-body { min-height: 55vh; }
+.sk-detail-box.sk-fullscreen .sk-detail-editor .text-editor { min-height: 30vh; }
+.sk-detail-box.sk-fullscreen .sk-detail-body { min-height: 32vh; }
 .sk-detail-box.sk-fullscreen .sk-comments-list { max-height: none; }
 
 /* Unsaved-changes guard dialog */
@@ -262,6 +263,7 @@
 .sk-comment-del:hover { background: var(--color-error, #e9322d); color: #fff; }
 .sk-comment-body { font-size: 14px; white-space: pre-wrap; cursor: text; border-radius: 4px; }
 .sk-comment-body:hover { background: var(--color-main-background); }
+.sk-comment-body.sk-rich { white-space: normal; }
 .sk-comment-editwrap { display: flex; flex-direction: column; gap: 8px; }
 .sk-comment-editor {
 	--text-editor-max-width: 100%;
@@ -270,7 +272,37 @@
 	background: var(--color-main-background);
 }
 .sk-comment-editor .editor__content { max-width: 100%; }
-.sk-comment-editactions { display: flex; justify-content: flex-end; gap: 8px; }
+/* Sticky so Enregistrer stays reachable as the editor grows in a scroll area. */
+.sk-comment-editactions {
+	display: flex; justify-content: flex-end; gap: 8px;
+	position: sticky; bottom: 0; padding: 8px 0 2px;
+	background: var(--color-background-hover);
+}
+.sk-comment-add .sk-comment-editactions { background: var(--color-main-background); }
+
+/* Add-comment box (collapsed placeholder → editor on click), shown on top. */
+.sk-comment-add { margin-bottom: 4px; }
+.sk-comment-addph {
+	padding: 8px 10px; border: 1px dashed var(--color-border); border-radius: var(--border-radius, 8px);
+	color: var(--color-text-maxcontrast); cursor: text; font-size: 13px;
+}
+.sk-comment-addph:hover { background: var(--color-background-hover); color: var(--color-main-text); }
+
+/* Rendered Markdown (rich) — comment bodies and other previews. */
+.sk-rich > :first-child { margin-top: 0; }
+.sk-rich > :last-child { margin-bottom: 0; }
+.sk-rich h1, .sk-rich h2, .sk-rich h3, .sk-rich h4 { font-size: 14px; font-weight: 600; margin: 8px 0 4px; color: var(--color-main-text); }
+.sk-rich p { margin: 0 0 6px; }
+.sk-rich ul, .sk-rich ol { margin: 0 0 6px; padding-left: 20px; }
+.sk-rich strong { color: var(--color-main-text); }
+.sk-rich code { background: var(--color-background-dark); padding: 0 4px; border-radius: 4px; font-size: 12px; }
+.sk-rich pre { background: var(--color-background-dark); padding: 8px 10px; border-radius: 6px; overflow-x: auto; }
+.sk-rich pre code { background: none; padding: 0; }
+.sk-rich a { color: var(--color-primary-element); }
+.sk-rich blockquote { margin: 0 0 6px; padding-left: 10px; border-left: 3px solid var(--color-border); color: var(--color-text-maxcontrast); }
+.sk-rich table { border-collapse: collapse; margin: 4px 0 6px; font-size: 13px; }
+.sk-rich th, .sk-rich td { border: 1px solid var(--color-border); padding: 2px 8px; text-align: left; }
+.sk-rich img { max-width: 100%; height: auto; }
 .sk-comment-input {
 	min-height: 60px; resize: vertical; padding: 8px 10px; box-sizing: border-box;
 	border: 1px solid var(--color-border); border-radius: var(--border-radius, 8px);
