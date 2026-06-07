@@ -12,6 +12,10 @@
    so text never fights the busy background (Maggie, contrast). */
 #sk-app {
 	margin: 16px; padding: 24px 28px 28px; box-sizing: border-box;
+	/* min-width:0 lets the sheet shrink to the available width instead of
+	   stretching to the board's content — so .sk-board can scroll horizontally
+	   instead of bleeding past the sheet's right edge. */
+	min-width: 0; max-width: 100%;
 	background: var(--color-main-background);
 	border-radius: var(--border-radius-large, 16px);
 	box-shadow: 0 2px 16px rgba(0, 0, 0, .12);
@@ -26,7 +30,8 @@
 	background: var(--color-background-hover);
 	border: 1px solid var(--color-border);
 	border-radius: var(--border-radius-large, 12px);
-	min-width: 288px; max-width: 320px; flex: 1 0 288px;
+	/* Fixed width so many columns scroll horizontally instead of squishing. */
+	flex: 0 0 300px; min-width: 300px;
 	display: flex; flex-direction: column;
 }
 .sk-column-head {
