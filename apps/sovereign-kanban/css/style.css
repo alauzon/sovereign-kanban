@@ -151,6 +151,12 @@
 	background: var(--color-main-background); color: var(--color-main-text);
 	font-family: monospace; font-size: 13px; line-height: 1.5;
 }
+.sk-detail-editor {
+	min-height: 220px; border: 1px solid var(--color-border);
+	border-radius: var(--border-radius, 8px); padding: 4px 8px;
+	background: var(--color-main-background);
+}
+.sk-detail-editor .editor, .sk-detail-editor .text-editor { min-height: 200px; }
 .sk-detail-box .sk-btn-primary { align-self: flex-end; }
 
 /* Comments */
