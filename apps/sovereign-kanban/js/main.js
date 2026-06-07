@@ -174,7 +174,10 @@
 			}
 		};
 		submit.addEventListener('click', doAdd);
-		input.addEventListener('keydown', function (e) { if (e.key === 'Enter') doAdd(); });
+		input.addEventListener('keydown', function (e) {
+			if (e.key === 'Enter') { doAdd(); }
+			else if (e.key === 'Escape') { e.preventDefault(); form.remove(); }
+		});
 
 		form.appendChild(input);
 		form.appendChild(submit);
@@ -258,7 +261,15 @@
 				const bSave = el('button', 'sk-btn sk-btn-primary', 'Enregistrer');
 				const bDiscard = el('button', 'sk-btn sk-btn-danger', 'Abandonner');
 				const bCancel = el('button', 'sk-btn', 'Continuer l’édition');
-				const done = function (choice) { overlay.remove(); resolve(choice); };
+				let ck = null;
+				const done = function (choice) {
+					if (ck) { document.removeEventListener('keydown', ck, true); ck = null; }
+					overlay.remove();
+					resolve(choice);
+				};
+				// Esc inside the dialog = the safe option (keep editing).
+				ck = function (e) { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); done('cancel'); } };
+				document.addEventListener('keydown', ck, true);
 				bSave.addEventListener('click', function () { done('save'); });
 				bDiscard.addEventListener('click', function () { done('discard'); });
 				bCancel.addEventListener('click', function () { done('cancel'); });
@@ -292,7 +303,11 @@
 		// Capture phase: the Text/ProseMirror editor swallows Escape on bubble,
 		// so we must intercept it before the editor does.
 		onKey = function (e) {
-			if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); requestClose(); }
+			if (e.key !== 'Escape') { return; }
+			e.preventDefault();
+			e.stopPropagation();
+			// While the unsaved-changes dialog is open, it handles Esc itself.
+			if (!confirming) { requestClose(); }
 		};
 		document.addEventListener('keydown', onKey, true);
 
@@ -548,7 +563,8 @@
 		const submit = el('button', 'sk-btn sk-btn-primary', mode === 'create' ? 'Créer' : 'Enregistrer');
 		const cancel = el('button', 'sk-btn', 'Annuler');
 
-		submit.addEventListener('click', async function () {
+		const closeForm = function () { form.hidden = true; };
+		const doSubmit = async function () {
 			const name = nameInput.value.trim();
 			if (!name) { nameInput.focus(); return; }
 			submit.disabled = true;
@@ -558,14 +574,18 @@
 				: await api('PUT', boardUrl(board.id), payload);
 			if (res.ok) {
 				const data = await res.json();
-				form.hidden = true;
+				closeForm();
 				await reload(data.board ? data.board.id : currentId);
 			} else {
 				submit.disabled = false;
 				window.alert('Erreur ' + res.status);
 			}
-		});
-		cancel.addEventListener('click', function () { form.hidden = true; });
+		};
+		submit.addEventListener('click', doSubmit);
+		cancel.addEventListener('click', closeForm);
+		// Enter submits; Esc cancels — anywhere in the form.
+		nameInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') { doSubmit(); } });
+		form.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); closeForm(); } });
 
 		form.appendChild(nameInput);
 		form.appendChild(colorInput);
