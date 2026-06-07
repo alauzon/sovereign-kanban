@@ -83,7 +83,7 @@ final class CardController extends Controller {
 	 * Create a card in a column (clean column name, mapped to its folder).
 	 */
 	#[NoAdminRequired]
-	public function create(string $boardId, string $title, string $column): DataResponse {
+	public function create(string $boardId, string $title, string $column, ?string $description = null): DataResponse {
 		$repository = $this->repository($boardId);
 		if ($repository === null) {
 			return new DataResponse(['error' => 'unavailable'], 400);
@@ -100,6 +100,18 @@ final class CardController extends Controller {
 		}
 
 		$card = Card::create($title, $folder);
+		// Optional initial body — e.g. a card created from a template.
+		if ($description !== null && trim($description) !== '') {
+			$card = new Card(
+				id: $card->id,
+				title: $card->title,
+				column: $card->column,
+				description: $description,
+				created_at: $card->created_at,
+				assignees: $card->assignees,
+				due_date: $card->due_date,
+			);
+		}
 		$repository->save($card);
 
 		return new DataResponse(['card' => $this->detail($card)], 201);

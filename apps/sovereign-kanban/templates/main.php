@@ -20,6 +20,7 @@
 	<div class="sk-toolbar">
 		<nav id="sk-boards" class="sk-boards" aria-label="Tableaux"></nav>
 		<div class="sk-toolbar-actions">
+			<button id="sk-new-from-template" class="sk-btn" type="button" hidden>📋 Carte depuis un gabarit</button>
 			<button id="sk-new-board" class="sk-btn" type="button">+ Nouveau tableau</button>
 			<button id="sk-edit-board" class="sk-btn" type="button" hidden>✎ Éditer</button>
 		</div>

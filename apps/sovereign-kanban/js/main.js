@@ -22,6 +22,9 @@
 	function cardUrl(boardId, cardId) { return cardsUrl(boardId) + '/' + encodeURIComponent(cardId); }
 	function commentsUrl(boardId, cardId) { return cardUrl(boardId, cardId) + '/comments'; }
 	function commentUrl(boardId, cardId, commentId) { return commentsUrl(boardId, cardId) + '/' + encodeURIComponent(commentId); }
+	function apiUrl(path) { return (window.OC && OC.generateUrl) ? OC.generateUrl(path) : path; }
+	function templatesUrl() { return apiUrl('/apps/sovereign-kanban-md-persistence/api/v1/templates'); }
+	function proceduresUrl() { return apiUrl('/apps/sovereign-kanban-md-persistence/api/v1/procedures'); }
 	function token() { return (window.OC && OC.requestToken) ? OC.requestToken : ''; }
 
 	function el(tag, className, text) {
@@ -677,6 +680,7 @@
 			nav.appendChild(btn);
 		});
 		document.getElementById('sk-edit-board').hidden = (currentId === null);
+		document.getElementById('sk-new-from-template').hidden = (currentId === null);
 	}
 
 	function select(id) {
@@ -768,10 +772,79 @@
 		select(exists ? selectId : boards[0].id);
 	}
 
+	/* ---- Templates & procedures (plain .md in Kanban/Modèles + Procédures) ---- */
+
+	async function fetchList(url, key) {
+		try {
+			const res = await api('GET', url);
+			if (res.ok) { const data = await res.json(); return data[key] || []; }
+		} catch (e) { /* none */ }
+		return [];
+	}
+
+	/**
+	 * A floating menu of {name, meta} items anchored under a button. Closes on
+	 * outside click or Esc. Calls onPick(item) on selection.
+	 */
+	function openMenu(anchorEl, items, onPick) {
+		document.querySelectorAll('.sk-menu').forEach(function (m) { m.remove(); });
+		const menu = el('div', 'sk-menu');
+		if (!items.length) {
+			menu.appendChild(el('div', 'sk-menu-empty', '(aucun)'));
+		}
+		items.forEach(function (it) {
+			const icon = (it.meta && it.meta['icône']) ? it.meta['icône'] + ' ' : '';
+			const b = el('button', 'sk-menu-item', icon + it.name);
+			b.addEventListener('click', function () { menu.remove(); onPick(it); });
+			menu.appendChild(b);
+		});
+		const r = anchorEl.getBoundingClientRect();
+		menu.style.top = (r.bottom + 4) + 'px';
+		menu.style.left = Math.max(8, r.left) + 'px';
+		document.body.appendChild(menu);
+		setTimeout(function () {
+			const stop = function () {
+				menu.remove();
+				document.removeEventListener('mousedown', onDown, true);
+				document.removeEventListener('keydown', onKey, true);
+			};
+			const onDown = function (e) { if (!menu.contains(e.target) && e.target !== anchorEl) { stop(); } };
+			const onKey = function (e) { if (e.key === 'Escape') { e.preventDefault(); stop(); } };
+			document.addEventListener('mousedown', onDown, true);
+			document.addEventListener('keydown', onKey, true);
+		}, 0);
+	}
+
+	async function pickTemplateAndCreate(anchorEl) {
+		const board = currentBoard();
+		if (!board) { return; }
+		const templates = await fetchList(templatesUrl(), 'templates');
+		openMenu(anchorEl, templates, async function (t) {
+			const title = window.prompt('Titre de la carte', t.name);
+			if (title === null) { return; }
+			const cols = board.columns || [];
+			const target = (t.meta && t.meta.colonne_cible && cols.indexOf(t.meta.colonne_cible) !== -1)
+				? t.meta.colonne_cible
+				: (cols[0] || '');
+			if (!target) { window.alert('Ce tableau n’a aucune colonne.'); return; }
+			const res = await api('POST', cardsUrl(currentId), {
+				title: (title.trim() || t.name),
+				column: target,
+				description: t.body,
+			});
+			if (res.ok) { loadCards(board); }
+			else { window.alert('Erreur ' + res.status); }
+		});
+	}
+
 	function init() {
 		try {
 			const newBtn = document.getElementById('sk-new-board');
 			const editBtn = document.getElementById('sk-edit-board');
+			const tplBtn = document.getElementById('sk-new-from-template');
+			if (tplBtn) {
+				tplBtn.addEventListener('click', function () { pickTemplateAndCreate(tplBtn); });
+			}
 			if (newBtn) {
 				newBtn.addEventListener('click', function () { showBoardForm('create', null); });
 			}

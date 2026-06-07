@@ -87,6 +87,22 @@ final class LocalStorage implements Storage {
 		return $names;
 	}
 
+	public function childFiles(string $path): array {
+		$abs = $this->abs($path);
+		if (!is_dir($abs)) {
+			return [];
+		}
+
+		$names = [];
+		foreach (glob($abs . '/*') ?: [] as $entry) {
+			if (is_file($entry)) {
+				$names[] = basename($entry);
+			}
+		}
+
+		return $names;
+	}
+
 	public function scoped(string $path): Storage {
 		return new self($this->abs($path));
 	}

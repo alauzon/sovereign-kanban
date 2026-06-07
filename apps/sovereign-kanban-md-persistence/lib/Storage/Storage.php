@@ -39,6 +39,13 @@ interface Storage {
 	public function childDirectories(string $path): array;
 
 	/**
+	 * Basenames of the immediate files in $path ('' = root).
+	 *
+	 * @return string[]
+	 */
+	public function childFiles(string $path): array;
+
+	/**
 	 * Return a storage rooted at $path within this one.
 	 */
 	public function scoped(string $path): Storage;

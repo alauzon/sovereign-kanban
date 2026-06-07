@@ -96,6 +96,25 @@ final class NextcloudStorage implements Storage {
 		return $names;
 	}
 
+	public function childFiles(string $path): array {
+		if ($path !== '' && !$this->root->nodeExists($path)) {
+			return [];
+		}
+		$folder = $path === '' ? $this->root : $this->root->get($path);
+		if (!$folder instanceof Folder) {
+			return [];
+		}
+
+		$names = [];
+		foreach ($folder->getDirectoryListing() as $node) {
+			if ($node instanceof File) {
+				$names[] = $node->getName();
+			}
+		}
+
+		return $names;
+	}
+
 	public function scoped(string $path): Storage {
 		return new self($this->ensureFolder($path));
 	}
