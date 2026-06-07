@@ -218,17 +218,13 @@
 		// ?skv bust le cache navigateur : le .mjs avait été mis en cache 6 mois
 		// avec un mauvais MIME (octet-stream) avant le fix nginx.
 		const url = base + '/apps/text/js/text-editor.mjs?skv=2';
-		console.log('[SK] import du module Text:', url);
 		textEditorPromise = import(/* webpackIgnore: true */ url)
 			.then(function (mod) {
-				console.log('[SK] module chargé. exports:', mod ? Object.keys(mod) : null,
-					'| OCA.Text:', (window.OCA && window.OCA.Text) ? Object.keys(window.OCA.Text) : 'absent');
-				if (mod && typeof mod.createEditor === 'function') { console.log('[SK] createEditor: via module'); return mod.createEditor; }
-				if (window.OCA && window.OCA.Text && window.OCA.Text.createEditor) { console.log('[SK] createEditor: via OCA.Text'); return window.OCA.Text.createEditor; }
-				console.warn('[SK] createEditor INTROUVABLE');
+				if (mod && typeof mod.createEditor === 'function') { return mod.createEditor; }
+				if (window.OCA && window.OCA.Text && window.OCA.Text.createEditor) { return window.OCA.Text.createEditor; }
 				return null;
 			})
-			.catch(function (e) { console.error('[SK] échec import text-editor.mjs:', e); return null; });
+			.catch(function () { return null; });
 		return textEditorPromise;
 	}
 
@@ -239,27 +235,89 @@
 
 		let editorInstance = null;
 		let descriptionMarkdown = card.description || '';
+		let dirty = false;
+		let editorMounted = false;
+		let onKey = null;
+
 		const closePanel = function () {
+			if (onKey) { document.removeEventListener('keydown', onKey); onKey = null; }
 			if (editorInstance && typeof editorInstance.destroy === 'function') {
 				try { editorInstance.destroy(); } catch (e) { /* ignore */ }
 			}
 			panel.hidden = true;
 		};
 
+		// Three-way guard against losing unsaved edits (Maggie, UX).
+		// Resolves 'save' | 'discard' | 'cancel'.
+		const confirmUnsaved = function () {
+			return new Promise(function (resolve) {
+				const overlay = el('div', 'sk-confirm');
+				const cbox = el('div', 'sk-confirm-box');
+				cbox.appendChild(el('p', 'sk-confirm-msg', 'Des modifications ne sont pas enregistrées.'));
+				const row = el('div', 'sk-confirm-actions');
+				const bSave = el('button', 'sk-btn sk-btn-primary', 'Enregistrer');
+				const bDiscard = el('button', 'sk-btn sk-btn-danger', 'Abandonner');
+				const bCancel = el('button', 'sk-btn', 'Continuer l’édition');
+				const done = function (choice) { overlay.remove(); resolve(choice); };
+				bSave.addEventListener('click', function () { done('save'); });
+				bDiscard.addEventListener('click', function () { done('discard'); });
+				bCancel.addEventListener('click', function () { done('cancel'); });
+				row.appendChild(bSave);
+				row.appendChild(bDiscard);
+				row.appendChild(bCancel);
+				cbox.appendChild(row);
+				overlay.appendChild(cbox);
+				panel.appendChild(overlay);
+				bCancel.focus();
+			});
+		};
+
+		// Close request that honours unsaved changes.
+		const requestClose = async function () {
+			if (!dirty) { closePanel(); return; }
+			const choice = await confirmUnsaved();
+			if (choice === 'cancel') { return; }
+			if (choice === 'discard') { closePanel(); return; }
+			if (choice === 'save' && await saveCard()) {
+				closePanel();
+				loadCards(currentBoard());
+			}
+		};
+
+		// Esc = same path as ✕ (a fallback if the button is ever unreachable).
+		onKey = function (e) {
+			if (e.key === 'Escape') { e.preventDefault(); requestClose(); }
+		};
+		document.addEventListener('keydown', onKey);
+
 		const backdrop = el('div', 'sk-detail-backdrop');
-		backdrop.addEventListener('click', closePanel);
+		// A backdrop click is a weak signal — it must never destroy work.
+		// With unsaved edits, ignore it; close only via ✕, Esc, or the buttons.
+		backdrop.addEventListener('click', function () { if (!dirty) { closePanel(); } });
 
 		const box = el('div', 'sk-detail-box');
 		const close = el('button', 'sk-detail-close', '✕');
-		close.addEventListener('click', closePanel);
+		close.addEventListener('click', function () { requestClose(); });
+
+		const fsBtn = el('button', 'sk-detail-fs', '⛶');
+		fsBtn.title = 'Plein écran';
+		fsBtn.addEventListener('click', function () {
+			const on = box.classList.toggle('sk-fullscreen');
+			fsBtn.classList.toggle('is-on', on);
+			fsBtn.title = on ? 'Quitter le plein écran' : 'Plein écran';
+		});
+
+		const markDirty = function () { dirty = true; };
 
 		const titleInput = el('input', 'sk-input sk-detail-title');
 		titleInput.type = 'text';
 		titleInput.value = card.title;
+		titleInput.addEventListener('input', markDirty);
 
 		const dueInput = el('input', 'sk-input');
 		dueInput.type = 'date';
 		dueInput.value = card.due_date || '';
+		dueInput.addEventListener('change', markDirty);
 		const dueRow = el('label', 'sk-field');
 		dueRow.appendChild(el('span', 'sk-field-label', 'Date limite'));
 		dueRow.appendChild(dueInput);
@@ -268,6 +326,7 @@
 		assigneesInput.type = 'text';
 		assigneesInput.placeholder = 'alain, steve';
 		assigneesInput.value = (card.assignees || []).join(', ');
+		assigneesInput.addEventListener('input', markDirty);
 		const assigneesRow = el('label', 'sk-field');
 		assigneesRow.appendChild(el('span', 'sk-field-label', 'Assignés (séparés par des virgules)'));
 		assigneesRow.appendChild(assigneesInput);
@@ -279,11 +338,12 @@
 		fallback.placeholder = 'Description (Markdown)…';
 		fallback.value = descriptionMarkdown;
 		fallback.hidden = true;
-		fallback.addEventListener('input', function () { descriptionMarkdown = fallback.value; });
+		fallback.addEventListener('input', function () { descriptionMarkdown = fallback.value; dirty = true; });
 		loadTextEditor().then(function (createEditor) {
 			if (!createEditor) {
 				editorEl.hidden = true;
 				fallback.hidden = false;
+				editorMounted = true;
 				return;
 			}
 			try {
@@ -292,38 +352,48 @@
 					content: descriptionMarkdown,
 					useSession: false,
 					autofocus: false,
-					onUpdate: function (data) { descriptionMarkdown = data.markdown; },
+					onUpdate: function (data) {
+						descriptionMarkdown = data.markdown;
+						if (editorMounted) { dirty = true; }
+					},
 				});
 				Promise.resolve(result).then(function (instance) {
-					console.log('[SK] éditeur monté', instance);
 					editorInstance = instance;
-				}).catch(function (e) {
-					console.error('[SK] createEditor a rejeté:', e);
+					// Defer past any initial onUpdate fired during mount, so loading
+					// the existing content doesn't count as an unsaved change.
+					setTimeout(function () { editorMounted = true; }, 0);
+				}).catch(function () {
 					editorEl.hidden = true;
 					fallback.hidden = false;
+					editorMounted = true;
 				});
 			} catch (e) {
-				console.error('[SK] createEditor a levé (sync):', e);
 				editorEl.hidden = true;
 				fallback.hidden = false;
+				editorMounted = true;
 			}
 		});
 
-		const save = el('button', 'sk-btn sk-btn-primary', 'Enregistrer');
-		save.addEventListener('click', async function () {
-			save.disabled = true;
+		async function saveCard() {
 			const res = await api('PUT', cardUrl(currentId, card.id), {
 				title: titleInput.value.trim(),
 				description: descriptionMarkdown,
 				due_date: dueInput.value,
 				assignees: assigneesInput.value.split(',').map(function (s) { return s.trim(); }).filter(Boolean),
 			});
-			if (res.ok) {
+			if (res.ok) { dirty = false; return true; }
+			window.alert('Erreur ' + res.status);
+			return false;
+		}
+
+		const save = el('button', 'sk-btn sk-btn-primary', 'Enregistrer');
+		save.addEventListener('click', async function () {
+			save.disabled = true;
+			if (await saveCard()) {
 				closePanel();
 				loadCards(currentBoard());
 			} else {
 				save.disabled = false;
-				window.alert('Erreur ' + res.status);
 			}
 		});
 
@@ -359,6 +429,7 @@
 		actions.appendChild(save);
 
 		box.appendChild(close);
+		box.appendChild(fsBtn);
 		box.appendChild(titleInput);
 		box.appendChild(dueRow);
 		box.appendChild(assigneesRow);

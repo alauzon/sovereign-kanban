@@ -143,7 +143,7 @@
 }
 .sk-detail-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, .4); }
 .sk-detail-box {
-	position: relative; z-index: 1; width: min(620px, 92vw);
+	position: relative; z-index: 1; width: min(880px, 94vw);
 	margin: 0 16px 4vh; align-self: flex-start;
 	background: var(--color-main-background); border-radius: var(--border-radius-large, 12px);
 	box-shadow: 0 8px 30px rgba(0, 0, 0, .25); padding: 24px;
@@ -154,6 +154,42 @@
 	border: none; border-radius: 50%; background: var(--color-background-hover);
 	cursor: pointer; font-size: 16px; line-height: 1; color: var(--color-main-text); z-index: 2;
 }
+.sk-detail-fs {
+	position: absolute; top: 12px; right: 52px; width: 32px; height: 32px;
+	border: none; border-radius: 50%; background: var(--color-background-hover);
+	cursor: pointer; font-size: 15px; line-height: 1; color: var(--color-main-text); z-index: 2;
+}
+.sk-detail-fs:hover { background: var(--color-background-dark); }
+.sk-detail-fs.is-on { background: var(--color-primary-element); color: var(--color-primary-element-text); }
+
+/* Fullscreen detail panel — position:fixed escapes the overlay's padding and
+   centering, giving the description editor (and comments) the whole viewport. */
+.sk-detail-box.sk-fullscreen {
+	position: fixed; inset: 0; z-index: 3;
+	width: 100vw; max-width: none; height: 100vh;
+	margin: 0; border-radius: 0; overflow-y: auto;
+}
+.sk-detail-box.sk-fullscreen .sk-detail-editor { min-height: 55vh; }
+.sk-detail-box.sk-fullscreen .sk-detail-editor .editor,
+.sk-detail-box.sk-fullscreen .sk-detail-editor .text-editor { min-height: 52vh; }
+.sk-detail-box.sk-fullscreen .sk-detail-body { min-height: 55vh; }
+.sk-detail-box.sk-fullscreen .sk-comments-list { max-height: none; }
+
+/* Unsaved-changes guard dialog */
+.sk-confirm {
+	position: fixed; inset: 0; z-index: 2100;
+	display: flex; align-items: center; justify-content: center;
+	background: rgba(0, 0, 0, .45);
+}
+.sk-confirm-box {
+	background: var(--color-main-background); border-radius: var(--border-radius-large, 12px);
+	box-shadow: 0 8px 30px rgba(0, 0, 0, .3); padding: 24px;
+	max-width: 440px; width: calc(100% - 32px);
+	display: flex; flex-direction: column; gap: 16px;
+}
+.sk-confirm-msg { margin: 0; font-size: 15px; }
+.sk-confirm-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+
 .sk-detail-title { font-size: 18px; font-weight: 600; width: 100%; box-sizing: border-box; }
 .sk-detail-body {
 	min-height: 130px; resize: vertical; padding: 12px; box-sizing: border-box;
