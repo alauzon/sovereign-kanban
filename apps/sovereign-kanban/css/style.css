@@ -57,6 +57,12 @@
 .sk-card.sk-dragging { opacity: .4; }
 .sk-column.sk-dragover { outline: 2px dashed var(--color-primary-element); outline-offset: -2px; }
 .sk-card h3 { margin: 0 0 8px; font-size: 14px; font-weight: 500; }
+.sk-card-excerpt {
+	margin: 0 0 8px; font-size: 12px; line-height: 1.45;
+	color: var(--color-text-maxcontrast);
+	display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3;
+	-webkit-box-orient: vertical; overflow: hidden;
+}
 .sk-card.sk-done h3 { text-decoration: line-through; color: var(--color-text-maxcontrast); }
 .sk-labels { display: flex; flex-wrap: wrap; gap: 5px; }
 .sk-label {

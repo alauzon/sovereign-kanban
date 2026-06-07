@@ -103,7 +103,7 @@ final class Card {
 	/**
 	 * Shape the card for the JSON API (frontend consumption).
 	 *
-	 * @return array{id: string, title: string, column: string, assignees: list<string>}
+	 * @return array{id: string, title: string, column: string, due_date: ?string, assignees: list<string>, excerpt: string}
 	 */
 	public function toArray(): array {
 		return [
@@ -112,7 +112,36 @@ final class Card {
 			'column' => $this->column,
 			'due_date' => $this->due_date,
 			'assignees' => array_values($this->assignees),
+			'excerpt' => $this->excerpt(),
 		];
+	}
+
+	/**
+	 * A short, plain-text preview of the description for the card tile.
+	 *
+	 * Strips the common Markdown noise (fences, headings, emphasis, links,
+	 * table pipes), collapses whitespace, and truncates with an ellipsis.
+	 *
+	 * @param int $length Maximum length of the returned excerpt.
+	 *
+	 * @return string Plain-text excerpt, or '' when there is no description.
+	 */
+	public function excerpt(int $length = 140): string {
+		$text = $this->description;
+		$text = preg_replace('/```.*?```/s', ' ', $text);
+		$text = preg_replace('/!?\[([^\]]*)\]\([^)]*\)/', '$1', $text);
+		$text = preg_replace('/^#{1,6}\s+/m', '', $text);
+		// Drop table separator rows (|---|:--:|) before stripping the markers.
+		$text = preg_replace('/^[\s|:\-]+$/m', ' ', $text);
+		$text = preg_replace('/[*_`>#|~\[\]]+/', ' ', $text);
+		$text = preg_replace('/\s+/', ' ', $text);
+		$text = trim($text);
+
+		if (mb_strlen($text) <= $length) {
+			return $text;
+		}
+
+		return mb_substr($text, 0, $length - 1) . '…';
 	}
 
 	/**

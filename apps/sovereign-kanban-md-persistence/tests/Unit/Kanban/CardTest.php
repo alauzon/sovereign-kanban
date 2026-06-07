@@ -126,9 +126,39 @@ final class CardTest extends TestCase {
                 'column' => '01-Backlog',
                 'due_date' => '2026-06-15',
                 'assignees' => ['alain', 'steve'],
+                'excerpt' => 'desc',
             ],
             $card->toArray(),
         );
+    }
+
+    public function testToArrayIncludesPlainTextExcerptFromDescription(): void {
+        $card = new Card(
+            id: 'abc',
+            title: 'Task',
+            column: '01-Backlog',
+            description: "# Titre\n\nCeci est **gras** et un [lien](https://ex.com).\n\n| A | B |\n|---|---|\n| 1 | 2 |",
+        );
+
+        $this->assertSame(
+            'Titre Ceci est gras et un lien. A B 1 2',
+            $card->toArray()['excerpt'],
+        );
+    }
+
+    public function testToArrayExcerptIsTruncatedWithEllipsis(): void {
+        $long = str_repeat('mot ', 60);
+        $card = new Card(id: 'abc', title: 'T', column: '01-Backlog', description: $long);
+
+        $excerpt = $card->toArray()['excerpt'];
+        $this->assertLessThanOrEqual(140, mb_strlen($excerpt));
+        $this->assertStringEndsWith('…', $excerpt);
+    }
+
+    public function testToArrayExcerptEmptyWhenNoDescription(): void {
+        $card = Card::create(title: 'No body', column: '01-Backlog');
+
+        $this->assertSame('', $card->toArray()['excerpt']);
     }
 
     public function testToArrayDueDateNullWhenUnset(): void {

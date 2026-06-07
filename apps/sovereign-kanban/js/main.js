@@ -89,6 +89,9 @@
 				});
 				art.addEventListener('dragend', function () { art.classList.remove('sk-dragging'); });
 				art.appendChild(el('h3', null, card.title));
+				if (card.excerpt) {
+					art.appendChild(el('p', 'sk-card-excerpt', card.excerpt));
+				}
 				const assignees = card.assignees || [];
 				if (card.due_date || assignees.length) {
 					const meta = el('div', 'sk-card-meta');
