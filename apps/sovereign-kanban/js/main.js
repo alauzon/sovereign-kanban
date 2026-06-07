@@ -236,6 +236,10 @@
 
 	function renderDetail(card) {
 		const panel = document.getElementById('sk-detail');
+		// Lift the overlay out of #content to document.body, otherwise the NC
+		// header sits in a higher stacking context and intercepts clicks on our
+		// fullscreen ✕/⛶ buttons. At body level our z-index wins.
+		if (panel.parentNode !== document.body) { document.body.appendChild(panel); }
 		panel.hidden = false;
 		panel.innerHTML = '';
 

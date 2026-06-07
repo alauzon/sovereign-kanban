@@ -143,7 +143,7 @@
 
 /* Card detail overlay */
 .sk-detail {
-	position: fixed; inset: 0; z-index: 2000;
+	position: fixed; inset: 0; z-index: 9000;
 	display: flex; align-items: flex-start; justify-content: center;
 	overflow-y: auto; padding: 4vh 0;
 }
@@ -180,7 +180,7 @@
 /* Fullscreen detail panel — starts BELOW the Nextcloud header so our ✕/⛶
    buttons never collide with the header's contacts/account icons. */
 .sk-detail-box.sk-fullscreen {
-	position: fixed; inset: var(--header-height, 50px) 0 0 0; z-index: 3;
+	position: fixed; inset: 0; z-index: 3;
 	width: auto; max-width: none;
 	margin: 0; border-radius: 0; overflow-y: auto;
 }
@@ -193,7 +193,7 @@
 
 /* Unsaved-changes guard dialog */
 .sk-confirm {
-	position: fixed; inset: 0; z-index: 2100;
+	position: fixed; inset: 0; z-index: 9100;
 	display: flex; align-items: center; justify-content: center;
 	background: rgba(0, 0, 0, .45);
 }
