@@ -210,41 +210,17 @@
 		renderDetail(data.card);
 	}
 
-	let textEditorPromise = null;
-
-	function loadTextEditor() {
-		if (textEditorPromise) { return textEditorPromise; }
-		const base = (window.OC && OC.getRootPath) ? OC.getRootPath() : '';
-		textEditorPromise = import(/* webpackIgnore: true */ base + '/apps/text/js/text-editor.mjs')
-			.then(function (mod) {
-				if (mod && typeof mod.createEditor === 'function') { return mod.createEditor; }
-				if (window.OCA && window.OCA.Text && window.OCA.Text.createEditor) { return window.OCA.Text.createEditor; }
-				return null;
-			})
-			.catch(function () { return null; });
-		return textEditorPromise;
-	}
-
 	function renderDetail(card) {
 		const panel = document.getElementById('sk-detail');
 		panel.hidden = false;
 		panel.innerHTML = '';
 
-		let editorInstance = null;
-		let descriptionMarkdown = card.description || '';
-		const closePanel = function () {
-			if (editorInstance && typeof editorInstance.destroy === 'function') {
-				try { editorInstance.destroy(); } catch (e) { /* ignore */ }
-			}
-			panel.hidden = true;
-		};
-
 		const backdrop = el('div', 'sk-detail-backdrop');
-		backdrop.addEventListener('click', closePanel);
+		backdrop.addEventListener('click', function () { panel.hidden = true; });
 
 		const box = el('div', 'sk-detail-box');
 		const close = el('button', 'sk-detail-close', '✕');
-		close.addEventListener('click', closePanel);
+		close.addEventListener('click', function () { panel.hidden = true; });
 
 		const titleInput = el('input', 'sk-input sk-detail-title');
 		titleInput.type = 'text';
@@ -265,45 +241,21 @@
 		assigneesRow.appendChild(el('span', 'sk-field-label', 'Assignés (séparés par des virgules)'));
 		assigneesRow.appendChild(assigneesInput);
 
-		// Description: the Nextcloud Text editor (same as Deck), content mode,
-		// with a plain textarea fallback if the Text module can't be loaded.
-		const editorEl = el('div', 'sk-detail-editor');
-		const fallback = el('textarea', 'sk-detail-body');
-		fallback.placeholder = 'Description (Markdown)…';
-		fallback.value = descriptionMarkdown;
-		fallback.hidden = true;
-		fallback.addEventListener('input', function () { descriptionMarkdown = fallback.value; });
-		loadTextEditor().then(function (createEditor) {
-			if (!createEditor) {
-				editorEl.hidden = true;
-				fallback.hidden = false;
-				return;
-			}
-			createEditor({
-				el: editorEl,
-				content: descriptionMarkdown,
-				useSession: false,
-				autofocus: false,
-				onUpdate: function (data) { descriptionMarkdown = data.markdown; },
-			}).then(function (instance) {
-				editorInstance = instance;
-			}).catch(function () {
-				editorEl.hidden = true;
-				fallback.hidden = false;
-			});
-		});
+		const bodyArea = el('textarea', 'sk-detail-body');
+		bodyArea.value = card.description || '';
+		bodyArea.placeholder = 'Description (Markdown)…';
 
 		const save = el('button', 'sk-btn sk-btn-primary', 'Enregistrer');
 		save.addEventListener('click', async function () {
 			save.disabled = true;
 			const res = await api('PUT', cardUrl(currentId, card.id), {
 				title: titleInput.value.trim(),
-				description: descriptionMarkdown,
+				description: bodyArea.value,
 				due_date: dueInput.value,
 				assignees: assigneesInput.value.split(',').map(function (s) { return s.trim(); }).filter(Boolean),
 			});
 			if (res.ok) {
-				closePanel();
+				panel.hidden = true;
 				loadCards(currentBoard());
 			} else {
 				save.disabled = false;
@@ -335,7 +287,7 @@
 			if (!window.confirm('Supprimer cette carte ?')) { return; }
 			del.disabled = true;
 			const res = await api('DELETE', cardUrl(currentId, card.id));
-			if (res.ok) { closePanel(); loadCards(currentBoard()); }
+			if (res.ok) { panel.hidden = true; loadCards(currentBoard()); }
 			else { del.disabled = false; window.alert('Erreur ' + res.status); }
 		});
 		const actions = el('div', 'sk-detail-actions');
@@ -346,9 +298,7 @@
 		box.appendChild(titleInput);
 		box.appendChild(dueRow);
 		box.appendChild(assigneesRow);
-		box.appendChild(el('span', 'sk-field-label', 'Description'));
-		box.appendChild(editorEl);
-		box.appendChild(fallback);
+		box.appendChild(bodyArea);
 		box.appendChild(actions);
 		box.appendChild(comments);
 		panel.appendChild(backdrop);
@@ -482,29 +432,17 @@
 	}
 
 	function init() {
-		try {
-			const newBtn = document.getElementById('sk-new-board');
-			const editBtn = document.getElementById('sk-edit-board');
-			if (newBtn) {
-				newBtn.addEventListener('click', function () { showBoardForm('create', null); });
-			}
-			if (editBtn) {
-				editBtn.addEventListener('click', function () {
-					const board = currentBoard();
-					if (board) { showBoardForm('edit', board); }
-				});
-			}
-			reload(null).catch(function (e) {
-				showMessage('Impossible de joindre l’API : ' + e.message);
-			});
-		} catch (e) {
-			console.error('[Sovereign Kanban] init failed:', e);
-		}
+		document.getElementById('sk-new-board').addEventListener('click', function () {
+			showBoardForm('create', null);
+		});
+		document.getElementById('sk-edit-board').addEventListener('click', function () {
+			const board = currentBoard();
+			if (board) showBoardForm('edit', board);
+		});
+		reload(null).catch(function (e) {
+			showMessage('Impossible de joindre l’API : ' + e.message);
+		});
 	}
 
-	if (document.readyState === 'loading') {
-		document.addEventListener('DOMContentLoaded', init);
-	} else {
-		init();
-	}
+	document.addEventListener('DOMContentLoaded', init);
 })();
