@@ -31,6 +31,15 @@ The repo is a monorepo: `apps/<app>/` for each.
 
 **Why this split:** the business logic (domain + persistence) knows nothing about Nextcloud. We test all of it in PHPUnit, locally, without starting an NC. Nextcloud only enters at the boundary (Controllers), tested via e2e (Playwright against a real NC).
 
+## Storage abstraction (`lib/Storage/`)
+
+The repositories never touch the filesystem directly. They depend on a `Storage` interface (relative paths: `exists`, `read`, `write`, `makeDir`, `delete`, `move`, `childDirectories`, `scoped`). Two implementations:
+
+- **`LocalStorage`** — raw filesystem, rooted at a base dir. Used by **unit tests** (fast, no Nextcloud).
+- **`NextcloudStorage`** — the Nextcloud Files API (`IRootFolder`/`Folder`), rooted at a Folder node. Used in **production**.
+
+Why it matters: writing through the Files API keeps NC's file cache in sync, so the **Files app and desktop sync client see Kanban changes immediately** — and reading reflects external edits. **Bidirectional sync, verified.** It also works on object storage (S3). Controllers inject `IRootFolder` and build a `NextcloudStorage` rooted at the user's `Files/Kanban/` (boards) or a board folder (cards).
+
 ## Existing classes (`sovereign-kanban-md-persistence/lib/Kanban/`)
 
 - **`Card`** — immutable value object: `id` (stable uuid), `title`, `column`, `description`, `created_at`, `assignees`. `create()`, `toYAMLFrontmatter()`.
