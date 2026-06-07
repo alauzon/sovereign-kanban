@@ -200,6 +200,13 @@
 	width: auto; max-width: none;
 	margin: 0; border-radius: 0; overflow-y: auto;
 }
+/* In a fixed-height flex column, children get compressed to fit instead of
+   overflowing — which hides the comments and kills scrolling. Keep their
+   natural size so the box actually scrolls. */
+.sk-detail-box.sk-fullscreen > * { flex-shrink: 0; }
+/* Keep the close/fullscreen buttons in view while the box scrolls. */
+.sk-detail-box.sk-fullscreen .sk-detail-close,
+.sk-detail-box.sk-fullscreen .sk-detail-fs { position: fixed; }
 .sk-detail-box.sk-fullscreen .sk-detail-resize { display: none; }
 /* Moderate editor height so the box still scrolls down to the comments. */
 .sk-detail-box.sk-fullscreen .sk-detail-editor { min-height: 32vh; }
