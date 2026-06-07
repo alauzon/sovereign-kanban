@@ -29,6 +29,7 @@ final class Card {
 		public readonly DateTime $created_at = new DateTime(),
 		public readonly array $assignees = [],
 		public readonly ?string $due_date = null,
+		public readonly array $procedures = [],
 	) {
 	}
 
@@ -66,6 +67,7 @@ final class Card {
 			created_at: self::parseCreatedAt($frontmatter['created_at'] ?? null),
 			assignees: $frontmatter['assignees'] ?? [],
 			due_date: self::parseDueDate($frontmatter['due_date'] ?? null),
+			procedures: $frontmatter['procédures'] ?? [],
 		);
 	}
 
@@ -112,6 +114,7 @@ final class Card {
 			'column' => $this->column,
 			'due_date' => $this->due_date,
 			'assignees' => array_values($this->assignees),
+			'procedures' => array_values($this->procedures),
 			'excerpt' => $this->excerpt(),
 		];
 	}
@@ -163,6 +166,10 @@ final class Card {
 
 		if (!empty($this->assignees)) {
 			$frontmatter['assignees'] = $this->assignees;
+		}
+
+		if (!empty($this->procedures)) {
+			$frontmatter['procédures'] = $this->procedures;
 		}
 
 		$yaml = "---\n";

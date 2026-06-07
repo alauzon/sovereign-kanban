@@ -126,6 +126,7 @@ final class CardTest extends TestCase {
                 'column' => '01-Backlog',
                 'due_date' => '2026-06-15',
                 'assignees' => ['alain', 'steve'],
+                'procedures' => [],
                 'excerpt' => 'desc',
             ],
             $card->toArray(),
@@ -159,6 +160,23 @@ final class CardTest extends TestCase {
         $card = Card::create(title: 'No body', column: '01-Backlog');
 
         $this->assertSame('', $card->toArray()['excerpt']);
+    }
+
+    public function testProceduresRoundTripThroughFrontmatter(): void {
+        $card = new Card(
+            id: 'p1',
+            title: 'Réunion',
+            column: '02-En cours',
+            description: 'corps',
+            procedures: ['Élection sans candidat', 'Décision par consentement'],
+        );
+
+        $restored = Card::fromMarkdown($card->toYAMLFrontmatter() . "\n" . $card->description);
+
+        $this->assertSame(
+            ['Élection sans candidat', 'Décision par consentement'],
+            $restored->procedures,
+        );
     }
 
     public function testToArrayDueDateNullWhenUnset(): void {

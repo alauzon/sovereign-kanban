@@ -52,7 +52,7 @@ final class CardController extends Controller {
 		$cardsByColumn = [];
 		foreach ($repository->listByColumn() as $column => $cards) {
 			$cardsByColumn[$column] = array_map(
-				static fn (Card $card): array => $card->toArray(),
+				fn (Card $card): array => $card->toArray() + ['excerpt_html' => $this->markdown->toHtml($card->description)],
 				$cards,
 			);
 		}
@@ -83,7 +83,7 @@ final class CardController extends Controller {
 	 * Create a card in a column (clean column name, mapped to its folder).
 	 */
 	#[NoAdminRequired]
-	public function create(string $boardId, string $title, string $column, ?string $description = null): DataResponse {
+	public function create(string $boardId, string $title, string $column, ?string $description = null, ?array $procedures = null): DataResponse {
 		$repository = $this->repository($boardId);
 		if ($repository === null) {
 			return new DataResponse(['error' => 'unavailable'], 400);
@@ -100,16 +100,19 @@ final class CardController extends Controller {
 		}
 
 		$card = Card::create($title, $folder);
-		// Optional initial body — e.g. a card created from a template.
-		if ($description !== null && trim($description) !== '') {
+		// Optional initial body and suggested procedures — e.g. from a template.
+		$hasBody = $description !== null && trim($description) !== '';
+		$hasProcedures = $procedures !== null && $procedures !== [];
+		if ($hasBody || $hasProcedures) {
 			$card = new Card(
 				id: $card->id,
 				title: $card->title,
 				column: $card->column,
-				description: $description,
+				description: $description ?? '',
 				created_at: $card->created_at,
 				assignees: $card->assignees,
 				due_date: $card->due_date,
+				procedures: $hasProcedures ? array_values($procedures) : [],
 			);
 		}
 		$repository->save($card);
@@ -159,6 +162,7 @@ final class CardController extends Controller {
 			created_at: $card->created_at,
 			assignees: $newAssignees,
 			due_date: $newDue,
+			procedures: $card->procedures,
 		);
 		$repository->update($updated);
 
@@ -303,6 +307,7 @@ final class CardController extends Controller {
 			'description' => $card->description,
 			'due_date' => $card->due_date,
 			'assignees' => array_values($card->assignees),
+			'procedures' => array_values($card->procedures),
 		];
 	}
 

@@ -74,11 +74,25 @@
 .sk-column.sk-dragover { outline: 2px dashed var(--color-primary-element); outline-offset: -2px; }
 .sk-card h3 { margin: 0 0 6px; font-size: 14px; font-weight: 600; line-height: 1.3; color: var(--color-main-text); }
 .sk-card-excerpt {
+	position: relative;
 	margin: 0 0 8px; font-size: 12px; line-height: 1.45;
 	color: var(--color-text-maxcontrast);
-	display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3;
-	-webkit-box-orient: vertical; overflow: hidden;
+	max-height: 110px; overflow: hidden;
 }
+.sk-card-excerpt::after {
+	content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 22px;
+	background: linear-gradient(transparent, var(--color-main-background));
+}
+/* Compact the rich elements inside the small tile preview. */
+.sk-card-excerpt.sk-rich h1, .sk-card-excerpt.sk-rich h2,
+.sk-card-excerpt.sk-rich h3, .sk-card-excerpt.sk-rich h4 { font-size: 12px; margin: 2px 0; }
+.sk-card-excerpt.sk-rich p, .sk-card-excerpt.sk-rich ul, .sk-card-excerpt.sk-rich ol { margin: 0 0 3px; }
+.sk-card-excerpt.sk-rich table { font-size: 11px; }
+.sk-card-excerpt.sk-rich th, .sk-card-excerpt.sk-rich td { padding: 0 4px; }
+
+/* Description header row (label + "+ Procédure") */
+.sk-desc-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sk-btn-small { padding: 3px 10px; font-size: 12px; }
 .sk-card.sk-done h3 { text-decoration: line-through; color: var(--color-text-maxcontrast); }
 .sk-labels { display: flex; flex-wrap: wrap; gap: 5px; }
 .sk-label {

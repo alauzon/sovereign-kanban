@@ -124,6 +124,7 @@ gabarit: Réunion sociocratique
 icône: 🟢
 colonne_cible: En cours
 étiquettes: [réunion, gouvernance]
+procédures: ["Élection sans candidat", "Décision par consentement", "Récolte d'objections"]
 ---
 
 ## Réunion — cercle :  — date :
@@ -211,6 +212,7 @@ gabarit: Rencontre en 4 temps (SdP)
 icône: 🌱
 colonne_cible: En cours
 étiquettes: [rencontre, 4-temps]
+procédures: ["Décision par consentement", "Récolte d'objections"]
 ---
 
 ## Rencontre en 4 temps — date :

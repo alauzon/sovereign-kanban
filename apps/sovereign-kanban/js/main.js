@@ -93,7 +93,11 @@
 				});
 				art.addEventListener('dragend', function () { art.classList.remove('sk-dragging'); });
 				art.appendChild(el('h3', null, card.title));
-				if (card.excerpt) {
+				if (card.excerpt_html) {
+					const ex = el('div', 'sk-card-excerpt sk-rich');
+					ex.innerHTML = card.excerpt_html;
+					art.appendChild(ex);
+				} else if (card.excerpt) {
 					art.appendChild(el('p', 'sk-card-excerpt', card.excerpt));
 				}
 				const assignees = card.assignees || [];
@@ -398,43 +402,43 @@
 		const editorEl = el('div', 'sk-detail-editor');
 		const fallback = el('textarea', 'sk-detail-body');
 		fallback.placeholder = 'Description (Markdown)…';
-		fallback.value = descriptionMarkdown;
 		fallback.hidden = true;
 		fallback.addEventListener('input', function () { descriptionMarkdown = fallback.value; dirty = true; });
-		loadTextEditor().then(function (createEditor) {
-			if (!createEditor) {
-				editorEl.hidden = true;
-				fallback.hidden = false;
-				editorMounted = true;
-				return;
+
+		// Re-mountable, so "+ Procédure" can inject a snippet into the body.
+		function mountDescription(content) {
+			descriptionMarkdown = content;
+			fallback.value = content;
+			editorEl.innerHTML = '';
+			if (editorInstance && typeof editorInstance.destroy === 'function') {
+				try { editorInstance.destroy(); } catch (e) { /* ignore */ }
+				editorInstance = null;
 			}
-			try {
-				const result = createEditor({
-					el: editorEl,
-					content: descriptionMarkdown,
-					useSession: false,
-					autofocus: false,
-					onUpdate: function (data) {
-						descriptionMarkdown = data.markdown;
-						if (editorMounted) { dirty = true; }
-					},
-				});
-				Promise.resolve(result).then(function (instance) {
-					editorInstance = instance;
-					// Defer past any initial onUpdate fired during mount, so loading
-					// the existing content doesn't count as an unsaved change.
-					setTimeout(function () { editorMounted = true; }, 0);
-				}).catch(function () {
-					editorEl.hidden = true;
-					fallback.hidden = false;
-					editorMounted = true;
-				});
-			} catch (e) {
-				editorEl.hidden = true;
-				fallback.hidden = false;
-				editorMounted = true;
-			}
-		});
+			editorMounted = false;
+			editorEl.hidden = false;
+			fallback.hidden = true;
+			loadTextEditor().then(function (createEditor) {
+				if (!createEditor) { editorEl.hidden = true; fallback.hidden = false; editorMounted = true; return; }
+				try {
+					const result = createEditor({
+						el: editorEl,
+						content: content,
+						useSession: false,
+						autofocus: false,
+						onUpdate: function (data) {
+							descriptionMarkdown = data.markdown;
+							if (editorMounted) { dirty = true; }
+						},
+					});
+					Promise.resolve(result).then(function (instance) {
+						editorInstance = instance;
+						// Defer past any initial onUpdate fired during mount.
+						setTimeout(function () { editorMounted = true; }, 0);
+					}).catch(function () { editorEl.hidden = true; fallback.hidden = false; editorMounted = true; });
+				} catch (e) { editorEl.hidden = true; fallback.hidden = false; editorMounted = true; }
+			});
+		}
+		mountDescription(descriptionMarkdown);
 
 		async function saveCard() {
 			const res = await api('PUT', cardUrl(currentId, card.id), {
@@ -484,7 +488,29 @@
 		box.appendChild(titleInput);
 		box.appendChild(dueRow);
 		box.appendChild(assigneesRow);
-		box.appendChild(el('span', 'sk-field-label', 'Description'));
+		const descHead = el('div', 'sk-desc-head');
+		descHead.appendChild(el('span', 'sk-field-label', 'Description'));
+		const procBtn = el('button', 'sk-btn sk-btn-small', '+ Procédure');
+		procBtn.addEventListener('click', async function () {
+			const all = await fetchList(proceduresUrl(), 'procedures');
+			const suggested = card.procedures || [];
+			// Suggested first (in the card's order), then the rest of the pool.
+			const ordered = [];
+			suggested.forEach(function (name) {
+				const found = all.find(function (p) { return p.name === name; });
+				if (found) { ordered.push(found); }
+			});
+			all.forEach(function (p) {
+				if (suggested.indexOf(p.name) === -1) { ordered.push(p); }
+			});
+			openMenu(procBtn, ordered.length ? ordered : all, function (proc) {
+				const base = descriptionMarkdown ? descriptionMarkdown.replace(/\s+$/, '') + '\n\n' : '';
+				mountDescription(base + proc.body);
+				dirty = true;
+			});
+		});
+		descHead.appendChild(procBtn);
+		box.appendChild(descHead);
 		box.appendChild(editorEl);
 		box.appendChild(fallback);
 		box.appendChild(actions);
@@ -831,6 +857,7 @@
 				title: (title.trim() || t.name),
 				column: target,
 				description: t.body,
+				procedures: (t.meta && t.meta['procédures']) ? t.meta['procédures'] : [],
 			});
 			if (res.ok) { loadCards(board); }
 			else { window.alert('Erreur ' + res.status); }
