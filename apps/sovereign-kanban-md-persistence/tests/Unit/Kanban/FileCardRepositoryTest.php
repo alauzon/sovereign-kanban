@@ -171,6 +171,53 @@ final class FileCardRepositoryTest extends TestCase {
         $this->assertSame("Deuxième\nsur deux lignes", $list[1]->body);
     }
 
+    public function testUpdateCommentChangesBodyButKeepsIdAuthorAndDate(): void {
+        $card = Card::create(title: 'Editable comments', column: '01-Backlog');
+        $this->repo->save($card);
+        $this->repo->addComment($card->id, Comment::create('admin', 'Avant'));
+        $original = $this->repo->listComments($card->id)[0];
+
+        $ok = $this->repo->updateComment($card->id, $original->id, 'Après **édité**');
+
+        $this->assertTrue($ok);
+        $list = $this->repo->listComments($card->id);
+        $this->assertCount(1, $list);
+        $this->assertSame($original->id, $list[0]->id);
+        $this->assertSame('admin', $list[0]->author);
+        $this->assertSame('Après **édité**', $list[0]->body);
+    }
+
+    public function testUpdateCommentReturnsFalseForUnknownId(): void {
+        $card = Card::create(title: 'No such comment', column: '01-Backlog');
+        $this->repo->save($card);
+        $this->repo->addComment($card->id, Comment::create('admin', 'Seul'));
+
+        $this->assertFalse($this->repo->updateComment($card->id, 'nope', 'x'));
+    }
+
+    public function testDeleteCommentRemovesOnlyTheTargetedOne(): void {
+        $card = Card::create(title: 'Deletable comments', column: '01-Backlog');
+        $this->repo->save($card);
+        $this->repo->addComment($card->id, Comment::create('admin', 'Garder'));
+        $this->repo->addComment($card->id, Comment::create('alain', 'Supprimer'));
+        $toDelete = $this->repo->listComments($card->id)[1];
+
+        $ok = $this->repo->deleteComment($card->id, $toDelete->id);
+
+        $this->assertTrue($ok);
+        $list = $this->repo->listComments($card->id);
+        $this->assertCount(1, $list);
+        $this->assertSame('Garder', $list[0]->body);
+    }
+
+    public function testDeleteCommentReturnsFalseForUnknownId(): void {
+        $card = Card::create(title: 'Delete unknown', column: '01-Backlog');
+        $this->repo->save($card);
+        $this->repo->addComment($card->id, Comment::create('admin', 'Seul'));
+
+        $this->assertFalse($this->repo->deleteComment($card->id, 'nope'));
+    }
+
     public function testMoveCardUpdatesFrontmatterColumn(): void {
         $card = Card::create(title: 'Mover', column: '01-Backlog');
         $this->repo->save($card);

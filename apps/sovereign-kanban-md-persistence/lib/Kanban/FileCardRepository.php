@@ -173,6 +173,86 @@ final class FileCardRepository {
 	}
 
 	/**
+	 * Replace the body of one comment, keeping its id, author and timestamp.
+	 *
+	 * @return bool True if the comment was found and rewritten.
+	 */
+	public function updateComment(string $cardId, string $commentId, string $body): bool {
+		$file = $this->commentsFile($cardId);
+		if ($file === null) {
+			return false;
+		}
+
+		$found = false;
+		$comments = array_map(
+			static function (Comment $comment) use ($commentId, $body, &$found): Comment {
+				if ($comment->id === $commentId) {
+					$found = true;
+					return new Comment($comment->id, $comment->author, $comment->created_at, $body);
+				}
+				return $comment;
+			},
+			Comment::parseAll($this->storage->read($file)),
+		);
+
+		if (!$found) {
+			return false;
+		}
+
+		$this->writeComments($file, $comments);
+		return true;
+	}
+
+	/**
+	 * Remove one comment by id.
+	 *
+	 * @return bool True if the comment was found and removed.
+	 */
+	public function deleteComment(string $cardId, string $commentId): bool {
+		$file = $this->commentsFile($cardId);
+		if ($file === null) {
+			return false;
+		}
+
+		$comments = Comment::parseAll($this->storage->read($file));
+		$remaining = array_values(array_filter(
+			$comments,
+			static fn (Comment $comment): bool => $comment->id !== $commentId,
+		));
+
+		if (count($remaining) === count($comments)) {
+			return false;
+		}
+
+		$this->writeComments($file, $remaining);
+		return true;
+	}
+
+	/**
+	 * Resolve a card's comments.md path, or null if the card or file is absent.
+	 */
+	private function commentsFile(string $cardId): ?string {
+		$dir = $this->findCardDirAnywhere($cardId);
+		if ($dir === null) {
+			return null;
+		}
+
+		$file = $dir . '/comments.md';
+
+		return $this->storage->exists($file) ? $file : null;
+	}
+
+	/**
+	 * Rewrite comments.md from a list of comments (all with explicit ids).
+	 *
+	 * @param Comment[] $comments
+	 */
+	private function writeComments(string $file, array $comments): void {
+		$blocks = array_map(static fn (Comment $comment): string => $comment->toMarkdown(), $comments);
+		$this->storage->write($file, implode("\n", $blocks));
+	}
+
+	/**
 	 * Serialize a card to its card.md content (frontmatter + body).
 	 */
 	private function serialize(Card $card): string {

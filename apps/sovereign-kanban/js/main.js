@@ -21,6 +21,7 @@
 	function cardsUrl(boardId) { return boardUrl(boardId) + '/cards'; }
 	function cardUrl(boardId, cardId) { return cardsUrl(boardId) + '/' + encodeURIComponent(cardId); }
 	function commentsUrl(boardId, cardId) { return cardUrl(boardId, cardId) + '/comments'; }
+	function commentUrl(boardId, cardId, commentId) { return commentsUrl(boardId, cardId) + '/' + encodeURIComponent(commentId); }
 	function token() { return (window.OC && OC.requestToken) ? OC.requestToken : ''; }
 
 	function el(tag, className, text) {
@@ -515,11 +516,94 @@
 			return;
 		}
 		comments.forEach(function (c) {
-			const item = el('div', 'sk-comment');
-			item.appendChild(el('div', 'sk-comment-meta', c.author + ' — ' + formatDate(c.created_at)));
-			item.appendChild(el('div', 'sk-comment-body', c.body));
-			listEl.appendChild(item);
+			listEl.appendChild(renderComment(c, cardId, listEl));
 		});
+	}
+
+	/**
+	 * One comment row: meta + delete button + a body that opens the Text editor
+	 * (Markdown) on click, exactly like the card description.
+	 */
+	function renderComment(c, cardId, listEl) {
+		const item = el('div', 'sk-comment');
+
+		const meta = el('div', 'sk-comment-meta');
+		meta.appendChild(el('span', null, c.author + ' — ' + formatDate(c.created_at)));
+		const del = el('button', 'sk-comment-del', '✕');
+		del.title = 'Supprimer ce commentaire';
+		del.addEventListener('click', async function (e) {
+			e.stopPropagation();
+			if (!window.confirm('Supprimer ce commentaire ?')) { return; }
+			const res = await api('DELETE', commentUrl(currentId, cardId, c.id));
+			if (res.ok) { loadComments(cardId, listEl); }
+			else { window.alert('Erreur ' + res.status); }
+		});
+		meta.appendChild(del);
+		item.appendChild(meta);
+
+		const body = el('div', 'sk-comment-body', c.body);
+		body.title = 'Cliquer pour éditer';
+		body.addEventListener('click', function () { editComment(c, cardId, listEl, item, body); });
+		item.appendChild(body);
+
+		return item;
+	}
+
+	/**
+	 * Swap a comment body for the Text editor (textarea fallback) + save/cancel.
+	 */
+	function editComment(c, cardId, listEl, item, bodyEl) {
+		if (item.querySelector('.sk-comment-editwrap')) { return; }
+		bodyEl.hidden = true;
+
+		let md = c.body;
+		let editor = null;
+		const wrap = el('div', 'sk-comment-editwrap');
+		const editorEl = el('div', 'sk-comment-editor');
+		const fallback = el('textarea', 'sk-comment-input');
+		fallback.value = md;
+		fallback.hidden = true;
+		fallback.addEventListener('input', function () { md = fallback.value; });
+
+		loadTextEditor().then(function (createEditor) {
+			if (!createEditor) { editorEl.hidden = true; fallback.hidden = false; return; }
+			try {
+				const result = createEditor({
+					el: editorEl,
+					content: md,
+					useSession: false,
+					autofocus: true,
+					onUpdate: function (data) { md = data.markdown; },
+				});
+				Promise.resolve(result).then(function (inst) { editor = inst; })
+					.catch(function () { editorEl.hidden = true; fallback.hidden = false; });
+			} catch (e) { editorEl.hidden = true; fallback.hidden = false; }
+		});
+
+		const cleanup = function () {
+			if (editor && typeof editor.destroy === 'function') { try { editor.destroy(); } catch (e) { /* ignore */ } }
+		};
+
+		const save = el('button', 'sk-btn sk-btn-primary', 'Enregistrer');
+		save.addEventListener('click', async function () {
+			const body = (md || '').trim();
+			if (!body) { window.alert('Le commentaire ne peut pas être vide.'); return; }
+			save.disabled = true;
+			const res = await api('PUT', commentUrl(currentId, cardId, c.id), { body: body });
+			if (res.ok) { cleanup(); loadComments(cardId, listEl); }
+			else { save.disabled = false; window.alert('Erreur ' + res.status); }
+		});
+		const cancel = el('button', 'sk-btn', 'Annuler');
+		cancel.addEventListener('click', function () { cleanup(); loadComments(cardId, listEl); });
+
+		const actions = el('div', 'sk-comment-editactions');
+		actions.appendChild(save);
+		actions.appendChild(cancel);
+
+		wrap.appendChild(editorEl);
+		wrap.appendChild(fallback);
+		wrap.appendChild(actions);
+		item.appendChild(wrap);
 	}
 
 	function formatDate(iso) {

@@ -23,5 +23,7 @@ return [
 		['name' => 'card#move', 'url' => '/api/v1/boards/{boardId}/cards/{cardId}/move', 'verb' => 'PUT'],
 		['name' => 'card#comments', 'url' => '/api/v1/boards/{boardId}/cards/{cardId}/comments', 'verb' => 'GET'],
 		['name' => 'card#addComment', 'url' => '/api/v1/boards/{boardId}/cards/{cardId}/comments', 'verb' => 'POST'],
+		['name' => 'card#updateComment', 'url' => '/api/v1/boards/{boardId}/cards/{cardId}/comments/{commentId}', 'verb' => 'PUT'],
+		['name' => 'card#destroyComment', 'url' => '/api/v1/boards/{boardId}/cards/{cardId}/comments/{commentId}', 'verb' => 'DELETE'],
 	],
 ];

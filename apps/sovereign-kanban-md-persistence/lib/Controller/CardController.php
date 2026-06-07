@@ -239,6 +239,44 @@ final class CardController extends Controller {
 	}
 
 	/**
+	 * Edit the body of an existing comment (Markdown).
+	 */
+	#[NoAdminRequired]
+	public function updateComment(string $boardId, string $cardId, string $commentId, string $body): DataResponse {
+		$repository = $this->repository($boardId);
+		if ($repository === null || !$this->validCardId($cardId) || !$this->validCommentId($commentId)) {
+			return new DataResponse(['error' => 'unavailable'], 400);
+		}
+
+		$body = trim($body);
+		if ($body === '') {
+			return new DataResponse(['error' => 'body_required'], 400);
+		}
+		if (!$repository->updateComment($cardId, $commentId, $body)) {
+			return new DataResponse(['error' => 'comment_not_found'], 404);
+		}
+
+		return new DataResponse(['updated' => true]);
+	}
+
+	/**
+	 * Delete a comment by id.
+	 */
+	#[NoAdminRequired]
+	public function destroyComment(string $boardId, string $cardId, string $commentId): DataResponse {
+		$repository = $this->repository($boardId);
+		if ($repository === null || !$this->validCardId($cardId) || !$this->validCommentId($commentId)) {
+			return new DataResponse(['error' => 'unavailable'], 400);
+		}
+
+		if (!$repository->deleteComment($cardId, $commentId)) {
+			return new DataResponse(['error' => 'comment_not_found'], 404);
+		}
+
+		return new DataResponse(['deleted' => true]);
+	}
+
+	/**
 	 * Full card shape for the detail view (includes the description body).
 	 *
 	 * @return array{id: string, title: string, column: string, description: string, assignees: list<string>}
@@ -259,6 +297,13 @@ final class CardController extends Controller {
 	 */
 	private function validCardId(string $cardId): bool {
 		return (bool) preg_match('/^[0-9a-fA-F-]+$/', $cardId);
+	}
+
+	/**
+	 * A comment id is a UUID or a derived hex token — whitelist blocks traversal.
+	 */
+	private function validCommentId(string $commentId): bool {
+		return (bool) preg_match('/^[0-9a-fA-F-]+$/', $commentId);
 	}
 
 	/**
