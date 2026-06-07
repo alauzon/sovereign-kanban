@@ -215,7 +215,9 @@
 	function loadTextEditor() {
 		if (textEditorPromise) { return textEditorPromise; }
 		const base = (window.OC && OC.getRootPath) ? OC.getRootPath() : '';
-		const url = base + '/apps/text/js/text-editor.mjs';
+		// ?skv bust le cache navigateur : le .mjs avait été mis en cache 6 mois
+		// avec un mauvais MIME (octet-stream) avant le fix nginx.
+		const url = base + '/apps/text/js/text-editor.mjs?skv=2';
 		console.log('[SK] import du module Text:', url);
 		textEditorPromise = import(/* webpackIgnore: true */ url)
 			.then(function (mod) {
