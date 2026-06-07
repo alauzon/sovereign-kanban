@@ -482,17 +482,29 @@
 	}
 
 	function init() {
-		document.getElementById('sk-new-board').addEventListener('click', function () {
-			showBoardForm('create', null);
-		});
-		document.getElementById('sk-edit-board').addEventListener('click', function () {
-			const board = currentBoard();
-			if (board) showBoardForm('edit', board);
-		});
-		reload(null).catch(function (e) {
-			showMessage('Impossible de joindre l’API : ' + e.message);
-		});
+		try {
+			const newBtn = document.getElementById('sk-new-board');
+			const editBtn = document.getElementById('sk-edit-board');
+			if (newBtn) {
+				newBtn.addEventListener('click', function () { showBoardForm('create', null); });
+			}
+			if (editBtn) {
+				editBtn.addEventListener('click', function () {
+					const board = currentBoard();
+					if (board) { showBoardForm('edit', board); }
+				});
+			}
+			reload(null).catch(function (e) {
+				showMessage('Impossible de joindre l’API : ' + e.message);
+			});
+		} catch (e) {
+			console.error('[Sovereign Kanban] init failed:', e);
+		}
 	}
 
-	document.addEventListener('DOMContentLoaded', init);
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', init);
+	} else {
+		init();
+	}
 })();
