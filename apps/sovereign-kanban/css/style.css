@@ -3,6 +3,11 @@
  * @license AGPL-3.0-or-later
  */
 
+/* The hidden attribute must always win over our display:flex rules,
+   otherwise the #sk-detail overlay (position:fixed; inset:0) stays on top
+   and silently eats every click. */
+[hidden] { display: none !important; }
+
 #sk-app { padding: 24px; max-width: 100%; box-sizing: border-box; }
 .sk-header h1 { margin: 0 0 4px; font-size: 24px; }
 .sk-subtitle { color: var(--color-text-maxcontrast); margin: 0 0 20px; font-size: 13px; }
