@@ -240,7 +240,7 @@
 		let onKey = null;
 
 		const closePanel = function () {
-			if (onKey) { document.removeEventListener('keydown', onKey); onKey = null; }
+			if (onKey) { document.removeEventListener('keydown', onKey, true); onKey = null; }
 			if (editorInstance && typeof editorInstance.destroy === 'function') {
 				try { editorInstance.destroy(); } catch (e) { /* ignore */ }
 			}
@@ -273,9 +273,13 @@
 		};
 
 		// Close request that honours unsaved changes.
+		let confirming = false;
 		const requestClose = async function () {
 			if (!dirty) { closePanel(); return; }
+			if (confirming) { return; }
+			confirming = true;
 			const choice = await confirmUnsaved();
+			confirming = false;
 			if (choice === 'cancel') { return; }
 			if (choice === 'discard') { closePanel(); return; }
 			if (choice === 'save' && await saveCard()) {
@@ -285,10 +289,12 @@
 		};
 
 		// Esc = same path as ✕ (a fallback if the button is ever unreachable).
+		// Capture phase: the Text/ProseMirror editor swallows Escape on bubble,
+		// so we must intercept it before the editor does.
 		onKey = function (e) {
-			if (e.key === 'Escape') { e.preventDefault(); requestClose(); }
+			if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); requestClose(); }
 		};
-		document.addEventListener('keydown', onKey);
+		document.addEventListener('keydown', onKey, true);
 
 		const backdrop = el('div', 'sk-detail-backdrop');
 		// A backdrop click is a weak signal — it must never destroy work.
@@ -305,6 +311,36 @@
 			const on = box.classList.toggle('sk-fullscreen');
 			fsBtn.classList.toggle('is-on', on);
 			fsBtn.title = on ? 'Quitter le plein écran' : 'Plein écran';
+		});
+
+		// Resizable width — grab the left edge to widen/narrow. Persisted.
+		let detailWidth = parseInt(window.localStorage.getItem('sk-detail-width') || '', 10) || 0;
+		if (detailWidth) {
+			box.style.width = Math.min(detailWidth, Math.round(window.innerWidth * 0.96)) + 'px';
+		}
+		const resizer = el('div', 'sk-detail-resize');
+		resizer.title = 'Glisser pour redimensionner';
+		resizer.addEventListener('mousedown', function (e) {
+			if (box.classList.contains('sk-fullscreen')) { return; }
+			e.preventDefault();
+			const startX = e.clientX;
+			const startW = box.offsetWidth;
+			document.body.style.userSelect = 'none';
+			const move = function (ev) {
+				// The box is centred → moving the left edge by Δ changes width by 2Δ.
+				let w = startW + (startX - ev.clientX) * 2;
+				w = Math.max(360, Math.min(w, Math.round(window.innerWidth * 0.96)));
+				box.style.width = w + 'px';
+				detailWidth = w;
+			};
+			const up = function () {
+				document.removeEventListener('mousemove', move);
+				document.removeEventListener('mouseup', up);
+				document.body.style.userSelect = '';
+				try { window.localStorage.setItem('sk-detail-width', String(detailWidth)); } catch (e2) { /* ignore */ }
+			};
+			document.addEventListener('mousemove', move);
+			document.addEventListener('mouseup', up);
 		});
 
 		const markDirty = function () { dirty = true; };
@@ -430,6 +466,7 @@
 
 		box.appendChild(close);
 		box.appendChild(fsBtn);
+		box.appendChild(resizer);
 		box.appendChild(titleInput);
 		box.appendChild(dueRow);
 		box.appendChild(assigneesRow);

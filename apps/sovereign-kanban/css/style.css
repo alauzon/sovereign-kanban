@@ -162,13 +162,23 @@
 .sk-detail-fs:hover { background: var(--color-background-dark); }
 .sk-detail-fs.is-on { background: var(--color-primary-element); color: var(--color-primary-element-text); }
 
-/* Fullscreen detail panel — position:fixed escapes the overlay's padding and
-   centering, giving the description editor (and comments) the whole viewport. */
+/* Resize handle — grab the left edge to change the panel width. */
+.sk-detail-resize {
+	position: absolute; left: 0; top: 0; bottom: 0; width: 8px;
+	cursor: ew-resize; z-index: 2;
+	border-top-left-radius: var(--border-radius-large, 12px);
+	border-bottom-left-radius: var(--border-radius-large, 12px);
+}
+.sk-detail-resize:hover { background: var(--color-primary-element); opacity: .35; }
+
+/* Fullscreen detail panel — starts BELOW the Nextcloud header so our ✕/⛶
+   buttons never collide with the header's contacts/account icons. */
 .sk-detail-box.sk-fullscreen {
-	position: fixed; inset: 0; z-index: 3;
-	width: 100vw; max-width: none; height: 100vh;
+	position: fixed; inset: var(--header-height, 50px) 0 0 0; z-index: 3;
+	width: auto; max-width: none;
 	margin: 0; border-radius: 0; overflow-y: auto;
 }
+.sk-detail-box.sk-fullscreen .sk-detail-resize { display: none; }
 .sk-detail-box.sk-fullscreen .sk-detail-editor { min-height: 55vh; }
 .sk-detail-box.sk-fullscreen .sk-detail-editor .editor,
 .sk-detail-box.sk-fullscreen .sk-detail-editor .text-editor { min-height: 52vh; }
@@ -198,11 +208,15 @@
 	font-family: monospace; font-size: 13px; line-height: 1.5;
 }
 .sk-detail-editor {
+	/* Override NC Text's readable line width (min(80ch,100%)) inside our
+	   container only — the content then fills the panel / fullscreen width. */
+	--text-editor-max-width: 100%;
 	min-height: 130px; border: 1px solid var(--color-border);
 	border-radius: var(--border-radius, 8px); padding: 4px 8px;
 	background: var(--color-main-background);
 }
 .sk-detail-editor .editor, .sk-detail-editor .text-editor { min-height: 120px; }
+.sk-detail-editor .editor__content { max-width: 100%; }
 .sk-detail-box .sk-btn-primary { align-self: flex-end; }
 
 /* Comments */
