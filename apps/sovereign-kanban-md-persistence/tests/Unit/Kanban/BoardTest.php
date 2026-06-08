@@ -115,6 +115,7 @@ final class BoardTest extends TestCase {
 			name: 'Projets SdP',
 			color: '#e85444',
 			columns: ['Backlog', 'En cours'],
+			tags: [['name' => 'infra', 'color' => '#e9322d']],
 		);
 
 		$this->assertSame(
@@ -123,8 +124,64 @@ final class BoardTest extends TestCase {
 				'name' => 'Projets SdP',
 				'color' => '#e85444',
 				'columns' => ['Backlog', 'En cours'],
+				'tags' => [['name' => 'infra', 'color' => '#e9322d']],
 			],
 			$board->toArray(),
+		);
+	}
+
+	public function testNewBoardHasEmptyTagPalette(): void {
+		$board = Board::create(name: 'Test', color: '#46ba61');
+
+		$this->assertSame([], $board->tags);
+	}
+
+	public function testWithTagsReplacesThePalette(): void {
+		$board = new Board(id: 'b', name: 'B', color: '#000');
+
+		$tagged = $board->withTags([
+			['name' => 'infra', 'color' => '#e9322d'],
+			['name' => 'urgent', 'color' => '#0082c9'],
+		]);
+
+		$this->assertSame(
+			[
+				['name' => 'infra', 'color' => '#e9322d'],
+				['name' => 'urgent', 'color' => '#0082c9'],
+			],
+			$tagged->tags,
+		);
+		$this->assertSame([], $board->tags, 'original unchanged');
+	}
+
+	public function testTagPaletteRoundTripsThroughYaml(): void {
+		$board = new Board(
+			id: 'b',
+			name: 'B',
+			color: '#000',
+			columns: ['Backlog'],
+			tags: [['name' => 'infra', 'color' => '#e9322d']],
+		);
+
+		$parsed = yaml_parse($board->toYaml());
+
+		$this->assertSame(
+			[['name' => 'infra', 'color' => '#e9322d']],
+			$parsed['tags'],
+		);
+	}
+
+	public function testWithNamePreservesTagPalette(): void {
+		$board = new Board(
+			id: 'b',
+			name: 'B',
+			color: '#000',
+			tags: [['name' => 'x', 'color' => '#111']],
+		);
+
+		$this->assertSame(
+			[['name' => 'x', 'color' => '#111']],
+			$board->withName('B2')->tags,
 		);
 	}
 }

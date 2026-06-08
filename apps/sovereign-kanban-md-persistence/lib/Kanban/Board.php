@@ -30,6 +30,7 @@ final class Board {
 		public readonly string $color,
 		public readonly array $columns = self::DEFAULT_COLUMNS,
 		public readonly DateTime $created_at = new DateTime(),
+		public readonly array $tags = [],
 	) {
 	}
 
@@ -56,6 +57,7 @@ final class Board {
 			color: $this->color,
 			columns: $this->columns,
 			created_at: $this->created_at,
+			tags: $this->tags,
 		);
 	}
 
@@ -69,13 +71,14 @@ final class Board {
 			color: $color,
 			columns: $this->columns,
 			created_at: $this->created_at,
+			tags: $this->tags,
 		);
 	}
 
 	/**
 	 * Shape the board for the JSON API (frontend consumption).
 	 *
-	 * @return array{id: string, name: string, color: string, columns: list<string>}
+	 * @return array{id: string, name: string, color: string, columns: list<string>, tags: list<array{name: string, color: string}>}
 	 */
 	public function toArray(): array {
 		return [
@@ -83,6 +86,7 @@ final class Board {
 			'name' => $this->name,
 			'color' => $this->color,
 			'columns' => array_values($this->columns),
+			'tags' => array_values($this->tags),
 		];
 	}
 
@@ -121,6 +125,28 @@ final class Board {
 			color: $this->color,
 			columns: array_values($columns),
 			created_at: $this->created_at,
+			tags: $this->tags,
+		);
+	}
+
+	/**
+	 * Return a copy with a new tag palette.
+	 *
+	 * Each entry is a ['name' => string, 'color' => string] map. Cards
+	 * reference tags by name; the palette supplies the colour. Tags on a
+	 * card that are absent from the palette are orphans (shown greyed),
+	 * never auto-removed.
+	 *
+	 * @param list<array{name: string, color: string}> $tags
+	 */
+	public function withTags(array $tags): self {
+		return new self(
+			id: $this->id,
+			name: $this->name,
+			color: $this->color,
+			columns: $this->columns,
+			created_at: $this->created_at,
+			tags: array_values($tags),
 		);
 	}
 
@@ -133,6 +159,7 @@ final class Board {
 			'name' => $this->name,
 			'color' => $this->color,
 			'columns' => array_values($this->columns),
+			'tags' => array_values($this->tags),
 			'created_at' => $this->created_at->format('Y-m-d\TH:i:s\Z'),
 		], 4, 2);
 	}

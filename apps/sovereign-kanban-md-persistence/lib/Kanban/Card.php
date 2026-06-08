@@ -30,6 +30,10 @@ final class Card {
 		public readonly array $assignees = [],
 		public readonly ?string $due_date = null,
 		public readonly array $procedures = [],
+		public readonly ?string $priority = null,
+		public readonly array $tags = [],
+		public readonly ?int $phase = null,
+		public readonly ?string $start_date = null,
 	) {
 	}
 
@@ -41,6 +45,30 @@ final class Card {
 			id: Uuid::uuid4()->toString(),
 			title: $title,
 			column: $column,
+		);
+	}
+
+	/**
+	 * Return a copy moved to another column, preserving every other field.
+	 *
+	 * Used when a card moves between columns or a column is renamed, so that
+	 * metadata (due/start dates, assignees, procedures, priority, tags, phase)
+	 * is never dropped during the resync.
+	 */
+	public function withColumn(string $column): self {
+		return new self(
+			id: $this->id,
+			title: $this->title,
+			column: $column,
+			description: $this->description,
+			created_at: $this->created_at,
+			assignees: $this->assignees,
+			due_date: $this->due_date,
+			procedures: $this->procedures,
+			priority: $this->priority,
+			tags: $this->tags,
+			phase: $this->phase,
+			start_date: $this->start_date,
 		);
 	}
 
@@ -66,16 +94,22 @@ final class Card {
 			description: $body,
 			created_at: self::parseCreatedAt($frontmatter['created_at'] ?? null),
 			assignees: $frontmatter['assignees'] ?? [],
-			due_date: self::parseDueDate($frontmatter['due_date'] ?? null),
+			due_date: self::parseDate($frontmatter['due_date'] ?? null),
 			procedures: $frontmatter['procédures'] ?? [],
+			priority: isset($frontmatter['priorité']) && $frontmatter['priorité'] !== '' ? (string) $frontmatter['priorité'] : null,
+			tags: $frontmatter['étiquettes'] ?? [],
+			phase: isset($frontmatter['phase']) && $frontmatter['phase'] !== '' ? (int) $frontmatter['phase'] : null,
+			start_date: self::parseDate($frontmatter['start_date'] ?? null),
 		);
 	}
 
 	/**
-	 * Normalize a due_date (YAML may give an ISO string or a Unix timestamp)
+	 * Normalize a date value (YAML may give an ISO string or a Unix timestamp)
 	 * to a plain 'Y-m-d' string, or null when unset.
+	 *
+	 * Shared by due_date and start_date.
 	 */
-	private static function parseDueDate(mixed $raw): ?string {
+	private static function parseDate(mixed $raw): ?string {
 		if ($raw === null || $raw === '') {
 			return null;
 		}
@@ -105,7 +139,7 @@ final class Card {
 	/**
 	 * Shape the card for the JSON API (frontend consumption).
 	 *
-	 * @return array{id: string, title: string, column: string, due_date: ?string, assignees: list<string>, excerpt: string}
+	 * @return array{id: string, title: string, column: string, due_date: ?string, start_date: ?string, created_at: string, assignees: list<string>, procedures: list<string>, priority: ?string, tags: list<string>, phase: ?int, excerpt: string}
 	 */
 	public function toArray(): array {
 		return [
@@ -113,8 +147,13 @@ final class Card {
 			'title' => $this->title,
 			'column' => $this->column,
 			'due_date' => $this->due_date,
+			'start_date' => $this->start_date,
+			'created_at' => $this->created_at->format('Y-m-d\TH:i:s\Z'),
 			'assignees' => array_values($this->assignees),
 			'procedures' => array_values($this->procedures),
+			'priority' => $this->priority,
+			'tags' => array_values($this->tags),
+			'phase' => $this->phase,
 			'excerpt' => $this->excerpt(),
 		];
 	}
@@ -164,12 +203,28 @@ final class Card {
 			$frontmatter['due_date'] = $this->due_date;
 		}
 
+		if ($this->start_date !== null) {
+			$frontmatter['start_date'] = $this->start_date;
+		}
+
 		if (!empty($this->assignees)) {
 			$frontmatter['assignees'] = $this->assignees;
 		}
 
 		if (!empty($this->procedures)) {
 			$frontmatter['procédures'] = $this->procedures;
+		}
+
+		if ($this->priority !== null) {
+			$frontmatter['priorité'] = $this->priority;
+		}
+
+		if (!empty($this->tags)) {
+			$frontmatter['étiquettes'] = $this->tags;
+		}
+
+		if ($this->phase !== null) {
+			$frontmatter['phase'] = $this->phase;
 		}
 
 		$yaml = "---\n";

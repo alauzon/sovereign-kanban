@@ -131,6 +131,10 @@ final class CardController extends Controller {
 		?string $description = null,
 		?string $due_date = null,
 		?array $assignees = null,
+		?string $priority = null,
+		?array $tags = null,
+		?string $phase = null,
+		?string $start_date = null,
 	): DataResponse {
 		$repository = $this->repository($boardId);
 		if ($repository === null || !$this->validCardId($cardId)) {
@@ -148,10 +152,34 @@ final class CardController extends Controller {
 			$newDue = ($due_date === '') ? null : substr($due_date, 0, 10);
 		}
 
+		// start_date: null = leave unchanged, '' = clear, else set.
+		$newStart = $card->start_date;
+		if ($start_date !== null) {
+			$newStart = ($start_date === '') ? null : substr($start_date, 0, 10);
+		}
+
 		// assignees: null = leave unchanged, else replace (trimmed, non-empty).
 		$newAssignees = $card->assignees;
 		if ($assignees !== null) {
 			$newAssignees = array_values(array_filter(array_map('trim', $assignees), static fn ($a) => $a !== ''));
+		}
+
+		// priority: null = leave, '' = clear, else set.
+		$newPriority = $card->priority;
+		if ($priority !== null) {
+			$newPriority = ($priority === '') ? null : $priority;
+		}
+
+		// tags: null = leave, else replace (trimmed, non-empty).
+		$newTags = $card->tags;
+		if ($tags !== null) {
+			$newTags = array_values(array_filter(array_map('trim', $tags), static fn ($t) => $t !== ''));
+		}
+
+		// phase: null = leave, '' = clear, else set (1-4 expected).
+		$newPhase = $card->phase;
+		if ($phase !== null) {
+			$newPhase = ($phase === '') ? null : (int) $phase;
 		}
 
 		$updated = new Card(
@@ -163,6 +191,10 @@ final class CardController extends Controller {
 			assignees: $newAssignees,
 			due_date: $newDue,
 			procedures: $card->procedures,
+			priority: $newPriority,
+			tags: $newTags,
+			phase: $newPhase,
+			start_date: $newStart,
 		);
 		$repository->update($updated);
 
@@ -297,7 +329,7 @@ final class CardController extends Controller {
 	/**
 	 * Full card shape for the detail view (includes the description body).
 	 *
-	 * @return array{id: string, title: string, column: string, description: string, assignees: list<string>}
+	 * @return array{id: string, title: string, column: string, description: string, due_date: ?string, start_date: ?string, assignees: list<string>, procedures: list<string>, priority: ?string, tags: list<string>, phase: ?int}
 	 */
 	private function detail(Card $card): array {
 		return [
@@ -306,8 +338,12 @@ final class CardController extends Controller {
 			'column' => $card->column,
 			'description' => $card->description,
 			'due_date' => $card->due_date,
+			'start_date' => $card->start_date,
 			'assignees' => array_values($card->assignees),
 			'procedures' => array_values($card->procedures),
+			'priority' => $card->priority,
+			'tags' => array_values($card->tags),
+			'phase' => $card->phase,
 		];
 	}
 

@@ -80,12 +80,16 @@ final class BoardController extends Controller {
 	}
 
 	/**
-	 * Update a board's name and/or color. The id (slug) stays stable.
+	 * Update a board's name, color, and/or tag palette. The id (slug) stays stable.
 	 *
 	 * @param string $boardId Board slug (whitelisted to [a-z0-9-]).
+	 * @param ?string $name New display name, or null to leave unchanged.
+	 * @param ?string $color New board color, or null to leave unchanged.
+	 * @param ?array $tags Full replacement tag palette (list of {name, color}),
+	 *   or null to leave the palette unchanged.
 	 */
 	#[NoAdminRequired]
-	public function update(string $boardId, ?string $name = null, ?string $color = null): DataResponse {
+	public function update(string $boardId, ?string $name = null, ?string $color = null, ?array $tags = null): DataResponse {
 		$repository = $this->repository();
 		if ($repository === null) {
 			return new DataResponse(['error' => 'not_logged_in'], 401);
@@ -105,9 +109,37 @@ final class BoardController extends Controller {
 		if ($color !== null && $color !== '') {
 			$board = $board->withColor($color);
 		}
+		if ($tags !== null) {
+			$board = $board->withTags($this->sanitizePalette($tags));
+		}
 		$repository->save($board);
 
 		return new DataResponse(['board' => $board->toArray()]);
+	}
+
+	/**
+	 * Normalize an incoming tag palette: keep entries with a non-empty name and
+	 * a valid hex color, deduplicate by name (last wins), drop the rest.
+	 *
+	 * @param array $tags Raw palette from the request.
+	 *
+	 * @return list<array{name: string, color: string}> Clean palette.
+	 */
+	private function sanitizePalette(array $tags): array {
+		$clean = [];
+		foreach ($tags as $tag) {
+			if (!is_array($tag)) {
+				continue;
+			}
+			$name = trim((string) ($tag['name'] ?? ''));
+			$color = trim((string) ($tag['color'] ?? ''));
+			if ($name === '' || !preg_match('/^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/', $color)) {
+				continue;
+			}
+			$clean[$name] = ['name' => $name, 'color' => $color];
+		}
+
+		return array_values($clean);
 	}
 
 	/**

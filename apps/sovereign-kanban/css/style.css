@@ -366,3 +366,60 @@
 	font-size: 11px; padding: 1px 8px; border-radius: 12px;
 	background: var(--color-background-dark); color: var(--color-main-text);
 }
+.sk-phase {
+	font-size: 11px; padding: 1px 8px; border-radius: 12px; font-weight: 600;
+	background: var(--color-primary-element); color: var(--color-primary-element-text);
+}
+.sk-tag {
+	font-size: 11px; padding: 1px 8px; border-radius: 12px;
+	background: var(--color-background-dark); color: var(--color-text-maxcontrast);
+}
+.sk-priority {
+	font-size: 11px; padding: 1px 8px; border-radius: 12px; font-weight: 600;
+	color: #fff;
+}
+/* Numeric priority 1–5, 1 = top (most urgent). */
+.sk-prio-1 { background: #e9322d; }
+.sk-prio-2 { background: #e9700d; }
+.sk-prio-3 { background: #e9a700; color: #000; }
+.sk-prio-4 { background: #0082c9; }
+.sk-prio-5 { background: #6c757d; }
+/* Orphan tag — on a card but absent from the board palette. */
+.sk-tag-orphan {
+	background: var(--color-background-dark);
+	color: var(--color-text-maxcontrast);
+	opacity: .7; border: 1px dashed var(--color-border-dark);
+}
+
+/* ---- Filter + sort bar ---- */
+.sk-filterbar {
+	display: flex; flex-wrap: wrap; align-items: center; gap: 14px;
+	padding: 8px 12px; margin: 0 0 8px;
+	background: var(--color-background-hover); border-radius: var(--border-radius-large, 8px);
+}
+.sk-filter-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.sk-filter-label { font-size: 12px; font-weight: 600; color: var(--color-text-maxcontrast); }
+.sk-filter-tag {
+	font-size: 12px; padding: 2px 10px; border-radius: 12px; cursor: pointer;
+	background: var(--color-main-background); color: var(--color-main-text);
+	border: 2px solid var(--color-border-dark);
+}
+.sk-filter-tag.is-on { font-weight: 600; }
+.sk-filter-select { padding: 2px 6px; min-width: 130px; }
+
+/* ---- Tag picker in the card detail ---- */
+.sk-tagpick { display: flex; flex-wrap: wrap; gap: 6px; }
+.sk-tagpick-chip {
+	font-size: 12px; padding: 2px 10px; border-radius: 12px; cursor: pointer;
+	background: var(--color-main-background); color: var(--color-main-text);
+	border: 2px solid var(--color-border-dark);
+}
+.sk-tagpick-chip.is-on { font-weight: 600; }
+.sk-field-hint { font-size: 11px; color: var(--color-text-maxcontrast); margin-top: 4px; }
+
+/* ---- Tag palette editor (board form) ---- */
+.sk-palette-editor { display: flex; flex-direction: column; gap: 6px; margin: 6px 0; }
+.sk-palette-rows { display: flex; flex-direction: column; gap: 6px; }
+.sk-palette-row { display: flex; align-items: center; gap: 6px; }
+.sk-palette-color { width: 36px; height: 30px; padding: 0; border: none; background: none; cursor: pointer; }
+.sk-palette-name { flex: 1; }

@@ -47,13 +47,102 @@
 		return boards.find(function (b) { return b.id === currentId; }) || null;
 	}
 
+	/* ---- Tag palette, filters & sort ---- */
+
+	// Phase is a small fixed set (the 4 implementation phases).
+	const PHASES = ['1', '2', '3', '4'];
+	// Priority is numeric 1–5, 1 = top. Sorting is ascending (1 first).
+	const PRIORITIES = ['1', '2', '3', '4', '5'];
+	const SORT_KEYS = [
+		['', 'Ordre naturel'],
+		['priority', 'Priorité'],
+		['start_date', 'Date de début'],
+		['due_date', 'Date de fin'],
+		['created_at', 'Date de création'],
+		['phase', 'Phase'],
+	];
+
+	// Cards of the current board, grouped by column name; kept so filter/sort
+	// changes can re-render without refetching.
+	let cardsByColumn = {};
+	let filterState = { tags: [], phase: '' };
+	let sortState = { key: '' };
+
+	// name → color map from the current board's tag palette.
+	function paletteMap() {
+		const map = {};
+		const board = currentBoard();
+		((board && board.tags) || []).forEach(function (t) {
+			if (t && t.name) { map[t.name] = t.color || null; }
+		});
+		return map;
+	}
+
+	function filterStorageKey() { return 'sk-filter-' + currentId; }
+	function sortStorageKey() { return 'sk-sort-' + currentId; }
+
+	function loadFilterSort() {
+		filterState = { tags: [], phase: '' };
+		sortState = { key: '' };
+		try {
+			const f = JSON.parse(window.localStorage.getItem(filterStorageKey()) || 'null');
+			if (f && typeof f === 'object') {
+				filterState.tags = Array.isArray(f.tags) ? f.tags : [];
+				filterState.phase = f.phase || '';
+			}
+			const s = JSON.parse(window.localStorage.getItem(sortStorageKey()) || 'null');
+			const valid = SORT_KEYS.some(function (k) { return k[0] === (s && s.key); });
+			if (valid) { sortState.key = s.key; }
+		} catch (e) { /* defaults */ }
+	}
+
+	function persistFilterSort() {
+		try {
+			window.localStorage.setItem(filterStorageKey(), JSON.stringify(filterState));
+			window.localStorage.setItem(sortStorageKey(), JSON.stringify(sortState));
+		} catch (e) { /* ignore */ }
+	}
+
+	function filterActive() {
+		return filterState.tags.length > 0 || filterState.phase !== '';
+	}
+
+	// All criteria combine with AND: a card must carry every selected tag and,
+	// when a phase is selected, match it.
+	function cardMatchesFilter(card) {
+		if (filterState.phase !== '' && String(card.phase || '') !== filterState.phase) {
+			return false;
+		}
+		const cardTags = card.tags || [];
+		return filterState.tags.every(function (t) { return cardTags.indexOf(t) !== -1; });
+	}
+
+	function sortCards(cards) {
+		const key = sortState.key;
+		if (!key) { return cards; }
+		const val = function (c) {
+			if (key === 'priority') { return c.priority ? parseInt(c.priority, 10) : Infinity; }
+			if (key === 'phase') { return c.phase ? parseInt(c.phase, 10) : Infinity; }
+			// Dates: missing values sort last.
+			return c[key] || '￿';
+		};
+		return cards.slice().sort(function (a, b) {
+			const va = val(a), vb = val(b);
+			if (va < vb) { return -1; }
+			if (va > vb) { return 1; }
+			return 0;
+		});
+	}
+
 	/* ---- Columns + cards ---- */
 
-	function renderColumns(board, cardsByColumn) {
+	function renderColumns(board) {
 		const boardEl = document.getElementById('sk-board');
 		boardEl.innerHTML = '';
+		const pmap = paletteMap();
 		(board.columns || []).forEach(function (name) {
-			const cards = (cardsByColumn && cardsByColumn[name]) || [];
+			const allCards = cardsByColumn[name] || [];
+			const cards = sortCards(allCards.filter(cardMatchesFilter));
 			const col = el('section', 'sk-column');
 			col.dataset.column = name;
 			col.addEventListener('dragover', function (e) { e.preventDefault(); col.classList.add('sk-dragover'); });
@@ -79,7 +168,8 @@
 			colActions.appendChild(colBtn('✎', 'Renommer', function () { renameColumnPrompt(name); }));
 			colActions.appendChild(colBtn('✕', 'Supprimer la colonne', function () { removeColumnConfirm(name); }));
 			head.appendChild(colActions);
-			head.appendChild(el('span', 'sk-count', String(cards.length)));
+			const countLabel = filterActive() ? (cards.length + '/' + allCards.length) : String(cards.length);
+			head.appendChild(el('span', 'sk-count', countLabel));
 			col.appendChild(head);
 
 			const cardsEl = el('div', 'sk-cards');
@@ -101,8 +191,26 @@
 					art.appendChild(el('p', 'sk-card-excerpt', card.excerpt));
 				}
 				const assignees = card.assignees || [];
-				if (card.due_date || assignees.length) {
+				const tags = card.tags || [];
+				if (card.due_date || assignees.length || card.priority || card.phase || tags.length) {
 					const meta = el('div', 'sk-card-meta');
+					if (card.phase) {
+						meta.appendChild(el('span', 'sk-phase', 'Phase ' + card.phase));
+					}
+					if (card.priority) {
+						meta.appendChild(el('span', 'sk-priority sk-prio-' + card.priority, 'P' + card.priority));
+					}
+					tags.forEach(function (t) {
+						const span = el('span', 'sk-tag', t);
+						if (pmap[t]) {
+							span.style.background = pmap[t];
+							span.style.color = '#fff';
+						} else {
+							// Orphan tag (not in the board palette): kept, shown greyed.
+							span.classList.add('sk-tag-orphan');
+						}
+						meta.appendChild(span);
+					});
 					if (card.due_date) {
 						meta.appendChild(el('span', 'sk-due', '📅 ' + card.due_date));
 					}
@@ -198,7 +306,7 @@
 
 	async function loadCards(board) {
 		if (!board) return;
-		let cardsByColumn = {};
+		cardsByColumn = {};
 		try {
 			const res = await api('GET', cardsUrl(board.id));
 			if (res.ok) {
@@ -206,7 +314,7 @@
 				cardsByColumn = data.cards || {};
 			}
 		} catch (e) { /* keep empty columns */ }
-		renderColumns(board, cardsByColumn);
+		renderColumns(board);
 	}
 
 	async function moveCardTo(cardId, toColumn) {
@@ -380,12 +488,20 @@
 		titleInput.value = card.title;
 		titleInput.addEventListener('input', markDirty);
 
+		const startInput = el('input', 'sk-input');
+		startInput.type = 'date';
+		startInput.value = card.start_date || '';
+		startInput.addEventListener('change', markDirty);
+		const startRow = el('label', 'sk-field');
+		startRow.appendChild(el('span', 'sk-field-label', 'Date de début'));
+		startRow.appendChild(startInput);
+
 		const dueInput = el('input', 'sk-input');
 		dueInput.type = 'date';
 		dueInput.value = card.due_date || '';
 		dueInput.addEventListener('change', markDirty);
 		const dueRow = el('label', 'sk-field');
-		dueRow.appendChild(el('span', 'sk-field-label', 'Date limite'));
+		dueRow.appendChild(el('span', 'sk-field-label', 'Date de fin'));
 		dueRow.appendChild(dueInput);
 
 		const assigneesInput = el('input', 'sk-input');
@@ -396,6 +512,78 @@
 		const assigneesRow = el('label', 'sk-field');
 		assigneesRow.appendChild(el('span', 'sk-field-label', 'Assignés (séparés par des virgules)'));
 		assigneesRow.appendChild(assigneesInput);
+
+		const prioritySelect = el('select', 'sk-input');
+		[['', '—'], ['1', 'P1 — la plus haute'], ['2', 'P2'], ['3', 'P3'], ['4', 'P4'], ['5', 'P5 — la plus basse']].forEach(function (pair) {
+			const opt = el('option', null, pair[1]);
+			opt.value = pair[0];
+			prioritySelect.appendChild(opt);
+		});
+		prioritySelect.value = card.priority || '';
+		prioritySelect.addEventListener('change', markDirty);
+		const priorityRow = el('label', 'sk-field');
+		priorityRow.appendChild(el('span', 'sk-field-label', 'Priorité'));
+		priorityRow.appendChild(prioritySelect);
+
+		// Tags: toggle chips from the board palette; orphan tags on the card are
+		// shown greyed and kept. Boards without a palette fall back to a free
+		// comma-separated field.
+		const detailPalette = (currentBoard() && currentBoard().tags) || [];
+		const detailPmap = paletteMap();
+		let selectedTags = (card.tags || []).slice();
+		let tagsFreeInput = null;
+		const tagsRow = el('div', 'sk-field');
+		tagsRow.appendChild(el('span', 'sk-field-label', 'Étiquettes'));
+		if (detailPalette.length) {
+			const chips = el('div', 'sk-tagpick');
+			const names = detailPalette.map(function (t) { return t.name; });
+			selectedTags.forEach(function (n) { if (names.indexOf(n) === -1) { names.push(n); } });
+			names.forEach(function (name) {
+				const color = detailPmap[name] || null;
+				const on = selectedTags.indexOf(name) !== -1;
+				const chip = el('button', 'sk-tagpick-chip' + (on ? ' is-on' : '') + (color ? '' : ' sk-tag-orphan'));
+				chip.type = 'button';
+				chip.textContent = name;
+				const paint = function () {
+					const nowOn = selectedTags.indexOf(name) !== -1;
+					chip.classList.toggle('is-on', nowOn);
+					if (color) {
+						chip.style.borderColor = color;
+						chip.style.background = nowOn ? color : '';
+						chip.style.color = nowOn ? '#fff' : '';
+					}
+				};
+				paint();
+				chip.addEventListener('click', function () {
+					const i = selectedTags.indexOf(name);
+					if (i === -1) { selectedTags.push(name); } else { selectedTags.splice(i, 1); }
+					paint();
+					markDirty();
+				});
+				chips.appendChild(chip);
+			});
+			tagsRow.appendChild(chips);
+			tagsRow.appendChild(el('span', 'sk-field-hint', 'Palette éditable via « ✎ Éditer » le tableau.'));
+		} else {
+			tagsFreeInput = el('input', 'sk-input');
+			tagsFreeInput.type = 'text';
+			tagsFreeInput.placeholder = 'infrastructure, urgent';
+			tagsFreeInput.value = selectedTags.join(', ');
+			tagsFreeInput.addEventListener('input', markDirty);
+			tagsRow.appendChild(tagsFreeInput);
+		}
+
+		const phaseSelect = el('select', 'sk-input');
+		['', '1', '2', '3', '4'].forEach(function (v) {
+			const opt = el('option', null, v === '' ? '—' : 'Phase ' + v);
+			opt.value = v;
+			phaseSelect.appendChild(opt);
+		});
+		phaseSelect.value = card.phase ? String(card.phase) : '';
+		phaseSelect.addEventListener('change', markDirty);
+		const phaseRow = el('label', 'sk-field');
+		phaseRow.appendChild(el('span', 'sk-field-label', 'Phase'));
+		phaseRow.appendChild(phaseSelect);
 
 		// Description: the Nextcloud Text editor (same as Deck), content mode,
 		// with a plain textarea fallback if the Text module can't be loaded.
@@ -441,11 +629,18 @@
 		mountDescription(descriptionMarkdown);
 
 		async function saveCard() {
+			const tagsPayload = tagsFreeInput
+				? tagsFreeInput.value.split(',').map(function (s) { return s.trim(); }).filter(Boolean)
+				: selectedTags.slice();
 			const res = await api('PUT', cardUrl(currentId, card.id), {
 				title: titleInput.value.trim(),
 				description: descriptionMarkdown,
+				start_date: startInput.value,
 				due_date: dueInput.value,
 				assignees: assigneesInput.value.split(',').map(function (s) { return s.trim(); }).filter(Boolean),
+				priority: prioritySelect.value,
+				tags: tagsPayload,
+				phase: phaseSelect.value,
 			});
 			if (res.ok) { dirty = false; return true; }
 			window.alert('Erreur ' + res.status);
@@ -486,8 +681,12 @@
 		box.appendChild(fsBtn);
 		box.appendChild(resizer);
 		box.appendChild(titleInput);
+		box.appendChild(startRow);
 		box.appendChild(dueRow);
 		box.appendChild(assigneesRow);
+		box.appendChild(priorityRow);
+		box.appendChild(phaseRow);
+		box.appendChild(tagsRow);
 		const descHead = el('div', 'sk-desc-head');
 		descHead.appendChild(el('span', 'sk-field-label', 'Description'));
 		const procBtn = el('button', 'sk-btn sk-btn-small', '+ Procédure');
@@ -711,11 +910,107 @@
 
 	function select(id) {
 		currentId = id;
+		loadFilterSort();
 		renderSelector();
 		const board = currentBoard();
 		if (board) {
-			renderColumns(board, {});
+			cardsByColumn = {};
+			renderFilterBar();
+			renderColumns(board);
 			loadCards(board);
+		} else {
+			renderFilterBar();
+		}
+	}
+
+	/**
+	 * The filter + sort bar above the board: tag chips (from the palette),
+	 * a phase filter, a multi-criteria sort selector, and a reset button.
+	 * All state is per-board and persisted in localStorage.
+	 */
+	function renderFilterBar() {
+		const bar = document.getElementById('sk-filterbar');
+		if (!bar) { return; }
+		bar.innerHTML = '';
+		const board = currentBoard();
+		if (!board) { bar.hidden = true; return; }
+		bar.hidden = false;
+
+		// Tag filter — chips from the board palette (AND across selected tags).
+		const palette = board.tags || [];
+		if (palette.length) {
+			const group = el('div', 'sk-filter-group');
+			group.appendChild(el('span', 'sk-filter-label', 'Étiquettes'));
+			palette.forEach(function (t) {
+				const active = filterState.tags.indexOf(t.name) !== -1;
+				const chip = el('button', 'sk-filter-tag' + (active ? ' is-on' : ''), t.name);
+				if (t.color) {
+					chip.style.borderColor = t.color;
+					if (active) { chip.style.background = t.color; chip.style.color = '#fff'; }
+				}
+				chip.addEventListener('click', function () {
+					const i = filterState.tags.indexOf(t.name);
+					if (i === -1) { filterState.tags.push(t.name); } else { filterState.tags.splice(i, 1); }
+					persistFilterSort();
+					renderFilterBar();
+					renderColumns(board);
+				});
+				group.appendChild(chip);
+			});
+			bar.appendChild(group);
+		}
+
+		// Phase filter.
+		const phaseGroup = el('label', 'sk-filter-group');
+		phaseGroup.appendChild(el('span', 'sk-filter-label', 'Phase'));
+		const phaseSel = el('select', 'sk-input sk-filter-select');
+		const optAll = el('option', null, 'Toutes');
+		optAll.value = '';
+		phaseSel.appendChild(optAll);
+		PHASES.forEach(function (p) {
+			const o = el('option', null, 'Phase ' + p);
+			o.value = p;
+			phaseSel.appendChild(o);
+		});
+		phaseSel.value = filterState.phase;
+		phaseSel.addEventListener('change', function () {
+			filterState.phase = phaseSel.value;
+			persistFilterSort();
+			renderFilterBar();
+			renderColumns(board);
+		});
+		phaseGroup.appendChild(phaseSel);
+		bar.appendChild(phaseGroup);
+
+		// Sort selector.
+		const sortGroup = el('label', 'sk-filter-group');
+		sortGroup.appendChild(el('span', 'sk-filter-label', 'Trier par'));
+		const sortSel = el('select', 'sk-input sk-filter-select');
+		SORT_KEYS.forEach(function (k) {
+			const o = el('option', null, k[1]);
+			o.value = k[0];
+			sortSel.appendChild(o);
+		});
+		sortSel.value = sortState.key;
+		sortSel.addEventListener('change', function () {
+			sortState.key = sortSel.value;
+			persistFilterSort();
+			renderColumns(board);
+		});
+		sortGroup.appendChild(sortSel);
+		bar.appendChild(sortGroup);
+
+		// Reset, shown only when something is active.
+		if (filterActive() || sortState.key) {
+			const reset = el('button', 'sk-btn sk-btn-small', 'Réinitialiser');
+			reset.addEventListener('click', function () {
+				filterState = { tags: [], phase: '' };
+				sortState = { key: '' };
+				persistFilterSort();
+				renderFilterBar();
+				renderColumns(board);
+			});
+			bar.appendChild(reset);
 		}
 	}
 
@@ -736,12 +1031,45 @@
 		const submit = el('button', 'sk-btn sk-btn-primary', mode === 'create' ? 'Créer' : 'Enregistrer');
 		const cancel = el('button', 'sk-btn', 'Annuler');
 
+		// Tag palette editor (edit mode only — a board must exist to own a palette).
+		let paletteRows = null;
+		const collectPalette = function () {
+			if (!paletteRows) { return []; }
+			const out = [];
+			paletteRows.querySelectorAll('.sk-palette-row').forEach(function (row) {
+				const n = row.querySelector('.sk-palette-name').value.trim();
+				const c = row.querySelector('.sk-palette-color').value;
+				if (n) { out.push({ name: n, color: c }); }
+			});
+			return out;
+		};
+		const addPaletteRow = function (tag) {
+			const row = el('div', 'sk-palette-row');
+			const color = el('input', 'sk-palette-color');
+			color.type = 'color';
+			color.value = (tag && tag.color) || '#0082c9';
+			const name = el('input', 'sk-input sk-palette-name');
+			name.type = 'text';
+			name.placeholder = 'nom de l’étiquette';
+			name.value = (tag && tag.name) || '';
+			const rm = el('button', 'sk-btn sk-btn-small sk-btn-danger', '✕');
+			rm.type = 'button';
+			rm.title = 'Retirer de la palette';
+			rm.addEventListener('click', function () { row.remove(); });
+			row.appendChild(color);
+			row.appendChild(name);
+			row.appendChild(rm);
+			paletteRows.appendChild(row);
+			return name;
+		};
+
 		const closeForm = function () { form.hidden = true; };
 		const doSubmit = async function () {
 			const name = nameInput.value.trim();
 			if (!name) { nameInput.focus(); return; }
 			submit.disabled = true;
 			const payload = { name: name, color: colorInput.value };
+			if (mode === 'edit') { payload.tags = collectPalette(); }
 			const res = (mode === 'create')
 				? await api('POST', boardsUrl(), payload)
 				: await api('PUT', boardUrl(board.id), payload);
@@ -762,6 +1090,18 @@
 
 		form.appendChild(nameInput);
 		form.appendChild(colorInput);
+		if (mode === 'edit') {
+			const paletteSection = el('div', 'sk-palette-editor');
+			paletteSection.appendChild(el('span', 'sk-field-label', 'Palette d’étiquettes'));
+			paletteRows = el('div', 'sk-palette-rows');
+			paletteSection.appendChild(paletteRows);
+			(board.tags || []).forEach(function (t) { addPaletteRow(t); });
+			const addTag = el('button', 'sk-btn sk-btn-small', '+ Étiquette');
+			addTag.type = 'button';
+			addTag.addEventListener('click', function () { addPaletteRow(null).focus(); });
+			paletteSection.appendChild(addTag);
+			form.appendChild(paletteSection);
+		}
 		form.appendChild(submit);
 		form.appendChild(cancel);
 		if (mode === 'edit') {

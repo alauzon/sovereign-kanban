@@ -109,15 +109,7 @@ final class FileCardRepository {
 		$file = $toDir . '/card.md';
 		if ($this->storage->exists($file)) {
 			$card = Card::fromMarkdown($this->storage->read($file));
-			$this->storage->write($file, $this->serialize(new Card(
-				id: $card->id,
-				title: $card->title,
-				column: $toColumn,
-				description: $card->description,
-				created_at: $card->created_at,
-				assignees: $card->assignees,
-				due_date: $card->due_date,
-			)));
+			$this->storage->write($file, $this->serialize($card->withColumn($toColumn)));
 		}
 	}
 

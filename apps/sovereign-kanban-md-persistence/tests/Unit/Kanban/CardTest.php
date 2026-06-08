@@ -117,6 +117,7 @@ final class CardTest extends TestCase {
             created_at: new \DateTime('2026-06-05T10:00:00Z'),
             assignees: ['alain', 'steve'],
             due_date: '2026-06-15',
+            start_date: '2026-06-10',
         );
 
         $this->assertSame(
@@ -125,8 +126,13 @@ final class CardTest extends TestCase {
                 'title' => 'Task',
                 'column' => '01-Backlog',
                 'due_date' => '2026-06-15',
+                'start_date' => '2026-06-10',
+                'created_at' => '2026-06-05T10:00:00Z',
                 'assignees' => ['alain', 'steve'],
                 'procedures' => [],
+                'priority' => null,
+                'tags' => [],
+                'phase' => null,
                 'excerpt' => 'desc',
             ],
             $card->toArray(),
@@ -177,6 +183,84 @@ final class CardTest extends TestCase {
             ['Élection sans candidat', 'Décision par consentement'],
             $restored->procedures,
         );
+    }
+
+    public function testPriorityTagsAndPhaseRoundTripThroughFrontmatter(): void {
+        $card = new Card(
+            id: 'pt1',
+            title: 'Tâche',
+            column: '02-En cours',
+            description: 'corps',
+            priority: 'haute',
+            tags: ['infrastructure', 'urgent'],
+            phase: 2,
+        );
+
+        $restored = Card::fromMarkdown($card->toYAMLFrontmatter() . "\n" . $card->description);
+
+        $this->assertSame('haute', $restored->priority);
+        $this->assertSame(['infrastructure', 'urgent'], $restored->tags);
+        $this->assertSame(2, $restored->phase);
+    }
+
+    public function testStartDateRoundTripsThroughFrontmatter(): void {
+        $card = new Card(
+            id: 'sd1',
+            title: 'Tâche datée',
+            column: '02-En cours',
+            description: 'corps',
+            start_date: '2026-06-01',
+            due_date: '2026-06-15',
+        );
+
+        $restored = Card::fromMarkdown($card->toYAMLFrontmatter() . "\n" . $card->description);
+
+        $this->assertSame('2026-06-01', $restored->start_date);
+        $this->assertSame('2026-06-15', $restored->due_date);
+    }
+
+    public function testToYAMLFrontmatterIncludesStartDate(): void {
+        $card = new Card(
+            id: 'sd2',
+            title: 'T',
+            column: '01-Backlog',
+            start_date: '2026-06-02',
+        );
+
+        $this->assertStringContainsString('start_date: 2026-06-02', $card->toYAMLFrontmatter());
+    }
+
+    public function testWithColumnChangesColumnAndPreservesEveryOtherField(): void {
+        $card = new Card(
+            id: 'wc1',
+            title: 'Tâche',
+            column: '01-Backlog',
+            description: 'corps',
+            created_at: new \DateTime('2026-06-05T10:00:00Z'),
+            assignees: ['alain'],
+            due_date: '2026-06-15',
+            procedures: ['Décision par consentement'],
+            priority: '2',
+            tags: ['infra'],
+            phase: 3,
+            start_date: '2026-06-01',
+        );
+
+        $moved = $card->withColumn('02-En cours');
+
+        $this->assertSame('02-En cours', $moved->column);
+        $this->assertSame('wc1', $moved->id);
+        $this->assertSame('Tâche', $moved->title);
+        $this->assertSame('corps', $moved->description);
+        $this->assertSame(['alain'], $moved->assignees);
+        $this->assertSame('2026-06-15', $moved->due_date);
+        $this->assertSame('2026-06-01', $moved->start_date);
+        $this->assertSame(['Décision par consentement'], $moved->procedures);
+        $this->assertSame('2', $moved->priority);
+        $this->assertSame(['infra'], $moved->tags);
+        $this->assertSame(3, $moved->phase);
+        // Immutable: the original is untouched.
+        $this->assertSame('01-Backlog', $card->column);
     }
 
     public function testToArrayDueDateNullWhenUnset(): void {

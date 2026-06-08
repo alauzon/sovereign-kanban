@@ -190,15 +190,7 @@ final class FileBoardRepository {
 			if ($card->column === $columnFolder) {
 				continue;
 			}
-			$synced = new Card(
-				id: $card->id,
-				title: $card->title,
-				column: $columnFolder,
-				description: $card->description,
-				created_at: $card->created_at,
-				assignees: $card->assignees,
-				due_date: $card->due_date,
-			);
+			$synced = $card->withColumn($columnFolder);
 			$this->storage->write($file, $synced->toYAMLFrontmatter() . "\n\n" . $synced->description);
 		}
 	}
@@ -215,6 +207,7 @@ final class FileBoardRepository {
 			color: $data['color'],
 			columns: $data['columns'] ?? [],
 			created_at: new DateTime($data['created_at']),
+			tags: $data['tags'] ?? [],
 		);
 	}
 }

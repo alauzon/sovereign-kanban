@@ -28,6 +28,8 @@
 
 	<div id="sk-form" class="sk-form" hidden></div>
 
+	<div id="sk-filterbar" class="sk-filterbar" hidden></div>
+
 	<div id="sk-board" class="sk-board">
 		<p class="sk-loading">Chargement des tableaux…</p>
 	</div>
