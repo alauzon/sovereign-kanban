@@ -1,9 +1,9 @@
 # Installation Playbook
 
-How to install Sovereign Kanban on a Nextcloud instance. Tested on the staging
-(the staging container, staging-host) and Tshinanu (the production container, prod-host). The model assumes an LXC
-container running a **direct** Nextcloud install (not AIO/Docker) behind
-**nginx + PHP-FPM**, reachable from the Proxmox host via `pct exec`.
+How to install Sovereign Kanban on a Nextcloud instance. Tested on a disposable
+staging NC and a production NC. The model assumes an LXC container (or VM)
+running a **direct** Nextcloud install (not AIO/Docker) behind
+**nginx + PHP-FPM**, with shell access to run `occ` inside the container.
 
 ## Apps
 
@@ -125,8 +125,10 @@ removal — the data is never owned by the app.
 
 ## Environment specifics
 
-| Instance | Host | CTID | PHP | Window |
-|----------|------|------|-----|--------|
-| Staging | staging-host | 310 | php8.3 | any (disposable) |
-| Tshinanu | prod-host | 211 | php8.3 | any (single user: Alain) |
-| a multi-user instance | prod-host | 204 | php8.3 | **22h00 EDT** (multi-user) + notifications/spreed patched master |
+Adapt to your own hosts. A typical layout:
+
+| Instance | PHP | Deploy window |
+|----------|-----|---------------|
+| Staging (disposable) | php8.3 | any |
+| Production (single user) | php8.3 | any |
+| Production (multi-user) | php8.3 | a low-traffic maintenance window |

@@ -15,7 +15,7 @@ This folder is the **living brain of the project**. It exists so that a person â
 | [01-vision-and-philosophy.md](01-vision-and-philosophy.md) | The *why*. Sovereignty, the founding principle "the custom layer never owns the data", code philosophy. |
 | [02-architecture.md](02-architecture.md) | The layers, the 3 apps, the `.board.yml`/`.md` file layout, the OCP boundary. |
 | [03-phases-and-requirements.md](03-phases-and-requirements.md) | Phases 1/2/3, feature list (cards + boards), progress. |
-| [04-environment-and-testing.md](04-environment-and-testing.md) | The 3 dev tiers (DDEV / staging-host / Tshinanu), how to run tests, how to deploy, the forge. |
+| [04-environment-and-testing.md](04-environment-and-testing.md) | The 3 dev tiers (DDEV / staging / production), how to run tests, how to deploy, the forge. |
 | [05-nextcloud-pitfalls-solved.md](05-nextcloud-pitfalls-solved.md) | Nextcloud 33 pitfalls solved, with recipes. Read this **before** touching an NC app. |
 | [06-decision-log.md](06-decision-log.md) | Dated log of structural decisions. |
 
