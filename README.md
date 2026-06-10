@@ -41,6 +41,14 @@ The full developer documentation lives in [documentation/](documentation/) —
 vision, architecture, the three dev tiers, Nextcloud pitfalls, and the decision
 log.
 
+## Testing
+
+This project is tested with BrowserStack.
+
 ## License
 
-[AGPL-3.0-or-later](LICENSE). Same license as Nextcloud itself.
+Copyright (C) 2026 Alain Lauzon and Serveurs du Peuple.
+
+Licensed under the [GNU AGPL-3.0-or-later](LICENSE) — the same license as
+Nextcloud itself. Any modified version run as a network service must make its
+source available to its users.
