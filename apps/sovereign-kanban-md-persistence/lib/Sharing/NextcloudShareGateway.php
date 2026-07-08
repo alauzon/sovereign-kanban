@@ -75,7 +75,10 @@ final class NextcloudShareGateway implements ShareGateway {
 		$share->setSharedBy($this->uid());
 		$share->setPermissions($permissions);
 
-		return $this->shareManager->createShare($share)->getId();
+		// getFullId() ('ocinternal:11255'), not getId() ('11255'): getShareById
+		// (used by revoke) needs the provider-prefixed id — staging showed getId
+		// yields ShareNotFound. §12.
+		return $this->shareManager->createShare($share)->getFullId();
 	}
 
 	public function listShares(string $boardId): array {
@@ -86,7 +89,7 @@ final class NextcloudShareGateway implements ShareGateway {
 		foreach (self::TYPE_TO_NC as $name => $ncType) {
 			foreach ($this->shareManager->getSharesBy($uid, $ncType, $node, false, 500) as $share) {
 				$out[] = [
-					'id' => $share->getId(),
+					'id' => $share->getFullId(),
 					'type' => $name,
 					'with' => (string) $share->getSharedWith(),
 					'permissions' => (int) $share->getPermissions(),

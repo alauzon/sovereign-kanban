@@ -179,3 +179,13 @@ Two throwaway `IManager` scripts on Tshinanu (CT 211, NC 34), users `Test 1`
 **Consequence:** dropped Option A / `MountPointResolver`; the invitee side lists
 received shares (Lot 2b). Observe-before-coding paid off — the mount design was
 wrong.
+
+**E2E validation of the real chain (2026-07-08, same 2 accounts):** with
+`board-sharing` deployed (md-persistence 1.0.14), `BoardShareService` resolved
+from the app container → `NextcloudShareGateway` → NC passed end to end: Test 1
+shares to Test 2 (perms 15), `listShares` finds it, `receivedBoards` shows it on
+Test 2 with the right owner, owner-check refuses a non-owner, `revoke` removes it
+(Test 2 then sees 0). One bug surfaced ONLY here: `getShareById` needs the **full
+id** (`ocinternal:11255`, `getFullId()`), not `getId()` (`11255`), so the adapter
+now returns/lists `getFullId()`. The unit fake could never have caught this —
+this is why e2e at 2 accounts is non-negotiable (Kate).
