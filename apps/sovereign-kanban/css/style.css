@@ -229,19 +229,30 @@
 .sk-detail-resize:hover { background: var(--color-primary-element); opacity: .35; }
 
 /* Fullscreen detail panel — starts BELOW the Nextcloud header so our ✕/⛶
-   buttons never collide with the header's contacts/account icons. */
+   buttons never collide with the header's contacts/account icons, and the
+   header stays visible + usable.
+   Bug (Chrome/Windows): inset:0 put the panel and its position:fixed buttons
+   at top:0 — *over* the header — so they rendered visibly offset against the
+   header's own icons. Anchor the top edge to the real header height instead. */
 .sk-detail-box.sk-fullscreen {
-	position: fixed; inset: 0; z-index: 3;
+	position: fixed; inset: var(--header-height, 50px) 0 0 0; z-index: 3;
 	width: auto; max-width: none;
 	margin: 0; border-radius: 0; overflow-y: auto;
 }
+/* Let clicks pass through the header-high strip to the NC header, while the
+   panel itself stays interactive. */
+.sk-detail:has(.sk-detail-box.sk-fullscreen) { pointer-events: none; }
+.sk-detail-box.sk-fullscreen { pointer-events: auto; }
+/* No dark veil over the header in fullscreen. */
+.sk-detail:has(.sk-detail-box.sk-fullscreen) .sk-detail-backdrop { display: none; }
 /* In a fixed-height flex column, children get compressed to fit instead of
    overflowing — which hides the comments and kills scrolling. Keep their
    natural size so the box actually scrolls. */
 .sk-detail-box.sk-fullscreen > * { flex-shrink: 0; }
-/* Keep the close/fullscreen buttons in view while the box scrolls. */
-.sk-detail-box.sk-fullscreen .sk-detail-close,
-.sk-detail-box.sk-fullscreen .sk-detail-fs { position: fixed; }
+/* Keep the close/fullscreen buttons in view while the box scrolls, docked
+   just under the NC header so they never overlap its account/contacts icons. */
+.sk-detail-box.sk-fullscreen .sk-detail-close { position: fixed; top: calc(var(--header-height, 50px) + 12px); right: 12px; }
+.sk-detail-box.sk-fullscreen .sk-detail-fs { position: fixed; top: calc(var(--header-height, 50px) + 12px); right: 52px; }
 .sk-detail-box.sk-fullscreen .sk-detail-resize { display: none; }
 /* Moderate editor height so the box still scrolls down to the comments. */
 .sk-detail-box.sk-fullscreen .sk-detail-editor { min-height: 32vh; }
@@ -423,3 +434,35 @@
 .sk-palette-row { display: flex; align-items: center; gap: 6px; }
 .sk-palette-color { width: 36px; height: 30px; padding: 0; border: none; background: none; cursor: pointer; }
 .sk-palette-name { flex: 1; }
+
+/* ---- Mobile / small screens ----
+   On a phone the header + toolbar ate ~¾ of the viewport before a single card
+   showed. Shrink the chrome, drop the decorative subtitle, and give each column
+   ~full width so cards stay readable (swipe sideways for the next one).
+   The viewport meta is provided by Nextcloud's page layout. */
+@media (max-width: 640px) {
+	#sk-app {
+		margin: 6px;
+		padding: 12px 12px 14px;
+		height: calc(100vh - var(--header-height, 50px) - 12px);
+	}
+	.sk-header h1 { font-size: 18px; margin-bottom: 2px; }
+	.sk-subtitle { display: none; }
+
+	/* Tighten the two stacked rows that pushed the board down. */
+	.sk-boards { margin-bottom: 10px; gap: 6px; }
+	.sk-toolbar { gap: 8px; margin-bottom: 10px; }
+	.sk-board-tab { padding: 5px 11px; font-size: 12px; }
+
+	/* Actions get their own full-width row; buttons share it evenly. */
+	.sk-toolbar-actions { width: 100%; gap: 6px; }
+	.sk-toolbar-actions .sk-btn { flex: 1 1 auto; text-align: center; }
+
+	/* One column ≈ full width instead of a fixed 300px squished tray. */
+	.sk-column { flex-basis: 86vw; min-width: 86vw; }
+
+	/* Filter bar tighter; the card detail uses the whole screen. */
+	.sk-filterbar { gap: 8px; padding: 8px; }
+	.sk-detail { padding: 2vh 0; }
+	.sk-detail-box { width: 96vw; margin: 0 2vw 4vh; padding: 16px; }
+}

@@ -1077,6 +1077,11 @@
 				const data = await res.json();
 				closeForm();
 				await reload(data.board ? data.board.id : currentId);
+			} else if (res.status === 409) {
+				// The name slugified onto an existing board's folder; the backend
+				// refused rather than overwrite it.
+				submit.disabled = false;
+				window.alert('Un tableau nommé « ' + name + ' » existe déjà.');
 			} else {
 				submit.disabled = false;
 				window.alert('Erreur ' + res.status);

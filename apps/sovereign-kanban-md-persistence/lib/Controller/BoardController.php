@@ -74,6 +74,12 @@ final class BoardController extends Controller {
 		}
 
 		$board = Board::create($name, $color);
+		if ($repository->find($board->id) !== null) {
+			// The name slugified onto an existing board's folder. Refuse rather
+			// than overwrite its .board.yml (which would reset columns to
+			// defaults and orphan its cards).
+			return new DataResponse(['error' => 'board_exists', 'id' => $board->id], 409);
+		}
 		$repository->create($board);
 
 		return new DataResponse(['board' => $board->toArray()], 201);
