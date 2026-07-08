@@ -73,4 +73,19 @@ final class BoardShareService {
 
 		$this->gateway->revoke($shareId);
 	}
+
+	/**
+	 * List a board's shares — owner-only.
+	 *
+	 * @return list<array{id: string, type: string, with: string, permissions: int}>
+	 *
+	 * @throws NotBoardOwnerException If the current user does not own the board.
+	 */
+	public function listShares(string $boardId): array {
+		if (!$this->gateway->currentUserOwns($boardId)) {
+			throw new NotBoardOwnerException($boardId);
+		}
+
+		return $this->gateway->listShares($boardId);
+	}
 }

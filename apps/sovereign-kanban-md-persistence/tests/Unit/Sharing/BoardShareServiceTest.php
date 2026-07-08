@@ -104,6 +104,28 @@ final class BoardShareServiceTest extends TestCase {
 
 		$this->assertSame('share-1', $gateway->lastRevokedId);
 	}
+
+	// --- listShares() ----------------------------------------------------
+
+	public function testNonOwnerCannotListShares(): void {
+		$service = new BoardShareService(new FakeShareGateway(owns: false));
+
+		$this->expectException(NotBoardOwnerException::class);
+		$service->listShares('projets-sdp');
+	}
+
+	public function testOwnerListsBoardShares(): void {
+		$gateway = new FakeShareGateway(owns: true);
+		$gateway->seedShares('projets-sdp', [
+			['id' => 'share-1', 'type' => 'user', 'with' => 'steve', 'permissions' => 1],
+		]);
+		$service = new BoardShareService($gateway);
+
+		$shares = $service->listShares('projets-sdp');
+
+		$this->assertCount(1, $shares);
+		$this->assertSame('steve', $shares[0]['with']);
+	}
 }
 
 /**

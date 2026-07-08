@@ -27,5 +27,8 @@ return [
 		['name' => 'card#destroyComment', 'url' => '/api/v1/boards/{boardId}/cards/{cardId}/comments/{commentId}', 'verb' => 'DELETE'],
 		['name' => 'template#index', 'url' => '/api/v1/templates', 'verb' => 'GET'],
 		['name' => 'template#procedures', 'url' => '/api/v1/procedures', 'verb' => 'GET'],
+		['name' => 'share#index', 'url' => '/api/v1/boards/{boardId}/shares', 'verb' => 'GET'],
+		['name' => 'share#create', 'url' => '/api/v1/boards/{boardId}/shares', 'verb' => 'POST'],
+		['name' => 'share#destroy', 'url' => '/api/v1/boards/{boardId}/shares/{shareId}', 'verb' => 'DELETE'],
 	],
 ];
