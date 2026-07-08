@@ -126,6 +126,26 @@ final class BoardShareServiceTest extends TestCase {
 		$this->assertCount(1, $shares);
 		$this->assertSame('steve', $shares[0]['with']);
 	}
+
+	// --- receivedBoards() ------------------------------------------------
+
+	public function testReceivedBoardsDeduplicatesById(): void {
+		// Same board reaching the user directly AND via a group → listed once.
+		// owns:false shows there is no owner check — these are the user's own
+		// received shares.
+		$gateway = new FakeShareGateway(owns: false);
+		$gateway->seedReceived([
+			['id' => 'projets', 'name' => 'Projets', 'owner' => 'alain', 'permissions' => 1],
+			['id' => 'projets', 'name' => 'Projets', 'owner' => 'alain', 'permissions' => 15],
+		]);
+		$service = new BoardShareService($gateway);
+
+		$received = $service->receivedBoards();
+
+		$this->assertCount(1, $received);
+		$this->assertSame('projets', $received[0]['id']);
+		$this->assertSame('alain', $received[0]['owner']);
+	}
 }
 
 /**
@@ -142,6 +162,9 @@ final class FakeShareGateway implements ShareGateway {
 
 	/** @var array<string, list<array{id: string, type: string, with: string, permissions: int}>> */
 	private array $shares = [];
+
+	/** @var list<array{id: string, name: string, owner: string, permissions: int}> */
+	private array $received = [];
 
 	public function __construct(private bool $owns) {
 	}
@@ -171,5 +194,14 @@ final class FakeShareGateway implements ShareGateway {
 
 	public function revoke(string $shareId): void {
 		$this->lastRevokedId = $shareId;
+	}
+
+	/** @param list<array{id: string, name: string, owner: string, permissions: int}> $received */
+	public function seedReceived(array $received): void {
+		$this->received = $received;
+	}
+
+	public function receivedBoards(): array {
+		return $this->received;
 	}
 }

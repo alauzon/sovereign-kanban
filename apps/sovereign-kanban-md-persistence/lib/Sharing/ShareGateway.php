@@ -48,4 +48,14 @@ interface ShareGateway {
 	 * Remove a share by id.
 	 */
 	public function revoke(string $shareId): void;
+
+	/**
+	 * Boards shared TO the current user (folders holding a .board.yml).
+	 *
+	 * May contain duplicates when the same board reaches the user through more
+	 * than one channel (direct + group); the service deduplicates by id.
+	 *
+	 * @return list<array{id: string, name: string, owner: string, permissions: int}>
+	 */
+	public function receivedBoards(): array;
 }

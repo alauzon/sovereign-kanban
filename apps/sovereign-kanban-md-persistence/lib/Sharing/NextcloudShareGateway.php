@@ -10,12 +10,14 @@
 
 namespace OCA\SovereignKanbanMdPersistence\Sharing;
 
+use OCP\Files\File;
 use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
 use OCP\Files\NotFoundException;
 use OCP\IUserSession;
 use OCP\Share\IManager;
 use OCP\Share\IShare;
+use Symfony\Component\Yaml\Yaml;
 
 /**
  * Adapts ShareGateway onto OCP\Share\IManager.
@@ -97,6 +99,38 @@ final class NextcloudShareGateway implements ShareGateway {
 
 	public function revoke(string $shareId): void {
 		$this->shareManager->deleteShare($this->shareManager->getShareById($shareId));
+	}
+
+	/**
+	 * Boards shared TO the current user, across user/group/team channels.
+	 *
+	 * Spike-validated (spec §12): getSharedWith lists the received share,
+	 * getNode() gives the shared folder, and its .board.yml is readable.
+	 * getSharedBy() is the owner. May yield duplicates (direct + group) — the
+	 * service deduplicates.
+	 */
+	public function receivedBoards(): array {
+		$uid = $this->uid();
+		$out = [];
+
+		foreach (self::TYPE_TO_NC as $ncType) {
+			foreach ($this->shareManager->getSharedWith($uid, $ncType, null, 500) as $share) {
+				$node = $share->getNode();
+				if (!$node instanceof Folder || !$node->nodeExists('.board.yml')) {
+					continue;
+				}
+				$file = $node->get('.board.yml');
+				$data = $file instanceof File ? (Yaml::parse($file->getContent()) ?? []) : [];
+				$out[] = [
+					'id' => (string) ($data['id'] ?? $node->getName()),
+					'name' => (string) ($data['name'] ?? $node->getName()),
+					'owner' => (string) $share->getSharedBy(),
+					'permissions' => (int) $share->getPermissions(),
+				];
+			}
+		}
+
+		return $out;
 	}
 
 	/**

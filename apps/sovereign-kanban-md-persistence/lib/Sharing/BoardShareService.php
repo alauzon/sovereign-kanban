@@ -88,4 +88,26 @@ final class BoardShareService {
 
 		return $this->gateway->listShares($boardId);
 	}
+
+	/**
+	 * Boards shared to the current user, deduplicated by id.
+	 *
+	 * No owner check — these are the user's own received shares. Duplicates
+	 * (the same board reaching them directly and via a group) are collapsed.
+	 *
+	 * @return list<array{id: string, name: string, owner: string, permissions: int}>
+	 */
+	public function receivedBoards(): array {
+		$seen = [];
+		$out = [];
+		foreach ($this->gateway->receivedBoards() as $board) {
+			if (isset($seen[$board['id']])) {
+				continue;
+			}
+			$seen[$board['id']] = true;
+			$out[] = $board;
+		}
+
+		return $out;
+	}
 }

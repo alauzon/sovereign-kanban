@@ -9,6 +9,7 @@ namespace OCA\SovereignKanbanMdPersistence\Controller;
 
 use OCA\SovereignKanbanMdPersistence\Kanban\Board;
 use OCA\SovereignKanbanMdPersistence\Kanban\FileBoardRepository;
+use OCA\SovereignKanbanMdPersistence\Sharing\BoardShareService;
 use OCA\SovereignKanbanMdPersistence\Storage\NextcloudStorage;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
@@ -32,6 +33,7 @@ final class BoardController extends Controller {
 		IRequest $request,
 		private readonly IUserSession $userSession,
 		private readonly IRootFolder $rootFolder,
+		private readonly BoardShareService $shareService,
 	) {
 		parent::__construct('sovereign-kanban-md-persistence', $request);
 	}
@@ -48,9 +50,23 @@ final class BoardController extends Controller {
 		}
 
 		$boards = array_map(
-			static fn (Board $board): array => $board->toArray(),
+			static fn (Board $board): array => $board->toArray() + ['shared' => false, 'owner' => null],
 			$repository->list(),
 		);
+		// Boards shared TO this user (Option B, spec §12), marked `shared` + `owner`.
+		// Columns/cards of a received board aren't loaded here yet — it appears in
+		// the list; full navigation needs storage rooted at the share path (next sub-lot).
+		foreach ($this->shareService->receivedBoards() as $received) {
+			$boards[] = [
+				'id' => $received['id'],
+				'name' => $received['name'],
+				'color' => '#0082c9',
+				'columns' => [],
+				'tags' => [],
+				'shared' => true,
+				'owner' => $received['owner'],
+			];
+		}
 
 		return new DataResponse(['boards' => $boards]);
 	}
