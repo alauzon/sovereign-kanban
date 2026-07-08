@@ -1,6 +1,6 @@
 # Board sharing — technical spec (draft for review)
 
-Status: **draft, awaiting Alain's decisions** (see "Open questions" at the end).
+Status: **decisions locked 2026-07-08 — ready to implement (socle first, TDD).**
 Feature: Phase 1 · "Partage de tableau entre usagers" (priority 1, with Steve).
 
 > Prime directive unchanged: **the folder is the data.** Sharing a board must be
@@ -95,8 +95,9 @@ almost no repository change. B leaks Nextcloud share semantics into the reposito
 
 `TYPE_LINK` share on the folder. Default **read-only**. Offer optional password and
 expiry. The link opens Nextcloud's public Files view of the folder (cards are plain
-`.md` — readable). A public *board view* (render the Kanban read-only for anonymous
-users) is a **Phase 2** item; Phase 1 ships the link to the folder only.
+`.md` — readable). The anonymous *board view* (render the Kanban read-only for
+anonymous users) is **now in Phase 1** (decision §10.4) — gated behind a security
+pass (see §10.4).
 
 ## 8. Security checks (every endpoint)
 
@@ -119,14 +120,35 @@ users) is a **Phase 2** item; Phase 1 ships the link to the folder only.
   `Kanban/`, moves a card, owner sees the move (same `.md`). Revoke → board gone for
   the invitee. Public link opens read-only.
 
-## 10. Open questions for Alain (decide before coding)
+## 10. Decisions (locked 2026-07-08 with Alain)
 
-1. **Mount point (§6): option A (mount under `Kanban/`) — confirm?** Collision suffix
-   `-partagé` or `-{owner}`?
-2. **Default level:** invite as **read-only** and let the owner upgrade to collaborate,
-   or offer both at invite time? (I lean: both at invite time, default read-only.)
-3. **Teams (Circles):** ship `TYPE_CIRCLE` in Phase 1, or users+groups first and Teams
-   right after? (Depends on whether the Teams app is enabled on Tshinanu/ET.)
-4. **Public link:** in scope for Phase 1, or defer with the public board view to
-   Phase 2? (Steve's card lists "lien externe pour les tableaux publics" as Phase 1.)
-5. **Re-sharing:** keep it off by default — agreed?
+1. **Mount point** — Option A: mount the received share under the invitee's
+   `Kanban/{slug}`. On slug collision, mount as `Kanban/{slug}-partagé` (then
+   `-{owner}` if it still collides). Keeps `Kanban/` the single scan root.
+2. **Default level** — offer both at invite time, default **read-only**.
+3. **Teams (Circles)** — verified enabled on Tshinanu (`circles` 34.0.0). Ship
+   **user + group + team** sharing together in Phase 1 (all three `TYPE_*`).
+4. **Public** — Phase 1 ships **both** the read-only folder link **and** an
+   anonymous read-only **Kanban board view** (token-based public route).
+   ⚠️ Largest and most security-sensitive piece — gate behind a security pass
+   (`/nadia-securite`): unguessable token, no board enumeration, rate-limiting,
+   no metadata leak, honour the instance link-share policy (password/expiry),
+   and never expose a write endpoint to anonymous callers.
+5. **Re-sharing** — `PERMISSION_SHARE` stays **off** by default (invitees can't
+   re-share).
+
+## 11. Implementation plan (TDD)
+
+- **Lot 1 — pure logic (unit, local) — DONE:** `SharePermissions` mapper
+  (`read` → READ; `collaborate` → READ|UPDATE|CREATE|DELETE; SHARE never set).
+  4 tests, red→green; no OCP dependency so it runs in the local suite.
+- **Lot 2 — sharing to accounts (needs NC):** `BoardShareService` over
+  `IManager` (create/list/revoke) for **user + group + team**, the owner-check
+  guard, the `Kanban/{slug}` mount point (`-partagé` collision suffix), REST
+  endpoints (§5), friendly errors. Behind an interface so the logic stays
+  mockable.
+- **Lot 3 — public exposure (needs NC + security pass):** the read-only folder
+  link **and** the anonymous public board view. Security-review first (§10.4).
+- **Lot 4 — validation (staging/Tshinanu):** two-account share (invitee sees the
+  board under `Kanban/`, moves a card, owner sees it; revoke), plus an anonymous
+  public-link test.
