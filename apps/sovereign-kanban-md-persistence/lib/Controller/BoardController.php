@@ -61,7 +61,7 @@ final class BoardController extends Controller {
 				'id' => $received['id'],
 				'name' => $received['name'],
 				'color' => '#0082c9',
-				'columns' => [],
+				'columns' => $received['columns'],
 				'tags' => [],
 				'shared' => true,
 				'owner' => $received['owner'],

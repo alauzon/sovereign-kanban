@@ -55,7 +55,7 @@ interface ShareGateway {
 	 * May contain duplicates when the same board reaches the user through more
 	 * than one channel (direct + group); the service deduplicates by id.
 	 *
-	 * @return list<array{id: string, name: string, owner: string, permissions: int}>
+	 * @return list<array{id: string, name: string, columns: list<string>, owner: string, permissions: int}>
 	 */
 	public function receivedBoards(): array;
 }

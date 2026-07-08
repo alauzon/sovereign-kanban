@@ -11,6 +11,7 @@ use OCA\SovereignKanbanMdPersistence\Kanban\Card;
 use OCA\SovereignKanbanMdPersistence\Kanban\Comment;
 use OCA\SovereignKanbanMdPersistence\Kanban\FileCardRepository;
 use OCA\SovereignKanbanMdPersistence\Service\MarkdownRenderer;
+use OCA\SovereignKanbanMdPersistence\Sharing\ReceivedBoardLocator;
 use OCA\SovereignKanbanMdPersistence\Storage\NextcloudStorage;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
@@ -34,6 +35,7 @@ final class CardController extends Controller {
 		private readonly IUserSession $userSession,
 		private readonly IRootFolder $rootFolder,
 		private readonly MarkdownRenderer $markdown,
+		private readonly ReceivedBoardLocator $receivedLocator,
 	) {
 		parent::__construct('sovereign-kanban-md-persistence', $request);
 	}
@@ -373,10 +375,11 @@ final class CardController extends Controller {
 
 		$userFolder = $this->rootFolder->getUserFolder($user->getUID());
 		$path = 'Kanban/' . $boardId;
-		if (!$userFolder->nodeExists($path)) {
-			return null;
-		}
-		$boardFolder = $userFolder->get($path);
+		// Own board under Kanban/, else a board shared TO this user (Option B,
+		// §12): a received share sits at the Files root, resolved by id.
+		$boardFolder = $userFolder->nodeExists($path)
+			? $userFolder->get($path)
+			: $this->receivedLocator->folderFor($boardId);
 		if (!$boardFolder instanceof Folder) {
 			return null;
 		}
