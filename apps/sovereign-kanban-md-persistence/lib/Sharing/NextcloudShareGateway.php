@@ -26,11 +26,12 @@ use OCP\Share\IShare;
  * would only assert we know its signatures, not that Nextcloud obeys. It is
  * validated on staging with two accounts (Lot 4).
  *
- * NOTE — the invitee-side mount under Kanban/ (decision §10.1, MountPointResolver)
- * is a separate, invitee-side step: a received share lands at the recipient's
- * Files root, and where a board already exists there is only knowable from the
- * invitee's folder — not the sharer's. This adapter only creates/lists/revokes
- * shares from the owner side. Mounting is a follow-up sub-lot.
+ * NOTE — invitee-side received boards (spike-validated 2026-07-08, spec §12):
+ * a received share lands at the recipient's Files ROOT, not under Kanban/, and
+ * setTarget is unreliable on NC 34 (updateShare throws). So the invitee side
+ * LISTS received shares (Option B, follow-up sub-lot 2b: getSharedWith +
+ * .board.yml filter) rather than mounting. This adapter only creates/lists/
+ * revokes shares from the owner side.
  */
 final class NextcloudShareGateway implements ShareGateway {
 

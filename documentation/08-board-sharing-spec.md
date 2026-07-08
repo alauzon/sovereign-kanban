@@ -88,8 +88,9 @@ Options:
   folder shares received by the user that contain a `.board.yml`. More code, more
   edge cases (a share can disappear mid-session), but no mount-point juggling.
 
-**Recommendation: A.** It keeps `Kanban/` the single source the app scans and needs
-almost no repository change. B leaks Nextcloud share semantics into the repository.
+**Initial recommendation was A — REVERSED by the 2026-07-08 spike (§12).** A is not
+viable on NC 34 (received share lands at the root; setTarget throws), so **B is
+adopted**: list received shares in the app instead of mounting them.
 
 ## 7. Public link
 
@@ -122,9 +123,12 @@ pass (see §10.4).
 
 ## 10. Decisions (locked 2026-07-08 with Alain)
 
-1. **Mount point** — Option A: mount the received share under the invitee's
-   `Kanban/{slug}`. On slug collision, mount as `Kanban/{slug}-partagé` (then
-   `-{owner}` if it still collides). Keeps `Kanban/` the single scan root.
+1. **Mount point — REVISED after spike 2026-07-08 (see §12).** Option A (mount
+   under `Kanban/` via `setTarget`) is NOT viable: a received share lands at the
+   invitee's Files ROOT and `updateShare(setTarget)` throws on NC 34. Adopted
+   **Option B**: the invitee's app *lists* received board shares (`getSharedWith`
+   + `.board.yml` filter) beside its own boards — no physical mount, no collision
+   suffix, so `MountPointResolver` was removed.
 2. **Default level** — offer both at invite time, default **read-only**.
 3. **Teams (Circles)** — verified enabled on Tshinanu (`circles` 34.0.0). Ship
    **user + group + team** sharing together in Phase 1 (all three `TYPE_*`).
@@ -142,13 +146,36 @@ pass (see §10.4).
 - **Lot 1 — pure logic (unit, local) — DONE:** `SharePermissions` mapper
   (`read` → READ; `collaborate` → READ|UPDATE|CREATE|DELETE; SHARE never set).
   4 tests, red→green; no OCP dependency so it runs in the local suite.
-- **Lot 2 — sharing to accounts (needs NC):** `BoardShareService` over
-  `IManager` (create/list/revoke) for **user + group + team**, the owner-check
-  guard, the `Kanban/{slug}` mount point (`-partagé` collision suffix), REST
-  endpoints (§5), friendly errors. Behind an interface so the logic stays
-  mockable.
+- **Lot 2 — sharing to accounts (needs NC) — DONE (not deployed):**
+  `BoardShareService` over `IManager` (create/list/revoke, owner-only) for
+  **user + group + team**, REST endpoints (§5), friendly errors, behind the
+  `ShareGateway` port. Logic in RFG; adapter `NextcloudShareGateway` +
+  `ShareController` php-l clean, validated on staging (Lot 4).
+- **Lot 2b — received boards, invitee side (Option B, §12):** the app lists
+  boards shared TO the current user (`getSharedWith` → folders holding a
+  `.board.yml`), merged into the board list marked `shared` + `owner`. Adapter
+  work (mostly), spike-validated. **Next up.**
 - **Lot 3 — public exposure (needs NC + security pass):** the read-only folder
   link **and** the anonymous public board view. Security-review first (§10.4).
 - **Lot 4 — validation (staging/Tshinanu):** two-account share (invitee sees the
-  board under `Kanban/`, moves a card, owner sees it; revoke), plus an anonymous
-  public-link test.
+  received board in its list, moves a card, owner sees it; revoke), plus an
+  anonymous public-link test.
+
+## 12. Spike findings — Nextcloud share mounting (2026-07-08)
+
+Two throwaway `IManager` scripts on Tshinanu (CT 211, NC 34), users `Test 1`
+(owner) → `Test 2` (invitee), self-cleaning. What NC actually does:
+
+- **A received folder share lands at the invitee's Files ROOT** (`/spike-board`),
+  not under `Kanban/`. Auto-accept is on → it appears without manual acceptance.
+- **`setTarget('/Kanban/…')` is unreliable:** `updateShare()` throws a `TypeError`
+  on NC 34 (`Share::getStatus(): null returned`). So we can't force the mount
+  point under `Kanban/` this way.
+- **Option B works:** `getSharedWith($invitee, TYPE_USER)` lists the received
+  share (`getSharedBy()` gives the owner), `$share->getNode()` returns an
+  accessible `Folder`, and its `.board.yml` is readable — everything
+  `NextcloudShareGateway::receivedBoards()` needs.
+
+**Consequence:** dropped Option A / `MountPointResolver`; the invitee side lists
+received shares (Lot 2b). Observe-before-coding paid off — the mount design was
+wrong.
