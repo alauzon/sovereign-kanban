@@ -34,8 +34,15 @@ final class FileBoardRepository {
 
 	/**
 	 * Create a board: its .board.yml and numbered column folders.
+	 *
+	 * @throws BoardAlreadyExistsException If a board with this slug already
+	 *   exists. Overwriting it would reset its columns to defaults and orphan
+	 *   the cards in its existing column folders (the folder is canonical).
 	 */
 	public function create(Board $board): void {
+		if ($this->storage->exists($board->id . '/.board.yml')) {
+			throw new BoardAlreadyExistsException($board->id);
+		}
 		$this->storage->write($board->id . '/.board.yml', $board->toYaml());
 		foreach (array_values($board->columns) as $index => $name) {
 			$this->storage->makeDir(sprintf('%s/%02d-%s', $board->id, $index + 1, $name));

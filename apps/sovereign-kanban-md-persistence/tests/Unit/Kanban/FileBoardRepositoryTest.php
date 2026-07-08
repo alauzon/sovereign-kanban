@@ -3,6 +3,7 @@
 namespace OCA\SovereignKanbanMdPersistence\Tests\Unit\Kanban;
 
 use OCA\SovereignKanbanMdPersistence\Kanban\Board;
+use OCA\SovereignKanbanMdPersistence\Kanban\BoardAlreadyExistsException;
 use OCA\SovereignKanbanMdPersistence\Kanban\Card;
 use OCA\SovereignKanbanMdPersistence\Kanban\FileBoardRepository;
 use OCA\SovereignKanbanMdPersistence\Kanban\FileCardRepository;
@@ -49,6 +50,30 @@ final class FileBoardRepositoryTest extends TestCase {
 		$this->assertDirectoryExists($this->rootDir . '/test/02-En cours');
 		$this->assertDirectoryExists($this->rootDir . '/test/03-Terminé');
 		$this->assertDirectoryExists($this->rootDir . '/test/04-Archivé');
+	}
+
+	public function testCreateRefusesToOverwriteExistingBoard(): void {
+		// A board whose columns have been customized (Steve's real "Bienvenue").
+		$this->repo->create(Board::create(name: 'Bienvenue', color: '#0082c9'));
+		$this->repo->renameColumn('bienvenue', 'Backlog', 'À faire');
+
+		// A brand-new board whose name slugifies onto the same folder.
+		$colliding = Board::create(name: 'Bienvenue', color: '#ff0000');
+		$this->assertSame('bienvenue', $colliding->id, 'precondition: the slug collides');
+
+		try {
+			$this->repo->create($colliding);
+			$this->fail('Expected BoardAlreadyExistsException — create must not overwrite an existing board.');
+		} catch (BoardAlreadyExistsException $e) {
+			$this->assertSame('bienvenue', $e->boardId);
+		}
+
+		// The existing board is untouched: the custom column survived and the
+		// color was not reset — no silent clobber of .board.yml, no orphaned cards.
+		$board = $this->repo->find('bienvenue');
+		$this->assertContains('À faire', $board->columns, 'custom column preserved');
+		$this->assertNotContains('Backlog', $board->columns, 'columns not reset to defaults');
+		$this->assertSame('#0082c9', $board->color, 'color not overwritten');
 	}
 
 	public function testListReturnsEmptyWhenNoBoards(): void {
