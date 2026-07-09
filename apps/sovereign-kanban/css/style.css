@@ -435,6 +435,20 @@
 .sk-palette-color { width: 36px; height: 30px; padding: 0; border: none; background: none; cursor: pointer; }
 .sk-palette-name { flex: 1; }
 
+/* ---- Board sharing panel (owner) ---- */
+.sk-share-panel { display: flex; flex-direction: column; gap: 8px; margin: 6px 0; }
+.sk-share-list { display: flex; flex-direction: column; gap: 4px; }
+.sk-share-row {
+	display: flex; align-items: center; justify-content: space-between; gap: 8px;
+	font-size: 13px; padding: 4px 8px; border-radius: var(--border-radius, 8px);
+	background: var(--color-background-hover);
+}
+.sk-share-add { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.sk-share-add .sk-input { flex: 1 1 auto; min-width: 120px; }
+.sk-share-add select.sk-input { flex: 0 0 auto; }
+/* '👥' marker on a board shared with the current user. */
+.sk-shared-badge { margin-left: 6px; font-size: 12px; }
+
 /* ---- Mobile / small screens ----
    On a phone the header + toolbar ate ~¾ of the viewport before a single card
    showed. Shrink the chrome, drop the decorative subtitle, and give each column

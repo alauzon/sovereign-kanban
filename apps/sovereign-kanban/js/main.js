@@ -19,6 +19,7 @@
 	}
 	function boardUrl(id) { return boardsUrl() + '/' + encodeURIComponent(id); }
 	function cardsUrl(boardId) { return boardUrl(boardId) + '/cards'; }
+	function sharesUrl(id) { return boardUrl(id) + '/shares'; }
 	function cardUrl(boardId, cardId) { return cardsUrl(boardId) + '/' + encodeURIComponent(cardId); }
 	function commentsUrl(boardId, cardId) { return cardUrl(boardId, cardId) + '/comments'; }
 	function commentUrl(boardId, cardId, commentId) { return commentsUrl(boardId, cardId) + '/' + encodeURIComponent(commentId); }
@@ -901,6 +902,11 @@
 			dot.style.background = board.color || '#888';
 			btn.appendChild(dot);
 			btn.appendChild(el('span', null, board.name));
+			if (board.shared) {
+				const badge = el('span', 'sk-shared-badge', '👥');
+				badge.title = 'Partagé avec vous' + (board.owner ? ' par ' + board.owner : '');
+				btn.appendChild(badge);
+			}
 			btn.addEventListener('click', function () { select(board.id); });
 			nav.appendChild(btn);
 		});
@@ -1014,6 +1020,79 @@
 		}
 	}
 
+	/**
+	 * The sharing section of the board edit form (owner only): lists the current
+	 * shares with a revoke button, and a small form to add one. Backed by
+	 * GET/POST/DELETE /boards/{id}/shares.
+	 */
+	function renderSharePanel(board) {
+		const box = el('div', 'sk-share-panel');
+		box.appendChild(el('span', 'sk-field-label', 'Partage'));
+
+		const list = el('div', 'sk-share-list');
+		box.appendChild(list);
+
+		const renderList = async function () {
+			list.innerHTML = '';
+			const res = await api('GET', sharesUrl(board.id));
+			if (!res.ok) { list.appendChild(el('p', 'sk-field-hint', 'Impossible de charger les partages.')); return; }
+			const shares = (await res.json()).shares || [];
+			if (!shares.length) { list.appendChild(el('p', 'sk-field-hint', 'Pas encore partagé.')); return; }
+			shares.forEach(function (s) {
+				const row = el('div', 'sk-share-row');
+				const kind = { user: 'personne', group: 'groupe', team: 'équipe' }[s.type] || s.type;
+				const lvl = (s.permissions > 1) ? 'collaboration' : 'lecture';
+				row.appendChild(el('span', null, kind + ' · ' + s.with + ' · ' + lvl));
+				const rm = el('button', 'sk-btn sk-btn-small sk-btn-danger', '✕');
+				rm.type = 'button';
+				rm.title = 'Révoquer';
+				rm.addEventListener('click', async function () {
+					rm.disabled = true;
+					const r = await api('DELETE', sharesUrl(board.id) + '/' + encodeURIComponent(s.id));
+					if (r.ok) { renderList(); } else { rm.disabled = false; window.alert('Erreur ' + r.status); }
+				});
+				row.appendChild(rm);
+				list.appendChild(row);
+			});
+		};
+
+		const addRow = el('div', 'sk-share-add');
+		const typeSel = el('select', 'sk-input');
+		[['user', 'Personne'], ['group', 'Groupe'], ['team', 'Équipe']].forEach(function (o) {
+			const opt = el('option', null, o[1]); opt.value = o[0]; typeSel.appendChild(opt);
+		});
+		const withInput = el('input', 'sk-input');
+		withInput.type = 'text';
+		withInput.placeholder = 'identifiant (utilisateur, groupe, équipe)';
+		const levelSel = el('select', 'sk-input');
+		[['read', 'Lecture seule'], ['collaborate', 'Collaboration']].forEach(function (o) {
+			const opt = el('option', null, o[1]); opt.value = o[0]; levelSel.appendChild(opt);
+		});
+		const addBtn = el('button', 'sk-btn', 'Partager');
+		addBtn.type = 'button';
+		addBtn.addEventListener('click', async function () {
+			const shareWith = withInput.value.trim();
+			if (!shareWith) { withInput.focus(); return; }
+			addBtn.disabled = true;
+			const res = await api('POST', sharesUrl(board.id), {
+				shareType: typeSel.value, shareWith: shareWith, level: levelSel.value,
+			});
+			addBtn.disabled = false;
+			if (res.ok) { withInput.value = ''; renderList(); }
+			else if (res.status === 403) { window.alert('Seul le propriétaire peut partager ce tableau.'); }
+			else if (res.status === 400) { window.alert('Destinataire ou type invalide.'); }
+			else { window.alert('Erreur ' + res.status); }
+		});
+		addRow.appendChild(typeSel);
+		addRow.appendChild(withInput);
+		addRow.appendChild(levelSel);
+		addRow.appendChild(addBtn);
+		box.appendChild(addRow);
+
+		renderList();
+		return box;
+	}
+
 	function showBoardForm(mode, board) {
 		const form = document.getElementById('sk-form');
 		form.hidden = false;
@@ -1106,6 +1185,9 @@
 			addTag.addEventListener('click', function () { addPaletteRow(null).focus(); });
 			paletteSection.appendChild(addTag);
 			form.appendChild(paletteSection);
+			if (!board.shared) {
+				form.appendChild(renderSharePanel(board));
+			}
 		}
 		form.appendChild(submit);
 		form.appendChild(cancel);
