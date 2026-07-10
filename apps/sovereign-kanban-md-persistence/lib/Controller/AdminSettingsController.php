@@ -29,20 +29,39 @@ final class AdminSettingsController extends Controller {
 	}
 
 	/**
-	 * Update the recipient-suggestion mode.
+	 * Update the recipient-suggestion policy (any subset of the three modes).
 	 *
-	 * @param string $suggestionMode One of AdminSettings::SUGGESTION_MODES.
+	 * @param ?string $suggestionMode People mode — one of AdminSettings::SUGGESTION_MODES.
+	 * @param ?string $groupMode Group mode — one of AdminSettings::SCOPE_MODES.
+	 * @param ?string $teamMode Team mode — one of AdminSettings::SCOPE_MODES.
 	 */
-	public function update(string $suggestionMode): DataResponse {
-		if (!in_array($suggestionMode, AdminSettings::SUGGESTION_MODES, true)) {
-			return new DataResponse(['error' => 'invalid_mode'], 400);
+	public function update(?string $suggestionMode = null, ?string $groupMode = null, ?string $teamMode = null): DataResponse {
+		$writes = [];
+		if ($suggestionMode !== null) {
+			if (!in_array($suggestionMode, AdminSettings::SUGGESTION_MODES, true)) {
+				return new DataResponse(['error' => 'invalid_mode'], 400);
+			}
+			$writes[AdminSettings::SUGGESTION_MODE_KEY] = $suggestionMode;
 		}
-		$this->appConfig->setValueString(
-			'sovereign-kanban-md-persistence',
-			AdminSettings::SUGGESTION_MODE_KEY,
-			$suggestionMode,
-		);
+		if ($groupMode !== null) {
+			if (!in_array($groupMode, AdminSettings::SCOPE_MODES, true)) {
+				return new DataResponse(['error' => 'invalid_mode'], 400);
+			}
+			$writes[AdminSettings::GROUP_MODE_KEY] = $groupMode;
+		}
+		if ($teamMode !== null) {
+			if (!in_array($teamMode, AdminSettings::SCOPE_MODES, true)) {
+				return new DataResponse(['error' => 'invalid_mode'], 400);
+			}
+			$writes[AdminSettings::TEAM_MODE_KEY] = $teamMode;
+		}
+		if ($writes === []) {
+			return new DataResponse(['error' => 'nothing_to_update'], 400);
+		}
+		foreach ($writes as $key => $value) {
+			$this->appConfig->setValueString('sovereign-kanban-md-persistence', $key, $value);
+		}
 
-		return new DataResponse(['suggestionMode' => $suggestionMode]);
+		return new DataResponse($writes);
 	}
 }

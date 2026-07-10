@@ -1066,29 +1066,31 @@
 		withInput.type = 'text';
 		withInput.placeholder = 'Usager ou groupe…';
 		withInput.setAttribute('aria-label', 'Usager ou groupe avec qui partager');
-		// Autocomplete backed by GET /sharees (Nextcloud collaborator search).
-		// Picking a suggestion also selects its share type (user/group/team).
+		// Autocomplete backed by GET /sharees. The TYPE selector drives the
+		// suggestions: picking « Équipe » only ever suggests teams.
 		const shareeList = document.createElement('datalist');
 		shareeList.id = 'sk-sharees-' + board.id;
 		withInput.setAttribute('list', shareeList.id);
 		let sharees = [];
 		let shareeTimer = null;
-		const TYPE_TAG = { user: '', group: ' (groupe)', team: ' (équipe)' };
+		typeSel.addEventListener('change', function () {
+			sharees = [];
+			shareeList.textContent = '';
+		});
 		withInput.addEventListener('input', function () {
 			const val = withInput.value.trim();
-			const hit = sharees.find(function (s) { return s.id === val; });
-			if (hit) { typeSel.value = hit.type; return; }
+			if (sharees.some(function (s) { return s.id === val; })) return;
 			clearTimeout(shareeTimer);
 			if (val.length < 2) { shareeList.textContent = ''; return; }
 			shareeTimer = setTimeout(async function () {
-				const res = await api('GET', shareesUrl() + '?search=' + encodeURIComponent(val));
+				const res = await api('GET', shareesUrl() + '?search=' + encodeURIComponent(val) + '&type=' + encodeURIComponent(typeSel.value));
 				if (!res.ok) return;
 				sharees = (await res.json()).sharees || [];
 				shareeList.textContent = '';
 				sharees.forEach(function (s) {
 					const opt = document.createElement('option');
 					opt.value = s.id;
-					opt.label = s.label + (TYPE_TAG[s.type] || '');
+					opt.label = s.label;
 					shareeList.appendChild(opt);
 				});
 			}, 250);

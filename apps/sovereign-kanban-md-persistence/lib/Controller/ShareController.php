@@ -15,12 +15,14 @@ use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\Collaboration\Collaborators\ISearch;
 use OCP\IAppConfig;
 use OCP\IGroupManager;
 use OCP\IRequest;
 use OCP\IUser;
 use OCP\IUserManager;
 use OCP\IUserSession;
+use OCP\Share\IShare;
 
 /**
  * REST API for board sharing.
@@ -40,79 +42,108 @@ final class ShareController extends Controller {
 		private readonly IGroupManager $groupManager,
 		private readonly IUserSession $userSession,
 		private readonly IAppConfig $appConfig,
+		private readonly ISearch $collaboratorSearch,
 	) {
 		parent::__construct('sovereign-kanban-md-persistence', $request);
 	}
 
 	/**
-	 * Suggest share recipients (users and groups) matching a search string.
+	 * Suggest share recipients matching a search string, for ONE share type —
+	 * the type selector drives what gets suggested (people never show up when
+	 * the user is picking a team).
 	 *
-	 * Applies the Kanban admin's suggestion mode (AdminSettings) — deliberately
-	 * independent of the instance-wide Files sharing enumeration policy:
-	 * - 'exact': only an exact uid/gid or display-name match comes back;
-	 * - 'group': suggests among the requester's own groups and their members;
-	 * - 'all': suggests across every account and group of the instance.
+	 * Applies the Kanban admin's per-type policy (AdminSettings) — deliberately
+	 * independent of the instance-wide Files enumeration policy. Instance
+	 * admins always get the widest mode. Exact ids keep working in every mode
+	 * (the share POST does not depend on suggestions).
+	 *
+	 * @param string $search Substring typed by the user.
+	 * @param string $type 'user' | 'group' | 'team'.
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
-	public function sharees(string $search = ''): DataResponse {
+	public function sharees(string $search = '', string $type = 'user'): DataResponse {
 		$search = mb_substr(trim($search), 0, 64);
 		$current = $this->userSession->getUser();
 		if ($search === '' || $current === null) {
 			return new DataResponse(['sharees' => []]);
 		}
-		$mode = $this->appConfig->getValueString(
-			'sovereign-kanban-md-persistence',
-			AdminSettings::SUGGESTION_MODE_KEY,
-			AdminSettings::SUGGESTION_MODE_DEFAULT,
-		);
+		$isAdmin = $this->groupManager->isAdmin($current->getUID());
+		$needle = mb_strtolower($search);
 
 		$out = [];
 		$add = static function (string $type, string $id, string $label) use (&$out): void {
 			$out[$type . '|' . $id] = ['type' => $type, 'id' => $id, 'label' => $label];
 		};
 
-		if ($mode === 'all') {
-			foreach ($this->userManager->searchDisplayName($search, self::SHAREE_LIMIT) as $user) {
-				$add('user', $user->getUID(), $user->getDisplayName());
-			}
-			foreach ($this->groupManager->search($search, self::SHAREE_LIMIT) as $group) {
-				$add('group', $group->getGID(), $group->getDisplayName());
-			}
-		} elseif ($mode === 'group') {
-			$needle = mb_strtolower($search);
-			foreach ($this->groupManager->getUserGroups($current) as $group) {
-				if (str_contains(mb_strtolower($group->getDisplayName()), $needle)
-					|| str_contains(mb_strtolower($group->getGID()), $needle)) {
+		if ($type === 'group') {
+			$mode = $isAdmin ? 'all' : $this->appConfig->getValueString(
+				'sovereign-kanban-md-persistence',
+				AdminSettings::GROUP_MODE_KEY,
+				AdminSettings::SCOPE_MODE_DEFAULT,
+			);
+			if ($mode === 'all') {
+				foreach ($this->groupManager->search($search, self::SHAREE_LIMIT) as $group) {
 					$add('group', $group->getGID(), $group->getDisplayName());
 				}
-				foreach ($group->getUsers() as $member) {
-					if ($member->getUID() === $current->getUID()) {
-						continue;
-					}
-					if (str_contains(mb_strtolower($member->getUID()), $needle)
-						|| str_contains(mb_strtolower($member->getDisplayName()), $needle)) {
-						$add('user', $member->getUID(), $member->getDisplayName());
-					}
-					if (count($out) >= self::SHAREE_LIMIT) {
-						break 2;
+			} else {
+				foreach ($this->groupManager->getUserGroups($current) as $group) {
+					if (str_contains(mb_strtolower($group->getDisplayName()), $needle)
+						|| str_contains(mb_strtolower($group->getGID()), $needle)) {
+						$add('group', $group->getGID(), $group->getDisplayName());
 					}
 				}
+			}
+		} elseif ($type === 'team') {
+			// Teams (Circles) expose no global enumeration API: both modes list
+			// the teams visible to the requester via the collaborator plugin.
+			try {
+				[$result] = $this->collaboratorSearch->search($search, [IShare::TYPE_CIRCLE], false, self::SHAREE_LIMIT, 0);
+				foreach (array_merge($result['exact']['circles'] ?? [], $result['circles'] ?? []) as $entry) {
+					$id = (string) ($entry['value']['shareWith'] ?? '');
+					if ($id !== '') {
+						$add('team', $id, (string) ($entry['label'] ?? $id));
+					}
+				}
+			} catch (\Throwable) {
+				// Teams app absent — no suggestions, exact input still works.
 			}
 		} else {
-			// 'exact' — and the fail-closed fallback for any unknown value.
-			$user = $this->userManager->get($search);
-			if ($user instanceof IUser) {
-				$add('user', $user->getUID(), $user->getDisplayName());
-			}
-			foreach ($this->userManager->searchDisplayName($search, 5) as $candidate) {
-				if ($candidate->getDisplayName() === $search) {
-					$add('user', $candidate->getUID(), $candidate->getDisplayName());
+			$mode = $isAdmin ? 'all' : $this->appConfig->getValueString(
+				'sovereign-kanban-md-persistence',
+				AdminSettings::SUGGESTION_MODE_KEY,
+				AdminSettings::SUGGESTION_MODE_DEFAULT,
+			);
+			if ($mode === 'all') {
+				foreach ($this->userManager->searchDisplayName($search, self::SHAREE_LIMIT) as $user) {
+					$add('user', $user->getUID(), $user->getDisplayName());
 				}
-			}
-			if ($this->groupManager->groupExists($search)) {
-				$group = $this->groupManager->get($search);
-				$add('group', $group->getGID(), $group->getDisplayName());
+			} elseif ($mode === 'group') {
+				foreach ($this->groupManager->getUserGroups($current) as $group) {
+					foreach ($group->getUsers() as $member) {
+						if ($member->getUID() === $current->getUID()) {
+							continue;
+						}
+						if (str_contains(mb_strtolower($member->getUID()), $needle)
+							|| str_contains(mb_strtolower($member->getDisplayName()), $needle)) {
+							$add('user', $member->getUID(), $member->getDisplayName());
+						}
+						if (count($out) >= self::SHAREE_LIMIT) {
+							break 2;
+						}
+					}
+				}
+			} else {
+				// 'exact' — and the fail-closed fallback for any unknown value.
+				$user = $this->userManager->get($search);
+				if ($user instanceof IUser) {
+					$add('user', $user->getUID(), $user->getDisplayName());
+				}
+				foreach ($this->userManager->searchDisplayName($search, 5) as $candidate) {
+					if ($candidate->getDisplayName() === $search) {
+						$add('user', $candidate->getUID(), $candidate->getDisplayName());
+					}
+				}
 			}
 		}
 
