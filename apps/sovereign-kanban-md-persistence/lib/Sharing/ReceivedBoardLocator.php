@@ -12,6 +12,7 @@ namespace OCA\SovereignKanbanMdPersistence\Sharing;
 
 use OCP\Files\File;
 use OCP\Files\Folder;
+use OCP\Files\NotFoundException;
 use OCP\IUserSession;
 use OCP\Share\IManager;
 use OCP\Share\IShare;
@@ -47,7 +48,13 @@ final class ReceivedBoardLocator {
 
 		foreach (self::TYPES as $type) {
 			foreach ($this->shareManager->getSharedWith($user->getUID(), $type, null, 500) as $share) {
-				$node = $share->getNode();
+				try {
+					$node = $share->getNode();
+				} catch (NotFoundException) {
+					// Stale share whose target no longer exists (same guard as
+					// NextcloudShareGateway::receivedBoards, incident 2026-07-09).
+					continue;
+				}
 				if (!$node instanceof Folder || !$node->nodeExists('.board.yml')) {
 					continue;
 				}

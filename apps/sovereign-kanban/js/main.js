@@ -20,6 +20,7 @@
 	function boardUrl(id) { return boardsUrl() + '/' + encodeURIComponent(id); }
 	function cardsUrl(boardId) { return boardUrl(boardId) + '/cards'; }
 	function sharesUrl(id) { return boardUrl(id) + '/shares'; }
+	function shareesUrl() { return apiUrl('/apps/sovereign-kanban-md-persistence/api/v1/sharees'); }
 	function cardUrl(boardId, cardId) { return cardsUrl(boardId) + '/' + encodeURIComponent(cardId); }
 	function commentsUrl(boardId, cardId) { return cardUrl(boardId, cardId) + '/comments'; }
 	function commentUrl(boardId, cardId, commentId) { return commentsUrl(boardId, cardId) + '/' + encodeURIComponent(commentId); }
@@ -1063,7 +1064,35 @@
 		});
 		const withInput = el('input', 'sk-input');
 		withInput.type = 'text';
-		withInput.placeholder = 'identifiant (utilisateur, groupe, équipe)';
+		withInput.placeholder = 'Usager ou groupe…';
+		withInput.setAttribute('aria-label', 'Usager ou groupe avec qui partager');
+		// Autocomplete backed by GET /sharees (Nextcloud collaborator search).
+		// Picking a suggestion also selects its share type (user/group/team).
+		const shareeList = document.createElement('datalist');
+		shareeList.id = 'sk-sharees-' + board.id;
+		withInput.setAttribute('list', shareeList.id);
+		let sharees = [];
+		let shareeTimer = null;
+		const TYPE_TAG = { user: '', group: ' (groupe)', team: ' (équipe)' };
+		withInput.addEventListener('input', function () {
+			const val = withInput.value.trim();
+			const hit = sharees.find(function (s) { return s.id === val; });
+			if (hit) { typeSel.value = hit.type; return; }
+			clearTimeout(shareeTimer);
+			if (val.length < 2) { shareeList.textContent = ''; return; }
+			shareeTimer = setTimeout(async function () {
+				const res = await api('GET', shareesUrl() + '?search=' + encodeURIComponent(val));
+				if (!res.ok) return;
+				sharees = (await res.json()).sharees || [];
+				shareeList.textContent = '';
+				sharees.forEach(function (s) {
+					const opt = document.createElement('option');
+					opt.value = s.id;
+					opt.label = s.label + (TYPE_TAG[s.type] || '');
+					shareeList.appendChild(opt);
+				});
+			}, 250);
+		});
 		const levelSel = el('select', 'sk-input');
 		[['read', 'Lecture seule'], ['collaborate', 'Collaboration']].forEach(function (o) {
 			const opt = el('option', null, o[1]); opt.value = o[0]; levelSel.appendChild(opt);
@@ -1085,6 +1114,7 @@
 		});
 		addRow.appendChild(typeSel);
 		addRow.appendChild(withInput);
+		addRow.appendChild(shareeList);
 		addRow.appendChild(levelSel);
 		addRow.appendChild(addBtn);
 		box.appendChild(addRow);

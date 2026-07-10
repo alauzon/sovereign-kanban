@@ -14,7 +14,9 @@ use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\Collaboration\Collaborators\ISearch;
 use OCP\IRequest;
+use OCP\Share\IShare;
 
 /**
  * REST API for board sharing.
@@ -28,8 +30,68 @@ final class ShareController extends Controller {
 	public function __construct(
 		IRequest $request,
 		private readonly BoardShareService $service,
+		private readonly ISearch $collaboratorSearch,
 	) {
 		parent::__construct('sovereign-kanban-md-persistence', $request);
+	}
+
+	/** OCP share-type constants → our share-type names (inverse of the gateway map). */
+	private const NC_TO_TYPE = [
+		IShare::TYPE_USER => 'user',
+		IShare::TYPE_GROUP => 'group',
+		IShare::TYPE_CIRCLE => 'team',
+	];
+
+	/**
+	 * Suggest share recipients (users, groups, teams) matching a search string.
+	 *
+	 * Backs the share-field autocomplete. Delegates to the collaborator search
+	 * used by Files sharing, so visibility restrictions (e.g. share
+	 * autocomplete settings) are enforced by Nextcloud, not by us.
+	 */
+	#[NoAdminRequired]
+	#[NoCSRFRequired]
+	public function sharees(string $search = ''): DataResponse {
+		$search = mb_substr(trim($search), 0, 64);
+		if ($search === '') {
+			return new DataResponse(['sharees' => []]);
+		}
+
+		$types = array_keys(self::NC_TO_TYPE);
+		try {
+			[$result] = $this->collaboratorSearch->search($search, $types, false, 20, 0);
+		} catch (\Throwable) {
+			// A missing collaborator plugin (e.g. Teams app absent) must not
+			// break the suggestions — retry with the two core types.
+			[$result] = $this->collaboratorSearch->search(
+				$search, [IShare::TYPE_USER, IShare::TYPE_GROUP], false, 20, 0,
+			);
+		}
+
+		$out = [];
+		$seen = [];
+		foreach (['users', 'groups', 'circles'] as $bucket) {
+			$entries = array_merge($result['exact'][$bucket] ?? [], $result[$bucket] ?? []);
+			foreach ($entries as $entry) {
+				$ncType = (int) ($entry['value']['shareType'] ?? -1);
+				$id = (string) ($entry['value']['shareWith'] ?? '');
+				if ($id === '' || !isset(self::NC_TO_TYPE[$ncType])) {
+					continue;
+				}
+				$key = $ncType . '|' . $id;
+				if (isset($seen[$key])) {
+					continue;
+				}
+				$seen[$key] = true;
+				$out[] = [
+					'type' => self::NC_TO_TYPE[$ncType],
+					'id' => $id,
+					'label' => (string) ($entry['label'] ?? $id),
+				];
+			}
+		}
+
+		return new DataResponse(['sharees' => array_slice($out, 0, 20)]);
 	}
 
 	/**
