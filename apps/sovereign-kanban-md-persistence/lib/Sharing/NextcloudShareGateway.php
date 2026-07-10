@@ -118,7 +118,14 @@ final class NextcloudShareGateway implements ShareGateway {
 
 		foreach (self::TYPE_TO_NC as $ncType) {
 			foreach ($this->shareManager->getSharedWith($uid, $ncType, null, 500) as $share) {
-				$node = $share->getNode();
+				try {
+					$node = $share->getNode();
+				} catch (NotFoundException) {
+					// Stale share whose target no longer exists (e.g. a deleted
+					// group folder — prod incident 2026-07-09, fileid 24887): one
+					// dead share must not take down the whole boards listing.
+					continue;
+				}
 				if (!$node instanceof Folder || !$node->nodeExists('.board.yml')) {
 					continue;
 				}
