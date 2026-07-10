@@ -7,6 +7,7 @@
 
 namespace OCA\SovereignKanbanMdPersistence\Controller;
 
+use OCA\SovereignKanbanMdPersistence\Settings\AdminSettings;
 use OCA\SovereignKanbanMdPersistence\Sharing\BoardShareService;
 use OCA\SovereignKanbanMdPersistence\Sharing\NotBoardOwnerException;
 use OCA\SovereignKanbanMdPersistence\Sharing\ShareNotOnBoardException;
@@ -14,9 +15,12 @@ use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\DataResponse;
-use OCP\Collaboration\Collaborators\ISearch;
+use OCP\IAppConfig;
+use OCP\IGroupManager;
 use OCP\IRequest;
-use OCP\Share\IShare;
+use OCP\IUser;
+use OCP\IUserManager;
+use OCP\IUserSession;
 
 /**
  * REST API for board sharing.
@@ -27,71 +31,92 @@ use OCP\Share\IShare;
  */
 final class ShareController extends Controller {
 
+	private const SHAREE_LIMIT = 20;
+
 	public function __construct(
 		IRequest $request,
 		private readonly BoardShareService $service,
-		private readonly ISearch $collaboratorSearch,
+		private readonly IUserManager $userManager,
+		private readonly IGroupManager $groupManager,
+		private readonly IUserSession $userSession,
+		private readonly IAppConfig $appConfig,
 	) {
 		parent::__construct('sovereign-kanban-md-persistence', $request);
 	}
 
-	/** OCP share-type constants → our share-type names (inverse of the gateway map). */
-	private const NC_TO_TYPE = [
-		IShare::TYPE_USER => 'user',
-		IShare::TYPE_GROUP => 'group',
-		IShare::TYPE_CIRCLE => 'team',
-	];
-
 	/**
-	 * Suggest share recipients (users, groups, teams) matching a search string.
+	 * Suggest share recipients (users and groups) matching a search string.
 	 *
-	 * Backs the share-field autocomplete. Delegates to the collaborator search
-	 * used by Files sharing, so visibility restrictions (e.g. share
-	 * autocomplete settings) are enforced by Nextcloud, not by us.
+	 * Applies the Kanban admin's suggestion mode (AdminSettings) — deliberately
+	 * independent of the instance-wide Files sharing enumeration policy:
+	 * - 'exact': only an exact uid/gid or display-name match comes back;
+	 * - 'group': suggests among the requester's own groups and their members;
+	 * - 'all': suggests across every account and group of the instance.
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
 	public function sharees(string $search = ''): DataResponse {
 		$search = mb_substr(trim($search), 0, 64);
-		if ($search === '') {
+		$current = $this->userSession->getUser();
+		if ($search === '' || $current === null) {
 			return new DataResponse(['sharees' => []]);
 		}
-
-		$types = array_keys(self::NC_TO_TYPE);
-		try {
-			[$result] = $this->collaboratorSearch->search($search, $types, false, 20, 0);
-		} catch (\Throwable) {
-			// A missing collaborator plugin (e.g. Teams app absent) must not
-			// break the suggestions — retry with the two core types.
-			[$result] = $this->collaboratorSearch->search(
-				$search, [IShare::TYPE_USER, IShare::TYPE_GROUP], false, 20, 0,
-			);
-		}
+		$mode = $this->appConfig->getValueString(
+			'sovereign-kanban-md-persistence',
+			AdminSettings::SUGGESTION_MODE_KEY,
+			AdminSettings::SUGGESTION_MODE_DEFAULT,
+		);
 
 		$out = [];
-		$seen = [];
-		foreach (['users', 'groups', 'circles'] as $bucket) {
-			$entries = array_merge($result['exact'][$bucket] ?? [], $result[$bucket] ?? []);
-			foreach ($entries as $entry) {
-				$ncType = (int) ($entry['value']['shareType'] ?? -1);
-				$id = (string) ($entry['value']['shareWith'] ?? '');
-				if ($id === '' || !isset(self::NC_TO_TYPE[$ncType])) {
-					continue;
+		$add = static function (string $type, string $id, string $label) use (&$out): void {
+			$out[$type . '|' . $id] = ['type' => $type, 'id' => $id, 'label' => $label];
+		};
+
+		if ($mode === 'all') {
+			foreach ($this->userManager->searchDisplayName($search, self::SHAREE_LIMIT) as $user) {
+				$add('user', $user->getUID(), $user->getDisplayName());
+			}
+			foreach ($this->groupManager->search($search, self::SHAREE_LIMIT) as $group) {
+				$add('group', $group->getGID(), $group->getDisplayName());
+			}
+		} elseif ($mode === 'group') {
+			$needle = mb_strtolower($search);
+			foreach ($this->groupManager->getUserGroups($current) as $group) {
+				if (str_contains(mb_strtolower($group->getDisplayName()), $needle)
+					|| str_contains(mb_strtolower($group->getGID()), $needle)) {
+					$add('group', $group->getGID(), $group->getDisplayName());
 				}
-				$key = $ncType . '|' . $id;
-				if (isset($seen[$key])) {
-					continue;
+				foreach ($group->getUsers() as $member) {
+					if ($member->getUID() === $current->getUID()) {
+						continue;
+					}
+					if (str_contains(mb_strtolower($member->getUID()), $needle)
+						|| str_contains(mb_strtolower($member->getDisplayName()), $needle)) {
+						$add('user', $member->getUID(), $member->getDisplayName());
+					}
+					if (count($out) >= self::SHAREE_LIMIT) {
+						break 2;
+					}
 				}
-				$seen[$key] = true;
-				$out[] = [
-					'type' => self::NC_TO_TYPE[$ncType],
-					'id' => $id,
-					'label' => (string) ($entry['label'] ?? $id),
-				];
+			}
+		} else {
+			// 'exact' — and the fail-closed fallback for any unknown value.
+			$user = $this->userManager->get($search);
+			if ($user instanceof IUser) {
+				$add('user', $user->getUID(), $user->getDisplayName());
+			}
+			foreach ($this->userManager->searchDisplayName($search, 5) as $candidate) {
+				if ($candidate->getDisplayName() === $search) {
+					$add('user', $candidate->getUID(), $candidate->getDisplayName());
+				}
+			}
+			if ($this->groupManager->groupExists($search)) {
+				$group = $this->groupManager->get($search);
+				$add('group', $group->getGID(), $group->getDisplayName());
 			}
 		}
 
-		return new DataResponse(['sharees' => array_slice($out, 0, 20)]);
+		return new DataResponse(['sharees' => array_slice(array_values($out), 0, self::SHAREE_LIMIT)]);
 	}
 
 	/**
