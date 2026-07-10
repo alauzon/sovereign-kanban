@@ -134,7 +134,9 @@ final class NextcloudShareGateway implements ShareGateway {
 				$out[] = [
 					'id' => (string) ($data['id'] ?? $node->getName()),
 					'name' => (string) ($data['name'] ?? $node->getName()),
+					'color' => (string) ($data['color'] ?? '#0082c9'),
 					'columns' => array_values((array) ($data['columns'] ?? [])),
+					'tags' => array_values((array) ($data['tags'] ?? [])),
 					'owner' => (string) $share->getSharedBy(),
 					'permissions' => (int) $share->getPermissions(),
 				];

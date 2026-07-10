@@ -10,11 +10,13 @@ namespace OCA\SovereignKanbanMdPersistence\Controller;
 use OCA\SovereignKanbanMdPersistence\Kanban\Board;
 use OCA\SovereignKanbanMdPersistence\Kanban\FileBoardRepository;
 use OCA\SovereignKanbanMdPersistence\Sharing\BoardShareService;
+use OCA\SovereignKanbanMdPersistence\Sharing\ReceivedBoardLocator;
 use OCA\SovereignKanbanMdPersistence\Storage\NextcloudStorage;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\Constants;
 use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
 use OCP\IRequest;
@@ -34,6 +36,7 @@ final class BoardController extends Controller {
 		private readonly IUserSession $userSession,
 		private readonly IRootFolder $rootFolder,
 		private readonly BoardShareService $shareService,
+		private readonly ReceivedBoardLocator $receivedLocator,
 	) {
 		parent::__construct('sovereign-kanban-md-persistence', $request);
 	}
@@ -60,11 +63,12 @@ final class BoardController extends Controller {
 			$boards[] = [
 				'id' => $received['id'],
 				'name' => $received['name'],
-				'color' => '#0082c9',
+				'color' => $received['color'],
 				'columns' => $received['columns'],
-				'tags' => [],
+				'tags' => $received['tags'],
 				'shared' => true,
 				'owner' => $received['owner'],
+				'permissions' => $received['permissions'],
 			];
 		}
 
@@ -122,7 +126,30 @@ final class BoardController extends Controller {
 
 		$board = $repository->find($boardId);
 		if ($board === null) {
-			return new DataResponse(['error' => 'board_not_found'], 404);
+			// Board shared TO this user (Option B, §12): resolve the received
+			// folder, then work through a repository rooted at its parent so
+			// the write goes through the share (and reaches the owner's copy).
+			$folder = $this->receivedLocator->folderFor($boardId);
+			if ($folder === null) {
+				return new DataResponse(['error' => 'board_not_found'], 404);
+			}
+			if (!($folder->getPermissions() & Constants::PERMISSION_UPDATE)) {
+				return new DataResponse(['error' => 'read_only'], 403);
+			}
+			if ($folder->getName() !== $boardId) {
+				// The received folder was renamed locally (e.g. name collision
+				// suffix "(2)"): the repository would address the wrong path.
+				return new DataResponse(['error' => 'received_folder_renamed'], 409);
+			}
+			$parent = $folder->getParent();
+			if (!$parent instanceof Folder) {
+				return new DataResponse(['error' => 'board_not_found'], 404);
+			}
+			$repository = new FileBoardRepository(new NextcloudStorage($parent));
+			$board = $repository->find($boardId);
+			if ($board === null) {
+				return new DataResponse(['error' => 'board_not_found'], 404);
+			}
 		}
 
 		if ($name !== null && trim($name) !== '') {
