@@ -15,18 +15,12 @@ $mode = $_['suggestionMode'];
 		<?php p($l->t('Contrôle ce que le champ « Usager ou groupe » d’un tableau propose pendant la frappe. Ce réglage est propre au Sovereign Kanban : il est indépendant des réglages de partage de Nextcloud (Files). « Tous » expose la liste des comptes de l’instance aux usagers du Kanban — choisir en connaissance de cause.')); ?>
 	</p>
 	<p>
-		<label>
-			<input type="radio" name="sk-sharee-mode" value="exact" class="radio" <?php if ($mode === 'exact') { p('checked'); } ?>>
-			<?php p($l->t('Nom exact seulement — aucune suggestion, il faut taper l’identifiant ou le nom complet')); ?>
-		</label><br>
-		<label>
-			<input type="radio" name="sk-sharee-mode" value="group" class="radio" <?php if ($mode === 'group') { p('checked'); } ?>>
-			<?php p($l->t('Membres des mêmes groupes — suggère les personnes et groupes que l’usager côtoie déjà')); ?>
-		</label><br>
-		<label>
-			<input type="radio" name="sk-sharee-mode" value="all" class="radio" <?php if ($mode === 'all') { p('checked'); } ?>>
-			<?php p($l->t('Tous — suggère parmi tous les comptes et groupes de l’instance')); ?>
-		</label>
+		<input type="radio" id="sk-mode-exact" name="sk-sharee-mode" value="exact" class="radio" <?php if ($mode === 'exact') { p('checked'); } ?>>
+		<label for="sk-mode-exact"><?php p($l->t('Nom exact seulement — aucune suggestion, il faut taper l’identifiant ou le nom complet')); ?></label><br>
+		<input type="radio" id="sk-mode-group" name="sk-sharee-mode" value="group" class="radio" <?php if ($mode === 'group') { p('checked'); } ?>>
+		<label for="sk-mode-group"><?php p($l->t('Membres des mêmes groupes — suggère les personnes et groupes que l’usager côtoie déjà')); ?></label><br>
+		<input type="radio" id="sk-mode-all" name="sk-sharee-mode" value="all" class="radio" <?php if ($mode === 'all') { p('checked'); } ?>>
+		<label for="sk-mode-all"><?php p($l->t('Tous — suggère parmi tous les comptes et groupes de l’instance')); ?></label>
 	</p>
 	<p id="sk-admin-status" class="settings-hint" aria-live="polite"></p>
 </div>
