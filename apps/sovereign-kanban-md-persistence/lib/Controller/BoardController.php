@@ -126,26 +126,10 @@ final class BoardController extends Controller {
 
 		$board = $repository->find($boardId);
 		if ($board === null) {
-			// Board shared TO this user (Option B, §12): resolve the received
-			// folder, then work through a repository rooted at its parent so
-			// the write goes through the share (and reaches the owner's copy).
-			$folder = $this->receivedLocator->folderFor($boardId);
-			if ($folder === null) {
-				return new DataResponse(['error' => 'board_not_found'], 404);
+			$repository = $this->receivedRepositoryOrError($boardId);
+			if ($repository instanceof DataResponse) {
+				return $repository;
 			}
-			if (!($folder->getPermissions() & Constants::PERMISSION_UPDATE)) {
-				return new DataResponse(['error' => 'read_only'], 403);
-			}
-			if ($folder->getName() !== $boardId) {
-				// The received folder was renamed locally (e.g. name collision
-				// suffix "(2)"): the repository would address the wrong path.
-				return new DataResponse(['error' => 'received_folder_renamed'], 409);
-			}
-			$parent = $folder->getParent();
-			if (!$parent instanceof Folder) {
-				return new DataResponse(['error' => 'board_not_found'], 404);
-			}
-			$repository = new FileBoardRepository(new NextcloudStorage($parent));
 			$board = $repository->find($boardId);
 			if ($board === null) {
 				return new DataResponse(['error' => 'board_not_found'], 404);
@@ -224,6 +208,13 @@ final class BoardController extends Controller {
 		}
 
 		$board = $repository->addColumn($boardId, $name);
+		if ($board === null) {
+			$repository = $this->receivedRepositoryOrError($boardId);
+			if ($repository instanceof DataResponse) {
+				return $repository;
+			}
+			$board = $repository->addColumn($boardId, $name);
+		}
 
 		return $board === null
 			? new DataResponse(['error' => 'board_not_found'], 404)
@@ -245,6 +236,13 @@ final class BoardController extends Controller {
 		}
 
 		$board = $repository->renameColumn($boardId, $from, $to);
+		if ($board === null) {
+			$repository = $this->receivedRepositoryOrError($boardId);
+			if ($repository instanceof DataResponse) {
+				return $repository;
+			}
+			$board = $repository->renameColumn($boardId, $from, $to);
+		}
 
 		return $board === null
 			? new DataResponse(['error' => 'board_not_found'], 404)
@@ -262,6 +260,13 @@ final class BoardController extends Controller {
 		}
 
 		$board = $repository->removeColumn($boardId, $name);
+		if ($board === null) {
+			$repository = $this->receivedRepositoryOrError($boardId);
+			if ($repository instanceof DataResponse) {
+				return $repository;
+			}
+			$board = $repository->removeColumn($boardId, $name);
+		}
 
 		return $board === null
 			? new DataResponse(['error' => 'board_not_found'], 404)
@@ -281,10 +286,47 @@ final class BoardController extends Controller {
 		}
 
 		$board = $repository->reorderColumns($boardId, $columns);
+		if ($board === null) {
+			$repository = $this->receivedRepositoryOrError($boardId);
+			if ($repository instanceof DataResponse) {
+				return $repository;
+			}
+			$board = $repository->reorderColumns($boardId, $columns);
+		}
 
 		return $board === null
 			? new DataResponse(['error' => 'board_not_found'], 404)
 			: new DataResponse(['board' => $board->toArray()]);
+	}
+
+	/**
+	 * Repository for a board shared TO the current user, or the error
+	 * response to return as-is.
+	 *
+	 * Resolves the received folder (Option B, §12 — it sits at the Files
+	 * root, not under Kanban/), then roots a repository at its parent so
+	 * writes go through the share and reach the owner's copy. Guards: the
+	 * share must carry UPDATE permission (403), and the received folder must
+	 * still bear the board's slug — renamed locally (e.g. collision suffix
+	 * "(2)") the repository would address the wrong path (409).
+	 */
+	private function receivedRepositoryOrError(string $boardId): FileBoardRepository|DataResponse {
+		$folder = $this->receivedLocator->folderFor($boardId);
+		if ($folder === null) {
+			return new DataResponse(['error' => 'board_not_found'], 404);
+		}
+		if (!($folder->getPermissions() & Constants::PERMISSION_UPDATE)) {
+			return new DataResponse(['error' => 'read_only'], 403);
+		}
+		if ($folder->getName() !== $boardId) {
+			return new DataResponse(['error' => 'received_folder_renamed'], 409);
+		}
+		$parent = $folder->getParent();
+		if (!$parent instanceof Folder) {
+			return new DataResponse(['error' => 'board_not_found'], 404);
+		}
+
+		return new FileBoardRepository(new NextcloudStorage($parent));
 	}
 
 	/**
