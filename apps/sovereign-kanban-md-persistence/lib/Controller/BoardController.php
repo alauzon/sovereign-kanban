@@ -11,12 +11,12 @@ use OCA\SovereignKanbanMdPersistence\Kanban\Board;
 use OCA\SovereignKanbanMdPersistence\Kanban\FileBoardRepository;
 use OCA\SovereignKanbanMdPersistence\Sharing\BoardShareService;
 use OCA\SovereignKanbanMdPersistence\Sharing\ReceivedBoardLocator;
+use OCA\SovereignKanbanMdPersistence\Sharing\SharePermissions;
 use OCA\SovereignKanbanMdPersistence\Storage\NextcloudStorage;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\DataResponse;
-use OCP\Constants;
 use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
 use OCP\IRequest;
@@ -309,13 +309,19 @@ final class BoardController extends Controller {
 	 * share must carry UPDATE permission (403), and the received folder must
 	 * still bear the board's slug — renamed locally (e.g. collision suffix
 	 * "(2)") the repository would address the wrong path (409).
+	 *
+	 * Authorization reads the share's GRANTED permission (BoardShareService),
+	 * not $folder->getPermissions(): the received node resolves in the owner's
+	 * scope and reports the owner's full permissions, so checking it never
+	 * blocked a read-only recipient (read-only bypass fix, 2026-07-12).
 	 */
 	private function receivedRepositoryOrError(string $boardId): FileBoardRepository|DataResponse {
 		$folder = $this->receivedLocator->folderFor($boardId);
 		if ($folder === null) {
 			return new DataResponse(['error' => 'board_not_found'], 404);
 		}
-		if (!($folder->getPermissions() & Constants::PERMISSION_UPDATE)) {
+		$permission = $this->shareService->receivedPermission($boardId);
+		if ($permission === null || !SharePermissions::allowsWrite($permission)) {
 			return new DataResponse(['error' => 'read_only'], 403);
 		}
 		if ($folder->getName() !== $boardId) {

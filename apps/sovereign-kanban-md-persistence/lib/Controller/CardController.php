@@ -11,7 +11,9 @@ use OCA\SovereignKanbanMdPersistence\Kanban\Card;
 use OCA\SovereignKanbanMdPersistence\Kanban\Comment;
 use OCA\SovereignKanbanMdPersistence\Kanban\FileCardRepository;
 use OCA\SovereignKanbanMdPersistence\Service\MarkdownRenderer;
+use OCA\SovereignKanbanMdPersistence\Sharing\BoardShareService;
 use OCA\SovereignKanbanMdPersistence\Sharing\ReceivedBoardLocator;
+use OCA\SovereignKanbanMdPersistence\Sharing\SharePermissions;
 use OCA\SovereignKanbanMdPersistence\Storage\NextcloudStorage;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
@@ -36,6 +38,7 @@ final class CardController extends Controller {
 		private readonly IRootFolder $rootFolder,
 		private readonly MarkdownRenderer $markdown,
 		private readonly ReceivedBoardLocator $receivedLocator,
+		private readonly BoardShareService $shareService,
 	) {
 		parent::__construct('sovereign-kanban-md-persistence', $request);
 	}
@@ -86,9 +89,9 @@ final class CardController extends Controller {
 	 */
 	#[NoAdminRequired]
 	public function create(string $boardId, string $title, string $column, ?string $description = null, ?array $procedures = null): DataResponse {
-		$repository = $this->repository($boardId);
-		if ($repository === null) {
-			return new DataResponse(['error' => 'unavailable'], 400);
+		$repository = $this->writableRepositoryOrError($boardId);
+		if ($repository instanceof DataResponse) {
+			return $repository;
 		}
 
 		$title = trim($title);
@@ -138,9 +141,12 @@ final class CardController extends Controller {
 		?string $phase = null,
 		?string $start_date = null,
 	): DataResponse {
-		$repository = $this->repository($boardId);
-		if ($repository === null || !$this->validCardId($cardId)) {
+		if (!$this->validCardId($cardId)) {
 			return new DataResponse(['error' => 'unavailable'], 400);
+		}
+		$repository = $this->writableRepositoryOrError($boardId);
+		if ($repository instanceof DataResponse) {
+			return $repository;
 		}
 
 		$card = $repository->findById($cardId);
@@ -208,9 +214,12 @@ final class CardController extends Controller {
 	 */
 	#[NoAdminRequired]
 	public function destroy(string $boardId, string $cardId): DataResponse {
-		$repository = $this->repository($boardId);
-		if ($repository === null || !$this->validCardId($cardId)) {
+		if (!$this->validCardId($cardId)) {
 			return new DataResponse(['error' => 'unavailable'], 400);
+		}
+		$repository = $this->writableRepositoryOrError($boardId);
+		if ($repository instanceof DataResponse) {
+			return $repository;
 		}
 
 		$repository->deleteById($cardId);
@@ -223,9 +232,12 @@ final class CardController extends Controller {
 	 */
 	#[NoAdminRequired]
 	public function move(string $boardId, string $cardId, string $toColumn): DataResponse {
-		$repository = $this->repository($boardId);
-		if ($repository === null || !$this->validCardId($cardId)) {
+		if (!$this->validCardId($cardId)) {
 			return new DataResponse(['error' => 'unavailable'], 400);
+		}
+		$repository = $this->writableRepositoryOrError($boardId);
+		if ($repository instanceof DataResponse) {
+			return $repository;
 		}
 
 		$card = $repository->findById($cardId);
@@ -269,10 +281,13 @@ final class CardController extends Controller {
 	 */
 	#[NoAdminRequired]
 	public function addComment(string $boardId, string $cardId, string $body): DataResponse {
-		$repository = $this->repository($boardId);
 		$user = $this->userSession->getUser();
-		if ($repository === null || $user === null || !$this->validCardId($cardId)) {
+		if ($user === null || !$this->validCardId($cardId)) {
 			return new DataResponse(['error' => 'unavailable'], 400);
+		}
+		$repository = $this->writableRepositoryOrError($boardId);
+		if ($repository instanceof DataResponse) {
+			return $repository;
 		}
 
 		$body = trim($body);
@@ -295,9 +310,12 @@ final class CardController extends Controller {
 	 */
 	#[NoAdminRequired]
 	public function updateComment(string $boardId, string $cardId, string $commentId, string $body): DataResponse {
-		$repository = $this->repository($boardId);
-		if ($repository === null || !$this->validCardId($cardId) || !$this->validCommentId($commentId)) {
+		if (!$this->validCardId($cardId) || !$this->validCommentId($commentId)) {
 			return new DataResponse(['error' => 'unavailable'], 400);
+		}
+		$repository = $this->writableRepositoryOrError($boardId);
+		if ($repository instanceof DataResponse) {
+			return $repository;
 		}
 
 		$body = trim($body);
@@ -316,9 +334,12 @@ final class CardController extends Controller {
 	 */
 	#[NoAdminRequired]
 	public function destroyComment(string $boardId, string $cardId, string $commentId): DataResponse {
-		$repository = $this->repository($boardId);
-		if ($repository === null || !$this->validCardId($cardId) || !$this->validCommentId($commentId)) {
+		if (!$this->validCardId($cardId) || !$this->validCommentId($commentId)) {
 			return new DataResponse(['error' => 'unavailable'], 400);
+		}
+		$repository = $this->writableRepositoryOrError($boardId);
+		if ($repository instanceof DataResponse) {
+			return $repository;
 		}
 
 		if (!$repository->deleteComment($cardId, $commentId)) {
@@ -382,6 +403,51 @@ final class CardController extends Controller {
 			: $this->receivedLocator->folderFor($boardId);
 		if (!$boardFolder instanceof Folder) {
 			return null;
+		}
+
+		return new FileCardRepository(new NextcloudStorage($boardFolder));
+	}
+
+	/**
+	 * A card repository the current user may WRITE to, or the error response to
+	 * return as-is (400 unavailable / 403 read_only).
+	 *
+	 * Own boards (under Kanban/) are always writable. A board shared TO the user
+	 * is writable only if the share grants UPDATE. The read-only bypass fix
+	 * (Steve, 2026-07-12): the received folder node resolves in the owner's
+	 * scope and so reports the owner's full permissions — writing through it
+	 * would silently bypass a read-only share. Authorization therefore comes
+	 * from the share's granted permission (BoardShareService), never the node.
+	 */
+	private function writableRepositoryOrError(string $boardId): FileCardRepository|DataResponse {
+		$user = $this->userSession->getUser();
+		if ($user === null || !preg_match('/^[a-z0-9-]+$/', $boardId)) {
+			return new DataResponse(['error' => 'unavailable'], 400);
+		}
+
+		$userFolder = $this->rootFolder->getUserFolder($user->getUID());
+		$path = 'Kanban/' . $boardId;
+		if ($userFolder->nodeExists($path)) {
+			$boardFolder = $userFolder->get($path);
+
+			return $boardFolder instanceof Folder
+				? new FileCardRepository(new NextcloudStorage($boardFolder))
+				: new DataResponse(['error' => 'unavailable'], 400);
+		}
+
+		// Board shared TO this user: gate the write on the share's granted
+		// permission, unioned across all channels that reach the user.
+		$permission = $this->shareService->receivedPermission($boardId);
+		if ($permission === null) {
+			return new DataResponse(['error' => 'unavailable'], 400);
+		}
+		if (!SharePermissions::allowsWrite($permission)) {
+			return new DataResponse(['error' => 'read_only'], 403);
+		}
+
+		$boardFolder = $this->receivedLocator->folderFor($boardId);
+		if (!$boardFolder instanceof Folder) {
+			return new DataResponse(['error' => 'unavailable'], 400);
 		}
 
 		return new FileCardRepository(new NextcloudStorage($boardFolder));

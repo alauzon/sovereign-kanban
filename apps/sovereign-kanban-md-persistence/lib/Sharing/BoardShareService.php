@@ -93,21 +93,46 @@ final class BoardShareService {
 	 * Boards shared to the current user, deduplicated by id.
 	 *
 	 * No owner check — these are the user's own received shares. Duplicates
-	 * (the same board reaching them directly and via a group) are collapsed.
+	 * (the same board reaching them directly and via a group) are collapsed,
+	 * their permissions UNIONed: Nextcloud grants the most permissive of all
+	 * shares that reach a user, so a read-only direct share plus a collaborate
+	 * group share means the user may edit. Keeping whichever share the backend
+	 * listed first would decide access by iteration order (fix 2026-07-12).
 	 *
 	 * @return list<array{id: string, name: string, owner: string, permissions: int}>
 	 */
 	public function receivedBoards(): array {
-		$seen = [];
+		$position = [];
 		$out = [];
 		foreach ($this->gateway->receivedBoards() as $board) {
-			if (isset($seen[$board['id']])) {
+			$id = $board['id'];
+			if (isset($position[$id])) {
+				$out[$position[$id]]['permissions'] |= (int) $board['permissions'];
 				continue;
 			}
-			$seen[$board['id']] = true;
+			$position[$id] = count($out);
 			$out[] = $board;
 		}
 
 		return $out;
+	}
+
+	/**
+	 * The granted permission bitmask for a board shared TO the current user, or
+	 * null if no such share reaches them.
+	 *
+	 * Unions all channels (see receivedBoards). Write endpoints gate on this via
+	 * SharePermissions::allowsWrite so a read-only recipient cannot edit a
+	 * received board — the folder node alone can't be trusted, as it resolves in
+	 * the owner's scope and reports full permissions (fix 2026-07-12).
+	 */
+	public function receivedPermission(string $boardId): ?int {
+		foreach ($this->receivedBoards() as $board) {
+			if ($board['id'] === $boardId) {
+				return (int) $board['permissions'];
+			}
+		}
+
+		return null;
 	}
 }

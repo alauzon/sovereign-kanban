@@ -35,4 +35,22 @@ final class SharePermissionsTest extends TestCase {
 		$this->expectException(\InvalidArgumentException::class);
 		SharePermissions::forLevel('admin');
 	}
+
+	// --- allowsWrite() ---------------------------------------------------
+
+	public function testReadOnlyDoesNotAllowWrite(): void {
+		$this->assertFalse(SharePermissions::allowsWrite(SharePermissions::forLevel('read')));
+	}
+
+	public function testCollaborateAllowsWrite(): void {
+		$this->assertTrue(SharePermissions::allowsWrite(SharePermissions::forLevel('collaborate')));
+	}
+
+	public function testAllowsWriteIsDrivenByTheUpdateBit(): void {
+		$this->assertFalse(SharePermissions::allowsWrite(0));
+		$this->assertFalse(SharePermissions::allowsWrite(SharePermissions::READ));
+		$this->assertTrue(SharePermissions::allowsWrite(SharePermissions::UPDATE));
+		// An owner-style full mask (incl. SHARE) still writes.
+		$this->assertTrue(SharePermissions::allowsWrite(31));
+	}
 }

@@ -44,4 +44,19 @@ final class SharePermissions {
 			default => throw new InvalidArgumentException('Unknown share level: ' . $level),
 		};
 	}
+
+	/**
+	 * Whether a permission bitmask grants write access (create/move/edit cards).
+	 *
+	 * The board write endpoints gate on this: a recipient whose share carries
+	 * only READ must be refused, even though the folder node — resolved in the
+	 * owner's scope — reports the owner's full permissions. Authorization must
+	 * come from the share's granted permission, never the node (fix 2026-07-12).
+	 *
+	 * @param int $permissions A Nextcloud permission bitmask (a share's granted
+	 *   permissions).
+	 */
+	public static function allowsWrite(int $permissions): bool {
+		return ($permissions & self::UPDATE) !== 0;
+	}
 }

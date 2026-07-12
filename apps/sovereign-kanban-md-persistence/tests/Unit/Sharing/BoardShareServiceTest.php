@@ -6,6 +6,7 @@ use OCA\SovereignKanbanMdPersistence\Sharing\BoardShareService;
 use OCA\SovereignKanbanMdPersistence\Sharing\NotBoardOwnerException;
 use OCA\SovereignKanbanMdPersistence\Sharing\ShareGateway;
 use OCA\SovereignKanbanMdPersistence\Sharing\ShareNotOnBoardException;
+use OCA\SovereignKanbanMdPersistence\Sharing\SharePermissions;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -145,6 +146,72 @@ final class BoardShareServiceTest extends TestCase {
 		$this->assertCount(1, $received);
 		$this->assertSame('projets', $received[0]['id']);
 		$this->assertSame('alain', $received[0]['owner']);
+	}
+
+	public function testReceivedBoardsUnionsPermissionsOfDuplicateShares(): void {
+		// The live footgun (Steve, 2026-07-12): the same board reaches the user
+		// read-only (direct) AND collaborate (group). Nextcloud grants the union;
+		// keeping whichever share the backend listed first denies — or grants —
+		// edit at the mercy of iteration order.
+		$gateway = new FakeShareGateway(owns: false);
+		$gateway->seedReceived([
+			['id' => 'demo', 'name' => 'Demo', 'owner' => 'alain', 'permissions' => 1],
+			['id' => 'demo', 'name' => 'Demo', 'owner' => 'alain', 'permissions' => 15],
+		]);
+		$service = new BoardShareService($gateway);
+
+		$received = $service->receivedBoards();
+
+		$this->assertCount(1, $received);
+		$this->assertSame(15, $received[0]['permissions'], 'union of read + collaborate');
+	}
+
+	// --- receivedPermission() --------------------------------------------
+
+	public function testReceivedPermissionDeniesWriteForAReadOnlyBoard(): void {
+		// Regression (Steve, 2026-07-12): a read-only recipient could still edit
+		// cards because the write path never consulted the share's granted
+		// permission — it read the folder node, which resolves in the owner's
+		// scope and reports full permissions. Controllers now gate on this value.
+		$gateway = new FakeShareGateway(owns: false);
+		$gateway->seedReceived([
+			['id' => 'demo', 'name' => 'Demo', 'owner' => 'alain', 'permissions' => SharePermissions::READ],
+		]);
+		$service = new BoardShareService($gateway);
+
+		$permission = $service->receivedPermission('demo');
+
+		$this->assertNotNull($permission);
+		$this->assertFalse(SharePermissions::allowsWrite($permission), 'read-only board must refuse writes');
+	}
+
+	public function testReceivedPermissionAllowsWriteForACollaborateBoard(): void {
+		$gateway = new FakeShareGateway(owns: false);
+		$gateway->seedReceived([
+			['id' => 'demo', 'name' => 'Demo', 'owner' => 'alain', 'permissions' => SharePermissions::forLevel('collaborate')],
+		]);
+		$service = new BoardShareService($gateway);
+
+		$this->assertTrue(SharePermissions::allowsWrite($service->receivedPermission('demo')));
+	}
+
+	public function testReceivedPermissionUnionsAcrossChannelsSoCollaborateWins(): void {
+		// Same board, read-only direct + collaborate group → the recipient may
+		// write (this is exactly what let Steve edit while in Nibiru).
+		$gateway = new FakeShareGateway(owns: false);
+		$gateway->seedReceived([
+			['id' => 'demo', 'name' => 'Demo', 'owner' => 'alain', 'permissions' => 1],
+			['id' => 'demo', 'name' => 'Demo', 'owner' => 'alain', 'permissions' => 15],
+		]);
+		$service = new BoardShareService($gateway);
+
+		$this->assertTrue(SharePermissions::allowsWrite($service->receivedPermission('demo')));
+	}
+
+	public function testReceivedPermissionIsNullForABoardNotSharedToTheUser(): void {
+		$service = new BoardShareService(new FakeShareGateway(owns: false));
+
+		$this->assertNull($service->receivedPermission('nope'));
 	}
 }
 
