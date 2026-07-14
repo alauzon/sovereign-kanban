@@ -65,6 +65,30 @@ read-only share) can be proven.
 | Script | Proves |
 |--------|--------|
 | `tests/Functional/readonly_enforcement.php` | A read-only recipient can **read** but every **write** (card create/update/move/delete, comment, board addColumn) returns **403 `read_only`**; a collaborate recipient **can** write; refused writes leave data untouched; the owner is unaffected. Guards the read-only bypass fix (2026-07-12). |
+| `tests/Functional/share_ownership_enforcement.php` | Only the **owner** may share / list / revoke a board: a recipient gets **403 `not_owner`** on all six ownership-gated calls — including **re-sharing from a COLLABORATE share** (write must not imply share). Nothing leaks to the third party; the owner can still do all of it. Guards the "no re-sharing" decision (documentation/08 §10-11). |
+
+### ⛔ The exit-code trap — read this before trusting ANY green
+
+**A functional test that dies mid-run exits 0. It reports SUCCESS while having
+proven nothing.** Verified on CT 211 (2026-07-14): a script that boots NC, runs
+`OC_Util::setupFS()` (i.e. any `actAs()`), then throws an **uncaught** exception
+prints nothing further and **exits 0**. Nextcloud's exception handler swallows
+it. (Before `setupFS`, the same throw exits 255 — which is why this is easy to
+miss when probing in isolation.)
+
+This is not hypothetical: it bit us for real. A mutation run of
+`share_ownership_enforcement.php` died at step `[2]` and reported exit 0 — and,
+because the crash also skipped the teardown, left throwaway boards behind on a
+live instance.
+
+**Every functional script therefore carries an abnormal-termination guard** — a
+`$completed` flag set only on the normal path, plus a `register_shutdown_function`
+that exits **70** with a loud message otherwise. Do not remove it, and copy it
+into any new script. Its own falsification: inject a `throw` after step `[0]` in
+a **copy** of the script and confirm you get `⛔ ABNORMAL TERMINATION` and code 70.
+
+Exit codes: **0** = all assertions passed · **1** = at least one failed ·
+**70** = the test died and proved nothing · **2** = a required account is missing.
 
 ### Running one
 

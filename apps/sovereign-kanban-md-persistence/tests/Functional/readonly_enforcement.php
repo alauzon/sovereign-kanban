@@ -35,6 +35,25 @@ use OCA\SovereignKanbanMdPersistence\Sharing\NextcloudShareGateway;
 use OCA\SovereignKanbanMdPersistence\Sharing\ReceivedBoardLocator;
 use OCP\AppFramework\Http\DataResponse;
 
+// --- abnormal-termination guard — DO NOT REMOVE ----------------------------
+// Nextcloud installs an exception handler, and once OC_Util::setupFS() has run
+// (i.e. from the first actAs()), an UNCAUGHT exception kills this script with
+// exit code 0 — it reports SUCCESS while dying halfway. Verified on CT 211
+// (2026-07-14): a script that boots NC, mounts the FS, then throws, prints
+// nothing further and exits 0.
+//
+// Without this guard, any crash — a renamed method, a missing user, a broken
+// share — makes the deploy checklist read "functional test green" on a test
+// that never reached a single assertion. The flag is only set on the normal
+// path; anything else exits 70.
+$completed = false;
+register_shutdown_function(function () use (&$completed) {
+	if (!$completed) {
+		fwrite(STDERR, "\n\e[31m⛔ ABNORMAL TERMINATION\e[0m — this test died before finishing. NOT a pass.\n");
+		exit(70);
+	}
+});
+
 $OWNER = 'Test 1';
 $RECIPIENT = 'Test 2';
 $RO = 'zzz-e2e-ro';
@@ -192,4 +211,8 @@ dropBoard($boardCtrl, $COLLAB);
 
 echo "\n" . str_repeat('─', 60) . "\n";
 printf("Functional read-only enforcement: %d passed, %d failed\n", $pass, $fail);
+
+// Reached the end on the normal path — the shutdown guard may stand down and
+// let the real verdict through.
+$completed = true;
 exit($fail === 0 ? 0 : 1);
