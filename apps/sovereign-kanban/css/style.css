@@ -435,25 +435,49 @@
 .sk-palette-color { width: 36px; height: 30px; padding: 0; border: none; background: none; cursor: pointer; }
 .sk-palette-name { flex: 1; }
 
-/* ---- Mobile / small screens ----
-   On a phone the header + toolbar ate ~¾ of the viewport before a single card
-   showed. Shrink the chrome, drop the decorative subtitle, and give each column
-   ~full width so cards stay readable (swipe sideways for the next one).
+/* ---- Board sharing panel (owner) ---- */
+.sk-share-panel { display: flex; flex-direction: column; gap: 8px; margin: 6px 0; }
+.sk-share-list { display: flex; flex-direction: column; gap: 4px; }
+.sk-share-row {
+	display: flex; align-items: center; justify-content: space-between; gap: 8px;
+	font-size: 13px; padding: 4px 8px; border-radius: var(--border-radius, 8px);
+	background: var(--color-background-hover);
+}
+.sk-share-add { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.sk-share-add .sk-input { flex: 1 1 auto; min-width: 120px; }
+.sk-share-add select.sk-input { flex: 0 0 auto; }
+/* '👥' marker on a board shared with the current user. */
+.sk-shared-badge { margin-left: 6px; font-size: 12px; }
+
+/* ---- Compact chrome — narrow OR short viewports ----
+   The chrome (title, subtitle, toolbar, filter bar) stacks ABOVE the board, so
+   on a small viewport it ate ~¾ of the height before a single card showed.
+   The earlier rule fired on narrow WIDTH only, so a landscape phone or a short
+   window (wide but ~312–580px tall — the reported case) slipped through and
+   the columns fell below the fold. Trigger on EITHER axis (comma = OR) and
+   shrink the vertical chrome so the board keeps the room.
    The viewport meta is provided by Nextcloud's page layout. */
-@media (max-width: 640px) {
+@media (max-width: 640px), (max-height: 600px) {
 	#sk-app {
 		margin: 6px;
-		padding: 12px 12px 14px;
+		padding: 10px 14px 12px;
 		height: calc(100vh - var(--header-height, 50px) - 12px);
 	}
 	.sk-header h1 { font-size: 18px; margin-bottom: 2px; }
 	.sk-subtitle { display: none; }
 
-	/* Tighten the two stacked rows that pushed the board down. */
-	.sk-boards { margin-bottom: 10px; gap: 6px; }
-	.sk-toolbar { gap: 8px; margin-bottom: 10px; }
+	/* Tighten the stacked rows that pushed the board down. */
+	.sk-boards { margin-bottom: 8px; gap: 6px; }
+	.sk-toolbar { gap: 8px; margin-bottom: 8px; }
 	.sk-board-tab { padding: 5px 11px; font-size: 12px; }
+	.sk-filterbar { gap: 8px; padding: 6px 10px; margin-bottom: 6px; }
+}
 
+/* ---- Narrow (phone-width) only ----
+   Give each column ~full width (swipe sideways for the next). On a short-but-
+   WIDE window we keep the fixed 300px columns — many fit, and full-width there
+   would waste the width and hide the other columns. */
+@media (max-width: 640px) {
 	/* Actions get their own full-width row; buttons share it evenly. */
 	.sk-toolbar-actions { width: 100%; gap: 6px; }
 	.sk-toolbar-actions .sk-btn { flex: 1 1 auto; text-align: center; }
@@ -461,8 +485,7 @@
 	/* One column ≈ full width instead of a fixed 300px squished tray. */
 	.sk-column { flex-basis: 86vw; min-width: 86vw; }
 
-	/* Filter bar tighter; the card detail uses the whole screen. */
-	.sk-filterbar { gap: 8px; padding: 8px; }
+	/* The card detail uses the whole screen. */
 	.sk-detail { padding: 2vh 0; }
 	.sk-detail-box { width: 96vw; margin: 0 2vw 4vh; padding: 16px; }
 }

@@ -9,6 +9,9 @@ namespace OCA\SovereignKanbanMdPersistence\Controller;
 
 use OCA\SovereignKanbanMdPersistence\Kanban\Board;
 use OCA\SovereignKanbanMdPersistence\Kanban\FileBoardRepository;
+use OCA\SovereignKanbanMdPersistence\Sharing\BoardShareService;
+use OCA\SovereignKanbanMdPersistence\Sharing\ReceivedBoardLocator;
+use OCA\SovereignKanbanMdPersistence\Sharing\SharePermissions;
 use OCA\SovereignKanbanMdPersistence\Storage\NextcloudStorage;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
@@ -32,6 +35,8 @@ final class BoardController extends Controller {
 		IRequest $request,
 		private readonly IUserSession $userSession,
 		private readonly IRootFolder $rootFolder,
+		private readonly BoardShareService $shareService,
+		private readonly ReceivedBoardLocator $receivedLocator,
 	) {
 		parent::__construct('sovereign-kanban-md-persistence', $request);
 	}
@@ -48,9 +53,24 @@ final class BoardController extends Controller {
 		}
 
 		$boards = array_map(
-			static fn (Board $board): array => $board->toArray(),
+			static fn (Board $board): array => $board->toArray() + ['shared' => false, 'owner' => null],
 			$repository->list(),
 		);
+		// Boards shared TO this user (Option B, spec §12), marked `shared` + `owner`.
+		// Columns/cards of a received board aren't loaded here yet — it appears in
+		// the list; full navigation needs storage rooted at the share path (next sub-lot).
+		foreach ($this->shareService->receivedBoards() as $received) {
+			$boards[] = [
+				'id' => $received['id'],
+				'name' => $received['name'],
+				'color' => $received['color'],
+				'columns' => $received['columns'],
+				'tags' => $received['tags'],
+				'shared' => true,
+				'owner' => $received['owner'],
+				'permissions' => $received['permissions'],
+			];
+		}
 
 		return new DataResponse(['boards' => $boards]);
 	}
@@ -106,7 +126,14 @@ final class BoardController extends Controller {
 
 		$board = $repository->find($boardId);
 		if ($board === null) {
-			return new DataResponse(['error' => 'board_not_found'], 404);
+			$repository = $this->receivedRepositoryOrError($boardId);
+			if ($repository instanceof DataResponse) {
+				return $repository;
+			}
+			$board = $repository->find($boardId);
+			if ($board === null) {
+				return new DataResponse(['error' => 'board_not_found'], 404);
+			}
 		}
 
 		if ($name !== null && trim($name) !== '') {
@@ -181,6 +208,13 @@ final class BoardController extends Controller {
 		}
 
 		$board = $repository->addColumn($boardId, $name);
+		if ($board === null) {
+			$repository = $this->receivedRepositoryOrError($boardId);
+			if ($repository instanceof DataResponse) {
+				return $repository;
+			}
+			$board = $repository->addColumn($boardId, $name);
+		}
 
 		return $board === null
 			? new DataResponse(['error' => 'board_not_found'], 404)
@@ -202,6 +236,13 @@ final class BoardController extends Controller {
 		}
 
 		$board = $repository->renameColumn($boardId, $from, $to);
+		if ($board === null) {
+			$repository = $this->receivedRepositoryOrError($boardId);
+			if ($repository instanceof DataResponse) {
+				return $repository;
+			}
+			$board = $repository->renameColumn($boardId, $from, $to);
+		}
 
 		return $board === null
 			? new DataResponse(['error' => 'board_not_found'], 404)
@@ -219,6 +260,13 @@ final class BoardController extends Controller {
 		}
 
 		$board = $repository->removeColumn($boardId, $name);
+		if ($board === null) {
+			$repository = $this->receivedRepositoryOrError($boardId);
+			if ($repository instanceof DataResponse) {
+				return $repository;
+			}
+			$board = $repository->removeColumn($boardId, $name);
+		}
 
 		return $board === null
 			? new DataResponse(['error' => 'board_not_found'], 404)
@@ -238,10 +286,53 @@ final class BoardController extends Controller {
 		}
 
 		$board = $repository->reorderColumns($boardId, $columns);
+		if ($board === null) {
+			$repository = $this->receivedRepositoryOrError($boardId);
+			if ($repository instanceof DataResponse) {
+				return $repository;
+			}
+			$board = $repository->reorderColumns($boardId, $columns);
+		}
 
 		return $board === null
 			? new DataResponse(['error' => 'board_not_found'], 404)
 			: new DataResponse(['board' => $board->toArray()]);
+	}
+
+	/**
+	 * Repository for a board shared TO the current user, or the error
+	 * response to return as-is.
+	 *
+	 * Resolves the received folder (Option B, §12 — it sits at the Files
+	 * root, not under Kanban/), then roots a repository at its parent so
+	 * writes go through the share and reach the owner's copy. Guards: the
+	 * share must carry UPDATE permission (403), and the received folder must
+	 * still bear the board's slug — renamed locally (e.g. collision suffix
+	 * "(2)") the repository would address the wrong path (409).
+	 *
+	 * Authorization reads the share's GRANTED permission (BoardShareService),
+	 * not $folder->getPermissions(): the received node resolves in the owner's
+	 * scope and reports the owner's full permissions, so checking it never
+	 * blocked a read-only recipient (read-only bypass fix, 2026-07-12).
+	 */
+	private function receivedRepositoryOrError(string $boardId): FileBoardRepository|DataResponse {
+		$folder = $this->receivedLocator->folderFor($boardId);
+		if ($folder === null) {
+			return new DataResponse(['error' => 'board_not_found'], 404);
+		}
+		$permission = $this->shareService->receivedPermission($boardId);
+		if ($permission === null || !SharePermissions::allowsWrite($permission)) {
+			return new DataResponse(['error' => 'read_only'], 403);
+		}
+		if ($folder->getName() !== $boardId) {
+			return new DataResponse(['error' => 'received_folder_renamed'], 409);
+		}
+		$parent = $folder->getParent();
+		if (!$parent instanceof Folder) {
+			return new DataResponse(['error' => 'board_not_found'], 404);
+		}
+
+		return new FileBoardRepository(new NextcloudStorage($parent));
 	}
 
 	/**

@@ -18,6 +18,9 @@ This folder is the **living brain of the project**. It exists so that a person â
 | [04-environment-and-testing.md](04-environment-and-testing.md) | The 3 dev tiers (DDEV / staging / production), how to run tests, how to deploy, the forge. |
 | [05-nextcloud-pitfalls-solved.md](05-nextcloud-pitfalls-solved.md) | Nextcloud 33 pitfalls solved, with recipes. Read this **before** touching an NC app. |
 | [06-decision-log.md](06-decision-log.md) | Dated log of structural decisions. |
+| [07-installation-playbook.md](07-installation-playbook.md) | The deploy recipe: build a release, snapshot the container, install, smoke-test, roll back. |
+| [08-board-sharing-spec.md](08-board-sharing-spec.md) | Board sharing spec: share types, permission levels, received-board resolution (Option B). |
+| [09-testing-playbook.md](09-testing-playbook.md) | Runnable procedures for the unit + functional test tiers, and the reproduce-then-fix protocol. |
 
 ## Quick start to resume the project
 
