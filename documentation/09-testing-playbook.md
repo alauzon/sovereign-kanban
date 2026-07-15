@@ -66,6 +66,7 @@ read-only share) can be proven.
 |--------|--------|
 | `tests/Functional/readonly_enforcement.php` | A read-only recipient can **read** but every **write** (card create/update/move/delete, comment, board addColumn) returns **403 `read_only`**; a collaborate recipient **can** write; refused writes leave data untouched; the owner is unaffected. Guards the read-only bypass fix (2026-07-12). |
 | `tests/Functional/share_ownership_enforcement.php` | Only the **owner** may share / list / revoke a board: a recipient gets **403 `not_owner`** on all six ownership-gated calls — including **re-sharing from a COLLABORATE share** (write must not imply share). Nothing leaks to the third party; the owner can still do all of it. Guards the "no re-sharing" decision (documentation/08 §10-11). |
+| `tests/Functional/due_date_time_preserved.php` | A due/start date's **time** survives the **real** write path: `CardController::update` with `2026-07-20T14:30` keeps the time in the API response, **in the card.md on disk**, and on reload; a date with no time is not given one; `''` still clears. Guards the second truncation (2026-07-15). **Read its header** — it is the case study for why the unit tier is not enough: a 13-test green conformance suite and a 15/15 real-write script both passed while the browser stored `00:00`, because the bug sat in the controller, which nothing tested. |
 
 ### ⛔ The exit-code trap — read this before trusting ANY green
 

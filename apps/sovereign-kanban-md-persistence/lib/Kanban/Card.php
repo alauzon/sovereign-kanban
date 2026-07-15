@@ -117,12 +117,12 @@ final class Card {
 			description: $body,
 			created_at: self::parseCreatedAt($frontmatter['created_at'] ?? null),
 			assignees: $frontmatter['assignees'] ?? [],
-			due_date: self::parseDate($frontmatter['due_date'] ?? null),
+			due_date: self::normalizeDate($frontmatter['due_date'] ?? null),
 			procedures: $procedures,
 			priority: ($priority !== null && $priority !== '') ? (string) $priority : null,
 			tags: $tags,
 			phase: isset($frontmatter['phase']) && $frontmatter['phase'] !== '' ? (int) $frontmatter['phase'] : null,
-			start_date: self::parseDate($frontmatter['start_date'] ?? null),
+			start_date: self::normalizeDate($frontmatter['start_date'] ?? null),
 			extra: array_diff_key($frontmatter, array_flip(self::KNOWN_KEYS)),
 		);
 	}
@@ -137,9 +137,15 @@ final class Card {
 	 * YAML hands us an int when the value was written unquoted (legacy files);
 	 * midnight then means "no time was recorded", anything else is a real time.
 	 *
+	 * Public and static because it is the ONE place a date is normalized:
+	 * CardController must call this rather than reimplement it. It did, with a
+	 * substr($value, 0, 10) of its own, which silently truncated every time the
+	 * browser sent one — a bug that survived a green suite because the fix had
+	 * been applied here only. Duplicated normalization is how that happens.
+	 *
 	 * Shared by due_date and start_date.
 	 */
-	private static function parseDate(mixed $raw): ?string {
+	public static function normalizeDate(mixed $raw): ?string {
 		if ($raw === null || $raw === '') {
 			return null;
 		}

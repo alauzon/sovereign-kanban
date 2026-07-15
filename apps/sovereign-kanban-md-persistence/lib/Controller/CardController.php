@@ -155,15 +155,20 @@ final class CardController extends Controller {
 		}
 
 		// due_date: null = leave unchanged, '' = clear, else set.
+		// Normalized by Card::normalizeDate and NOWHERE else. This line used to
+		// substr($due_date, 0, 10) on its own, which silently dropped the time
+		// the browser sent — a bug that survived a green conformance suite
+		// because the suite could not reach this layer. Duplicated normalization
+		// is how a fix lands in one place and not the other.
 		$newDue = $card->due_date;
 		if ($due_date !== null) {
-			$newDue = ($due_date === '') ? null : substr($due_date, 0, 10);
+			$newDue = Card::normalizeDate($due_date);
 		}
 
 		// start_date: null = leave unchanged, '' = clear, else set.
 		$newStart = $card->start_date;
 		if ($start_date !== null) {
-			$newStart = ($start_date === '') ? null : substr($start_date, 0, 10);
+			$newStart = Card::normalizeDate($start_date);
 		}
 
 		// assignees: null = leave unchanged, else replace (trimmed, non-empty).
