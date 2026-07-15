@@ -127,15 +127,40 @@ final class CardRoundTripTest extends TestCase {
     /**
      * A due date with a time must keep its time.
      *
-     * Measured: '2026-07-20 14:30' comes back '2026-07-20'. Cause: parseDate()
-     * does substr($raw, 0, 10). Escalated by camille-ux-nextcloud for the Deck
-     * migration: Deck due dates carry a time, and the truncation loses it for
-     * good — the file, not a cache, is the record.
+     * Measured before the fix: '2026-07-20 14:30' came back '2026-07-20' —
+     * parseDate() did substr($raw, 0, 10). Escalated by camille-ux-nextcloud
+     * for the Deck migration: Deck due dates carry a time, and the truncation
+     * lost it for good, since the file — not a cache — is the record.
+     *
+     * Decided by Alain on 2026-07-15: due dates are date-times. The canonical
+     * form is 'Y-m-d\TH:i'; a date with no known time stays 'Y-m-d'. A time is
+     * never invented and never dropped.
      */
-    public function testDueDateKeepsItsTime(): void {
-        $card = new Card(id: 'rt-due', title: 'T', column: 'C', due_date: '2026-07-20 14:30');
+    public function testDueDateInCanonicalFormRoundTripsUnchanged(): void {
+        $card = new Card(id: 'rt-due', title: 'T', column: 'C', due_date: '2026-07-20T14:30');
 
-        $this->assertSame('2026-07-20 14:30', $this->roundTrip($card)->due_date);
+        $this->assertSame('2026-07-20T14:30', $this->roundTrip($card)->due_date);
+    }
+
+    /**
+     * A non-canonical date-time is normalized, and the time survives it.
+     *
+     * Normalizing on read is allowed; losing the time is not. The two are easy
+     * to confuse — this test pins the difference.
+     */
+    public function testDueDateWithASpaceIsNormalizedWithoutLosingItsTime(): void {
+        $card = new Card(id: 'rt-due-sp', title: 'T', column: 'C', due_date: '2026-07-20 14:30');
+
+        $this->assertSame('2026-07-20T14:30', $this->roundTrip($card)->due_date);
+    }
+
+    /**
+     * A date with no time must not be given one.
+     */
+    public function testDateWithoutTimeStaysWithoutTime(): void {
+        $card = new Card(id: 'rt-due-d', title: 'T', column: 'C', due_date: '2026-07-20');
+
+        $this->assertSame('2026-07-20', $this->roundTrip($card)->due_date);
     }
 
     /**
@@ -174,6 +199,10 @@ final class CardRoundTripTest extends TestCase {
      * The property that matters in production: the app rewrites card.md on every
      * move, every rename, every edit. If serialize(parse(x)) != x, each pass
      * degrades the file a little more. This asserts the format has a fixed point.
+     *
+     * The card is built in canonical form on purpose. Normalizing a hand-written
+     * value on first read is allowed (see the due_date tests); what must never
+     * happen is a file the app wrote itself changing again on the next write.
      */
     public function testSerializationIsStableAcrossRepeatedWrites(): void {
         $card = new Card(
@@ -183,7 +212,7 @@ final class CardRoundTripTest extends TestCase {
             description: "Ordre du jour\n\n---\n\nDivers",
             created_at: new \DateTime('2026-06-05T10:00:00-04:00'),
             assignees: ['steve'],
-            due_date: '2026-07-20 14:30',
+            due_date: '2026-07-20T14:30',
             tags: ['prio: haute'],
         );
 

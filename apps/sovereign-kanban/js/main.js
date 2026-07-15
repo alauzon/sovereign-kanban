@@ -36,6 +36,27 @@
 		return node;
 	}
 
+	// Dates are stored as 'YYYY-MM-DD' when no time is known, or
+	// 'YYYY-MM-DDTHH:MM' when there is one — see documentation/10-card-md-format.md.
+	// <input type="datetime-local"> only accepts the second form, so a date-only
+	// value is shown at midnight; midnight then means "no time" on the way back
+	// and is stored as a plain date. That way a card without a time never gets
+	// given one, and a time coming from Deck is never dropped.
+
+	function toDateTimeInput(value) {
+		if (!value) return '';
+		return value.length === 10 ? value + 'T00:00' : value;
+	}
+
+	function fromDateTimeInput(value) {
+		if (!value) return '';
+		return value.endsWith('T00:00') ? value.slice(0, 10) : value;
+	}
+
+	function formatDateForDisplay(value) {
+		return (value || '').replace('T', ' ');
+	}
+
 	async function api(method, url, body) {
 		const opts = { method: method, headers: { 'OCS-APIRequest': 'true', requesttoken: token() } };
 		if (body !== undefined) {
@@ -214,7 +235,7 @@
 						meta.appendChild(span);
 					});
 					if (card.due_date) {
-						meta.appendChild(el('span', 'sk-due', '📅 ' + card.due_date));
+						meta.appendChild(el('span', 'sk-due', '📅 ' + formatDateForDisplay(card.due_date)));
 					}
 					assignees.forEach(function (a) {
 						meta.appendChild(el('span', 'sk-assignee', a));
@@ -491,16 +512,16 @@
 		titleInput.addEventListener('input', markDirty);
 
 		const startInput = el('input', 'sk-input');
-		startInput.type = 'date';
-		startInput.value = card.start_date || '';
+		startInput.type = 'datetime-local';
+		startInput.value = toDateTimeInput(card.start_date);
 		startInput.addEventListener('change', markDirty);
 		const startRow = el('label', 'sk-field');
 		startRow.appendChild(el('span', 'sk-field-label', 'Date de début'));
 		startRow.appendChild(startInput);
 
 		const dueInput = el('input', 'sk-input');
-		dueInput.type = 'date';
-		dueInput.value = card.due_date || '';
+		dueInput.type = 'datetime-local';
+		dueInput.value = toDateTimeInput(card.due_date);
 		dueInput.addEventListener('change', markDirty);
 		const dueRow = el('label', 'sk-field');
 		dueRow.appendChild(el('span', 'sk-field-label', 'Date de fin'));
@@ -637,8 +658,8 @@
 			const res = await api('PUT', cardUrl(currentId, card.id), {
 				title: titleInput.value.trim(),
 				description: descriptionMarkdown,
-				start_date: startInput.value,
-				due_date: dueInput.value,
+				start_date: fromDateTimeInput(startInput.value),
+				due_date: fromDateTimeInput(dueInput.value),
 				assignees: assigneesInput.value.split(',').map(function (s) { return s.trim(); }).filter(Boolean),
 				priority: prioritySelect.value,
 				tags: tagsPayload,

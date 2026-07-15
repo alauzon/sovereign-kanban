@@ -53,10 +53,14 @@ final class FileCardRepositoryTest extends TestCase {
         $cardFile = $this->testDir . '/01-Backlog/abc-123-def-456-Test-Task/card.md';
         $this->assertFileExists($cardFile);
 
-        $content = file_get_contents($cardFile);
-        $this->assertStringContainsString('---', $content);
-        $this->assertStringContainsString('id: abc-123-def-456', $content);
-        $this->assertStringContainsString('title: Test Task', $content);
+        // Assert what the file MEANS, not how it escapes: reading it back is
+        // the only thing the app ever does with it.
+        $restored = Card::fromMarkdown(file_get_contents($cardFile));
+
+        $this->assertSame('abc-123-def-456', $restored->id);
+        $this->assertSame('Test Task', $restored->title);
+        $this->assertSame('Test description', $restored->description);
+        $this->assertSame(['alain'], $restored->assignees);
     }
 
     public function testMoveCardPreservesUUID(): void {

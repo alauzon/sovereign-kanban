@@ -4,6 +4,7 @@ namespace OCA\SovereignKanbanMdPersistence\Tests\Unit\Kanban;
 
 use OCA\SovereignKanbanMdPersistence\Kanban\Card;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Yaml\Yaml;
 
 /**
  * Tests for Card value object.
@@ -32,12 +33,20 @@ final class CardTest extends TestCase {
         $yaml = $card->toYAMLFrontmatter();
 
         $this->assertStringStartsWith('---', $yaml);
-        $this->assertStringContainsString('id: abc-123-def-456', $yaml);
-        $this->assertStringContainsString('title: Configurer le mail', $yaml);
-        $this->assertStringContainsString('column: 01-Backlog', $yaml);
-        $this->assertStringContainsString('created_at: 2026-06-05T10:30:00Z', $yaml);
-        $this->assertStringContainsString("assignees:\n  - alain\n  - steve", $yaml);
         $this->assertStringEndsWith('---', $yaml);
+
+        // Assert the meaning, not the bytes: the emitter quotes whatever YAML
+        // would otherwise misread (any value with a space, a colon, a leading
+        // '#'…), so pinning the exact string here would pin an escaping detail
+        // and break the moment the emitter gets safer. What must hold is that
+        // the frontmatter parses back to these values.
+        $parsed = Yaml::parse(trim($yaml, "-\n"));
+
+        $this->assertSame('abc-123-def-456', $parsed['id']);
+        $this->assertSame('Configurer le mail', $parsed['title']);
+        $this->assertSame('01-Backlog', $parsed['column']);
+        $this->assertSame('2026-06-05T10:30:00Z', $parsed['created_at']);
+        $this->assertSame(['alain', 'steve'], $parsed['assignees']);
     }
 
     public function testCardImmutable(): void {
@@ -61,8 +70,10 @@ final class CardTest extends TestCase {
 
         $yaml = $card->toYAMLFrontmatter();
 
-        // Validate YAML is well-formed
-        $parsed = yaml_parse($yaml);
+        // Validate YAML is well-formed. Parsed with symfony/yaml — the very
+        // parser the app reads cards with — instead of ext-yaml, which is
+        // absent from most local PHP and made this test ERROR for months.
+        $parsed = Yaml::parse(trim($yaml, "-\n"));
         $this->assertIsArray($parsed);
         $this->assertArrayHasKey('id', $parsed);
         $this->assertArrayHasKey('title', $parsed);
@@ -227,7 +238,9 @@ final class CardTest extends TestCase {
             start_date: '2026-06-02',
         );
 
-        $this->assertStringContainsString('start_date: 2026-06-02', $card->toYAMLFrontmatter());
+        $parsed = Yaml::parse(trim($card->toYAMLFrontmatter(), "-\n"));
+
+        $this->assertSame('2026-06-02', $parsed['start_date']);
     }
 
     public function testWithColumnChangesColumnAndPreservesEveryOtherField(): void {
@@ -297,7 +310,9 @@ final class CardTest extends TestCase {
 
         $yaml = $card->toYAMLFrontmatter();
 
-        $this->assertStringContainsString('due_date: 2026-06-20', $yaml);
+        $parsed = Yaml::parse(trim($yaml, "-\n"));
+
+        $this->assertSame('2026-06-20', $parsed['due_date']);
         $this->assertStringContainsString("assignees:\n  - alain", $yaml);
     }
 }

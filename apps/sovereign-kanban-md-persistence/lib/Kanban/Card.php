@@ -34,8 +34,24 @@ final class Card {
 		public readonly array $tags = [],
 		public readonly ?int $phase = null,
 		public readonly ?string $start_date = null,
+		public readonly array $extra = [],
 	) {
 	}
+
+	/**
+	 * The frontmatter keys this app understands.
+	 *
+	 * Everything else read from a card.md lands in $extra and is written back
+	 * untouched. The vocabulary is closed; the file is not. See
+	 * documentation/10-card-md-format.md.
+	 */
+	private const KNOWN_KEYS = [
+		'id', 'title', 'column', 'created_at', 'assignees', 'due_date',
+		'start_date', 'procedures', 'priority', 'tags', 'phase',
+		// Legacy French spellings: read, never written. Files created before
+		// 2026-07-15 carry them; they migrate silently on the next app write.
+		'procédures', 'priorité', 'étiquettes',
+	];
 
 	/**
 	 * Create a new card with generated UUID.
@@ -69,6 +85,7 @@ final class Card {
 			tags: $this->tags,
 			phase: $this->phase,
 			start_date: $this->start_date,
+			extra: $this->extra,
 		);
 	}
 
@@ -76,7 +93,9 @@ final class Card {
 	 * Rebuild a Card from a card.md file's content.
 	 *
 	 * Splits the YAML frontmatter (between --- markers) from the Markdown
-	 * body; the body becomes the description.
+	 * body; the body becomes the description. Frontmatter keys this app does
+	 * not know are kept in $extra so that writing the card back does not
+	 * destroy them.
 	 */
 	public static function fromMarkdown(string $content): self {
 		if (preg_match('/^---\R(.*?)\R---\R?(.*)$/s', $content, $matches)) {
@@ -87,6 +106,10 @@ final class Card {
 			$body = $content;
 		}
 
+		$procedures = $frontmatter['procedures'] ?? $frontmatter['procédures'] ?? [];
+		$priority = $frontmatter['priority'] ?? $frontmatter['priorité'] ?? null;
+		$tags = $frontmatter['tags'] ?? $frontmatter['étiquettes'] ?? [];
+
 		return new self(
 			id: (string) ($frontmatter['id'] ?? ''),
 			title: (string) ($frontmatter['title'] ?? ''),
@@ -95,17 +118,24 @@ final class Card {
 			created_at: self::parseCreatedAt($frontmatter['created_at'] ?? null),
 			assignees: $frontmatter['assignees'] ?? [],
 			due_date: self::parseDate($frontmatter['due_date'] ?? null),
-			procedures: $frontmatter['procédures'] ?? [],
-			priority: isset($frontmatter['priorité']) && $frontmatter['priorité'] !== '' ? (string) $frontmatter['priorité'] : null,
-			tags: $frontmatter['étiquettes'] ?? [],
+			procedures: $procedures,
+			priority: ($priority !== null && $priority !== '') ? (string) $priority : null,
+			tags: $tags,
 			phase: isset($frontmatter['phase']) && $frontmatter['phase'] !== '' ? (int) $frontmatter['phase'] : null,
 			start_date: self::parseDate($frontmatter['start_date'] ?? null),
+			extra: array_diff_key($frontmatter, array_flip(self::KNOWN_KEYS)),
 		);
 	}
 
 	/**
-	 * Normalize a date value (YAML may give an ISO string or a Unix timestamp)
-	 * to a plain 'Y-m-d' string, or null when unset.
+	 * Normalize a due/start date, preserving its time when it has one.
+	 *
+	 * Accepted forms: 'Y-m-d' (no time known) or 'Y-m-d\TH:i' (date-time).
+	 * A time is never invented and never dropped — the file IS the record, so
+	 * a truncation here loses the time for good.
+	 *
+	 * YAML hands us an int when the value was written unquoted (legacy files);
+	 * midnight then means "no time was recorded", anything else is a real time.
 	 *
 	 * Shared by due_date and start_date.
 	 */
@@ -113,12 +143,17 @@ final class Card {
 		if ($raw === null || $raw === '') {
 			return null;
 		}
+
 		if (is_int($raw)) {
-			// YAML date → midnight-UTC timestamp; format in UTC to keep the day.
-			return gmdate('Y-m-d', $raw);
+			return ($raw % 86400 === 0) ? gmdate('Y-m-d', $raw) : gmdate('Y-m-d\TH:i', $raw);
 		}
 
-		return substr((string) $raw, 0, 10);
+		$value = trim((string) $raw);
+		if (preg_match('/^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2}))?/', $value, $m)) {
+			return isset($m[2]) ? $m[1] . 'T' . $m[2] : $m[1];
+		}
+
+		return $value;
 	}
 
 	/**
@@ -189,6 +224,15 @@ final class Card {
 	/**
 	 * Serialize card as YAML frontmatter.
 	 *
+	 * Emitted with Yaml::dump — the inverse of the Yaml::parse used to read it.
+	 * The previous hand-rolled concatenation could not escape, so any title
+	 * holding ':', '[', '{' or a leading '#' produced a file the parser then
+	 * refused or misread. An emitter that does not escape cannot round-trip
+	 * through a parser that interprets. See documentation/10-card-md-format.md.
+	 *
+	 * Keys are written in English. French keys ('procédures', 'priorité',
+	 * 'étiquettes') are still accepted on read for the files already on disk.
+	 *
 	 * @return string YAML frontmatter enclosed in --- markers
 	 */
 	public function toYAMLFrontmatter(): string {
@@ -196,7 +240,7 @@ final class Card {
 			'id' => $this->id,
 			'title' => $this->title,
 			'column' => $this->column,
-			'created_at' => $this->created_at->format('Y-m-d\TH:i:s\Z'),
+			'created_at' => $this->createdAtUtc(),
 		];
 
 		if ($this->due_date !== null) {
@@ -208,38 +252,44 @@ final class Card {
 		}
 
 		if (!empty($this->assignees)) {
-			$frontmatter['assignees'] = $this->assignees;
+			$frontmatter['assignees'] = array_values($this->assignees);
 		}
 
 		if (!empty($this->procedures)) {
-			$frontmatter['procédures'] = $this->procedures;
+			$frontmatter['procedures'] = array_values($this->procedures);
 		}
 
 		if ($this->priority !== null) {
-			$frontmatter['priorité'] = $this->priority;
+			$frontmatter['priority'] = $this->priority;
 		}
 
 		if (!empty($this->tags)) {
-			$frontmatter['étiquettes'] = $this->tags;
+			$frontmatter['tags'] = array_values($this->tags);
 		}
 
 		if ($this->phase !== null) {
 			$frontmatter['phase'] = $this->phase;
 		}
 
-		$yaml = "---\n";
-		foreach ($frontmatter as $key => $value) {
-			if (is_array($value)) {
-				$yaml .= "$key:\n";
-				foreach ($value as $item) {
-					$yaml .= "  - $item\n";
-				}
-			} else {
-				$yaml .= "$key: $value\n";
-			}
+		// Keys we do not understand are written back untouched: the vocabulary
+		// is closed, the file is not.
+		foreach ($this->extra as $key => $value) {
+			$frontmatter[$key] = $value;
 		}
-		$yaml .= "---";
 
-		return $yaml;
+		return "---\n" . Yaml::dump($frontmatter, 4, 2) . '---';
+	}
+
+	/**
+	 * created_at as a real UTC instant.
+	 *
+	 * The previous format string was 'Y-m-d\TH:i:s\Z', where \Z is a LITERAL Z,
+	 * not a conversion: a card created at 10:00 in Montréal was stamped
+	 * '10:00Z' and read back four hours off. Converting first makes the Z true.
+	 */
+	private function createdAtUtc(): string {
+		return (clone $this->created_at)
+			->setTimezone(new \DateTimeZone('UTC'))
+			->format('Y-m-d\TH:i:s\Z');
 	}
 }

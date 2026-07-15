@@ -42,7 +42,7 @@ Why it matters: writing through the Files API keeps NC's file cache in sync, so 
 
 ## Existing classes (`sovereign-kanban-md-persistence/lib/Kanban/`)
 
-- **`Card`** — immutable value object: `id` (stable uuid), `title`, `column`, `description`, `created_at`, `assignees`, `due_date`, `start_date`, `procedures`, `priority`, `tags`, `phase`. `create()`, `withColumn()`, `fromMarkdown()`, `toYAMLFrontmatter()`, `toArray()`. **The frontmatter keys are specified in [10-card-md-format.md](10-card-md-format.md)** — they are not all English (`procédures`, `priorité`, `étiquettes`) and the format does not round-trip yet.
+- **`Card`** — immutable value object: `id` (stable uuid), `title`, `column`, `description`, `created_at`, `assignees`, `due_date`, `start_date`, `procedures`, `priority`, `tags`, `phase`. `create()`, `withColumn()`, `fromMarkdown()`, `toYAMLFrontmatter()`, `toArray()`. Unknown frontmatter keys are kept in `$extra` and written back untouched. **The frontmatter keys are specified in [10-card-md-format.md](10-card-md-format.md)**, whose conformance suite is the format's definition.
 - **`FileCardRepository`** — `save`, `moveCard`, `delete`. Layout: `{baseDir}/{column}/{uuid}-{slug}/card.md`.
 - **`Board`** — immutable value object: `id` (stable slug), `name`, `color`, `columns`, `created_at`. `create()` (slugifies the name), `withName()`, `withColor()`, `toYaml()`.
 - **`FileBoardRepository`** — `create`, `list`, `find`, `save`, `delete`. Layout: `{rootDir}/{board-slug}/.board.yml` + `NN-Name/` column folders.
