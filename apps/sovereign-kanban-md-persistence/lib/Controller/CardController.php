@@ -208,6 +208,12 @@ final class CardController extends Controller {
 			tags: $newTags,
 			phase: $newPhase,
 			start_date: $newStart,
+			// Whatever the user put in their own file and we do not understand.
+			// Rebuilding a Card field by field is exactly how it got dropped:
+			// every edit from the browser used to delete the frontmatter keys
+			// the user had added, while the format spec claimed rule 5 held.
+			// If you add a field to Card, add it here too.
+			extra: $card->extra,
 		);
 		$repository->update($updated);
 
