@@ -157,17 +157,25 @@ Measured on 2026-07-15, before the fix — not imagined:
 | `due_date: 2026-07-20 14:30` | truncated to `2026-07-20` |
 | `aliases`, `cssclass` from Obsidian | destroyed on rewrite |
 
-**The exposure, honestly:**
+**The exposure, honestly** (Entre Tablées, 2026-07-15):
 
-- **286 `card.md`** existed on the Entre Tablées instance. **Zero** had a title
-  containing `:`, `[`, `{`, or a leading `#`. 108 contained an apostrophe and 2
-  contained quotes — both always round-tripped.
-- **144 of the 286** were read back and round-tripped end to end before the fix:
-  144 stable, 0 unknown keys, 0 parse failures. **The other 142 could not be read
-  by the audit script** (no user context for `getById`) — that measurement covered
-  *half the park* and said nothing about the other half.
+- **135 live cards.** Not 286: a first count queried `oc_filecache` for
+  `name = 'card.md'`, got 286 rows, and called them cards. They break down as
+  **142 encryption keyfiles** (an artifact of encryption at rest, named after the
+  file they protect), **9 in the trash**, and **135 real cards**. The keyfiles are
+  also exactly the "142 unreadable" that the first audit reported as a coverage
+  gap — they were never cards. *The lesson is the recurring one: probing one organ
+  and concluding about the organism.*
+- **Zero live card** has a title containing `:`, `[`, `{`, `"`, or a leading `#`.
+  **53 contain an apostrophe** — which always round-tripped. (Two titles with
+  quotes exist only in the trash.)
+- **127 live cards** were read back and round-tripped end to end through the
+  deployed code: **127 stable, 0 parse failures, 0 unknown keys, 15 carrying the
+  legacy French keys.** The 8-card gap against 135 is unexplained — the audit walks
+  each user's `Kanban/` folder, so cards living elsewhere are not counted.
 - The controller only `trim()`s the title. **Nothing prevented any of it.** The
   defects were latent, not absent: we had been lucky, and luck is not a design.
+  The day someone types `Corriger: le bug`, their board stops listing.
 
 ## Open questions — not decided here
 
