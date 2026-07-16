@@ -82,6 +82,11 @@ pct exec <CTID> -- bash -c '
   sudo -u www-data php8.3 occ config:app:set theming cachebuster --value="$(date +%s)"
   redis-cli FLUSHALL >/dev/null 2>&1 || true
   systemctl restart php8.3-fpm
+  # VERIFY the --off actually took. It does not always: on 2026-07-15 this exact
+  # recipe left CT 211 in maintenance mode, and nothing said so — the deploy
+  # reported success while the instance was unusable. `|| true` swallows the
+  # failure by design, so the only way to know is to ask afterwards.
+  sudo -u www-data php8.3 occ status | grep -iE "maintenance|needsDbUpgrade"
 '
 ```
 
@@ -90,6 +95,13 @@ Notes:
   stale JS/CSS (curl is unaffected, which masks the problem).
 - `occ upgrade` + `maintenance:mode --off` clear the transient "upgrade
   required" state a version bump can trigger.
+- **`maintenance: false` is not optional to check.** Both commands end in
+  `|| true` so the deploy cannot fail on them — which means a stuck maintenance
+  mode is silent. Read the two lines the recipe now prints. If `maintenance:
+  true`, run `occ maintenance:mode --off` again before walking away.
+- **The PHP version is not a given.** This recipe says `php8.3`; check it, do not
+  assume. (A project note claimed CT 211 ran php8.1 — it runs 8.3 and NC 34.0.1.
+  Notes rot; `php -v` does not.)
 
 ## 4. Smoke test
 
