@@ -1,0 +1,8 @@
+{
+  "name": "sk-browser-tests",
+  "private": true,
+  "description": "Browser (e2e) tier for Sovereign Kanban — Playwright against Tshinanu",
+  "devDependencies": {
+    "@playwright/test": "^1.61.0"
+  }
+}
