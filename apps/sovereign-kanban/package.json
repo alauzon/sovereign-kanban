@@ -1,0 +1,29 @@
+{
+	"name": "sovereign-kanban",
+	"description": "Sovereign Kanban — Nextcloud UI (Vue 3 + @nextcloud/vue)",
+	"version": "1.0.6",
+	"license": "AGPL-3.0-or-later",
+	"author": "Alain Lauzon <alauzon@alainlauzon.com>",
+	"repository": "https://github.com/alauzon/sovereign-kanban.git",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"build": "vite --mode production build",
+		"dev": "vite --mode development build",
+		"watch": "vite --mode development build --watch"
+	},
+	"dependencies": {
+		"@nextcloud/axios": "^2.6.0",
+		"@nextcloud/l10n": "^3.4.1",
+		"@nextcloud/router": "^3.1.0",
+		"@nextcloud/vue": "^9.9.0",
+		"vue": "^3.5.39"
+	},
+	"devDependencies": {
+		"@nextcloud/vite-config": "^2.5.4",
+		"browserslist": "^4.28.6",
+		"sass": "^1.101.0",
+		"typescript": "^5.9.3",
+		"vite": "^7.3.6"
+	}
+}
