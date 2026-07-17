@@ -69,14 +69,11 @@ $gateway = new NextcloudShareGateway($shareManager, $rootFolder, $userSession);
 $shareService = new BoardShareService($gateway);
 $receivedLocator = new ReceivedBoardLocator($shareManager, $userSession);
 $boardCtrl = new BoardController($request, $userSession, $rootFolder, $shareService, $receivedLocator);
-$cardCtrl = new CardController(
-	$request,
-	$userSession,
-	$rootFolder,
-	$server->get(MarkdownRenderer::class),
-	$receivedLocator,
-	$shareService,
-);
+// Resolved from the DI container, NOT constructed by hand: a manual `new`
+// pins the constructor signature, and adding a dependency to CardController
+// (IUserManager, 2026-07-17) killed this test with a silent-then-guarded
+// exit 70. The container always wires the current signature.
+$cardCtrl = $server->get(CardController::class);
 
 $pass = 0;
 $fail = 0;

@@ -22,6 +22,7 @@ use OCP\AppFramework\Http\DataResponse;
 use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
 use OCP\IRequest;
+use OCP\IUserManager;
 use OCP\IUserSession;
 
 /**
@@ -39,6 +40,7 @@ final class CardController extends Controller {
 		private readonly MarkdownRenderer $markdown,
 		private readonly ReceivedBoardLocator $receivedLocator,
 		private readonly BoardShareService $shareService,
+		private readonly IUserManager $userManager,
 	) {
 		parent::__construct('sovereign-kanban-md-persistence', $request);
 	}
@@ -172,9 +174,22 @@ final class CardController extends Controller {
 		}
 
 		// assignees: null = leave unchanged, else replace (trimmed, non-empty).
+		// Every entry must be an EXISTING Nextcloud account (D5 in the Deck→SK
+		// correspondence: the free-text field used to write typos and display
+		// names into card.md as if they were account ids). All-or-nothing: one
+		// bad entry rejects the list, no partial write. Validation fires on the
+		// parameter only — a file already carrying stale garbage still loads
+		// and still accepts updates that do not touch assignees.
 		$newAssignees = $card->assignees;
 		if ($assignees !== null) {
 			$newAssignees = array_values(array_filter(array_map('trim', $assignees), static fn ($a) => $a !== ''));
+			$invalid = array_values(array_filter(
+				$newAssignees,
+				fn (string $uid): bool => $this->userManager->get($uid) === null,
+			));
+			if ($invalid !== []) {
+				return new DataResponse(['error' => 'invalid_assignee', 'invalid' => $invalid], 400);
+			}
 		}
 
 		// priority: null = leave, '' = clear, else set.
