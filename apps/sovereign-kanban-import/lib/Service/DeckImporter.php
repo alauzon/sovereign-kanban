@@ -1,231 +1,261 @@
 <?php
+
 /**
- * @copyright 2026 Alain Lauzon
- * @license AGPL-3.0-or-later
+ * @file
+ * DeckImporter — migrate a user's Deck boards into Sovereign Kanban.
+ *
+ * Rewritten 2026-07-17. The previous version could not run: it passed a string
+ * where FileCardRepository wants a Storage, imported `use OCP\DB\IDBConnection`
+ * (which does not exist — it is OCP\IDBConnection), queried a table that does
+ * not exist (`deck_card_assignees`; the real one is `deck_assigned_users`),
+ * fed an int Unix timestamp to `new DateTime()`, never selected the due date,
+ * had no owner filter, wrote via raw mkdir (fatal on an encrypted instance),
+ * and used Deck's numeric ids as card ids. The contract it must now meet lives
+ * in tests/Functional/deck_import_contract.php.
+ *
+ * Everything goes through the Storage abstraction, so the same code writes
+ * correctly on an encrypted instance (ET) as on a plain one (the test bench,
+ * Tshinanu). That is not an elegance — a raw filesystem write is invisible
+ * plaintext that Nextcloud later fails to decrypt.
+ *
+ * @author Alain Lauzon <alauzon@alainlauzon.com>
+ * @generated Claude (Opus 4.8)
  */
 
 namespace OCA\SovereignKanbanImport\Service;
 
-use OCP\DB\IDBConnection;
-use OCP\IUserManager;
-use OCP\Files\IRootFolder;
+use OCA\SovereignKanbanMdPersistence\Kanban\Board;
+use OCA\SovereignKanbanMdPersistence\Kanban\BoardAlreadyExistsException;
 use OCA\SovereignKanbanMdPersistence\Kanban\Card;
+use OCA\SovereignKanbanMdPersistence\Kanban\FileBoardRepository;
 use OCA\SovereignKanbanMdPersistence\Kanban\FileCardRepository;
+use OCA\SovereignKanbanMdPersistence\Storage\NextcloudStorage;
+use OCP\Files\Folder;
+use OCP\Files\IRootFolder;
+use OCP\IDBConnection;
+use OCP\IUserManager;
+use Ramsey\Uuid\Uuid;
 
 /**
- * Service to import Deck boards and cards to Sovereign Kanban.
+ * Import the Deck boards a given user OWNS into their Sovereign Kanban folder.
  */
 final class DeckImporter {
 
-	private FileCardRepository $repository;
-	private string $kanbanBasePath;
-
 	public function __construct(
-		private IDBConnection $db,
-		private IUserManager $userManager,
-		private IRootFolder $rootFolder,
+		private readonly IDBConnection $db,
+		private readonly IUserManager $userManager,
+		private readonly IRootFolder $rootFolder,
 	) {
 	}
 
 	/**
-	 * Import all Deck boards to Sovereign Kanban format.
+	 * Import the target user's own Deck boards.
 	 *
-	 * @param string $userId User ID to import for (default: first admin)
+	 * Scope (decided 2026-07-17): the boards the user OWNS, not deleted, not
+	 * archived. Deck is multi-user; importing "all boards" would rake other
+	 * people's boards into one person's folder.
+	 *
+	 * @param string $userId The user whose boards are imported and who receives them.
+	 *
 	 * @return array{boards: int, cards: int, errors: array<string>}
-	 * @throws \Exception if import fails
 	 */
-	public function import(string $userId = ''): array {
-		if (!$userId) {
-			$userId = $this->getDefaultUserId();
+	public function import(string $userId): array {
+		if ($userId === '' || $this->userManager->get($userId) === null) {
+			throw new \InvalidArgumentException('A valid target userId is required.');
 		}
 
-		$this->initializeRepository($userId);
+		$kanbanRoot = $this->kanbanRoot($userId);
+		$boardRepo = new FileBoardRepository(new NextcloudStorage($kanbanRoot));
+
 		$boardCount = 0;
 		$cardCount = 0;
 		$errors = [];
 
-		try {
-			// Query Deck boards
-			$boards = $this->queryBoards();
-
-			foreach ($boards as $board) {
-				try {
-					$boardId = (int)$board['id'];
-					$boardTitle = (string)$board['title'];
-
-					// Create board directory
-					$boardDir = $this->kanbanBasePath . '/' . $boardTitle;
-					if (!is_dir($boardDir)) {
-						mkdir($boardDir, 0755, true);
-					}
-
-					// Query stacks (columns) for this board
-					$stacks = $this->queryStacks($boardId);
-
-					foreach ($stacks as $stack) {
-						try {
-							$stackId = (int)$stack['id'];
-							$stackTitle = (string)$stack['title'];
-
-							// Create column directory
-							$columnDir = $boardDir . '/' . $stackTitle;
-							if (!is_dir($columnDir)) {
-								mkdir($columnDir, 0755, true);
-							}
-
-							// Query cards for this stack
-							$cards = $this->queryCards($stackId);
-
-							foreach ($cards as $deckCard) {
-								try {
-									$card = $this->createCard($deckCard, $stackTitle);
-									$this->repository->save($card);
-									$cardCount++;
-								} catch (\Exception $e) {
-									$errors[] = "Card {$deckCard['id']}: {$e->getMessage()}";
-								}
-							}
-						} catch (\Exception $e) {
-							$errors[] = "Stack {$stackId}: {$e->getMessage()}";
-						}
-					}
-
-					$boardCount++;
-				} catch (\Exception $e) {
-					$errors[] = "Board {$boardId}: {$e->getMessage()}";
-				}
+		foreach ($this->ownedBoards($userId) as $deckBoard) {
+			try {
+				$cardCount += $this->importBoard($deckBoard, $kanbanRoot, $boardRepo);
+				$boardCount++;
+			} catch (BoardAlreadyExistsException $e) {
+				$errors[] = sprintf('Board "%s" already exists, skipped.', $deckBoard['title']);
+			} catch (\Throwable $e) {
+				$errors[] = sprintf('Board "%s": %s', $deckBoard['title'], $e->getMessage());
 			}
-		} catch (\Exception $e) {
-			throw new \Exception("Import failed: {$e->getMessage()}");
 		}
 
-		return [
-			'boards' => $boardCount,
-			'cards' => $cardCount,
-			'errors' => $errors,
-		];
+		return ['boards' => $boardCount, 'cards' => $cardCount, 'errors' => $errors];
 	}
 
 	/**
-	 * Query all Deck boards.
-	 *
-	 * @return array<array>
+	 * The user's Kanban/ root folder, created if missing.
 	 */
-	private function queryBoards(): array {
-		$query = $this->db->getQueryBuilder();
-		$query->select('id', 'title')->from('deck_boards');
-		$result = $query->execute();
-		return $result->fetchAll();
+	private function kanbanRoot(string $userId): Folder {
+		$userFolder = $this->rootFolder->getUserFolder($userId);
+		$node = $userFolder->nodeExists('Kanban')
+			? $userFolder->get('Kanban')
+			: $userFolder->newFolder('Kanban');
+		if (!($node instanceof Folder)) {
+			throw new \RuntimeException('Kanban path is not a folder.');
+		}
+
+		return $node;
 	}
 
 	/**
-	 * Query stacks (columns) for a board.
+	 * Create one SK board from a Deck board and fill it with cards.
 	 *
-	 * @param int $boardId
-	 * @return array<array>
+	 * @param array{id: int, title: string, color: ?string} $deckBoard
+	 *
+	 * @return int Number of cards imported into this board.
 	 */
-	private function queryStacks(int $boardId): array {
-		$query = $this->db->getQueryBuilder();
-		$query->select('id', 'title')->from('deck_stacks')
-			->where($query->expr()->eq('board_id', $boardId))
-			->orderBy('order', 'ASC');
-		$result = $query->execute();
-		return $result->fetchAll();
+	private function importBoard(array $deckBoard, Folder $kanbanRoot, FileBoardRepository $boardRepo): int {
+		$stacks = $this->stacks((int) $deckBoard['id']);
+
+		// Column names, in Deck's stack order. Cleaned only for folder safety.
+		$columns = array_map(
+			fn (array $s): string => $this->columnName($s['title']),
+			$stacks,
+		);
+
+		$color = '#' . ($deckBoard['color'] ?: '0082c9');
+		$board = Board::create((string) $deckBoard['title'], $color);
+		if ($columns !== []) {
+			$board = $board->withColumns($columns);
+		}
+		$boardRepo->create($board);
+
+		$boardFolder = $kanbanRoot->get($board->id);
+		if (!($boardFolder instanceof Folder)) {
+			throw new \RuntimeException('Board folder missing after create.');
+		}
+		$cardRepo = new FileCardRepository(new NextcloudStorage($boardFolder));
+
+		$cards = 0;
+		foreach ($stacks as $index => $stack) {
+			// The folder FileBoardRepository::create made for this stack.
+			$columnFolder = sprintf('%02d-%s', $index + 1, $columns[$index]);
+			foreach ($this->cards((int) $stack['id']) as $deckCard) {
+				$cardRepo->save($this->toCard($deckCard, $columnFolder));
+				$cards++;
+			}
+		}
+
+		return $cards;
 	}
 
 	/**
-	 * Query cards for a stack.
+	 * Build an SK Card from a Deck card row, in the given column folder.
 	 *
-	 * @param int $stackId
-	 * @return array<array>
+	 * @param array{id: int, title: string, description: ?string, created_at: ?int, duedate: ?string, startdate: ?string} $row
 	 */
-	private function queryCards(int $stackId): array {
-		$query = $this->db->getQueryBuilder();
-		$query->select('id', 'title', 'description', 'created_at')->from('deck_cards')
-			->where($query->expr()->eq('stack_id', $stackId))
-			->orderBy('order', 'ASC');
-		$result = $query->execute();
-		return $result->fetchAll();
-	}
+	private function toCard(array $row, string $columnFolder): Card {
+		$created = new \DateTime();
+		if (!empty($row['created_at'])) {
+			$created->setTimestamp((int) $row['created_at']);
+		}
 
-	/**
-	 * Create a Card from Deck card data.
-	 *
-	 * @param array $deckCard
-	 * @param string $column
-	 * @return Card
-	 */
-	private function createCard(array $deckCard, string $column): Card {
-		$cardId = (int)$deckCard['id'];
-		$createdAt = new \DateTime($deckCard['created_at'] ?? 'now');
+		$cardId = (int) $row['id'];
 
 		return new Card(
-			id: (string)$cardId,
-			title: (string)$deckCard['title'],
-			column: $column,
-			description: (string)($deckCard['description'] ?? ''),
-			created_at: $createdAt,
-			assignees: $this->getAssignees($cardId),
+			id: Uuid::uuid4()->toString(),
+			title: (string) $row['title'],
+			column: $columnFolder,
+			description: (string) ($row['description'] ?? ''),
+			created_at: $created,
+			assignees: $this->assignees($cardId),
+			due_date: Card::normalizeDate($row['duedate'] ?? null),
+			tags: $this->labels($cardId),
+			start_date: Card::normalizeDate($row['startdate'] ?? null),
 		);
 	}
 
 	/**
-	 * Get assignees for a Deck card.
+	 * Deck boards the user owns, excluding deleted and archived.
 	 *
-	 * @param int $cardId
-	 * @return array<string>
+	 * @return array<array{id: int, title: string, color: ?string}>
 	 */
-	private function getAssignees(int $cardId): array {
-		$query = $this->db->getQueryBuilder();
-		$query->select('user_id')->from('deck_card_assignees')
-			->where($query->expr()->eq('card_id', $cardId));
-		$result = $query->execute();
-		$rows = $result->fetchAll();
+	private function ownedBoards(string $userId): array {
+		$q = $this->db->getQueryBuilder();
+		$q->select('id', 'title', 'color')
+			->from('deck_boards')
+			->where($q->expr()->eq('owner', $q->createNamedParameter($userId)))
+			->andWhere($q->expr()->eq('deleted_at', $q->createNamedParameter(0, \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_INT)))
+			->andWhere($q->expr()->eq('archived', $q->createNamedParameter(0, \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_INT)))
+			->orderBy('id', 'ASC');
 
-		return array_column($rows, 'user_id') ?: [];
+		return $q->executeQuery()->fetchAll();
 	}
 
 	/**
-	 * Get default user ID (first admin).
+	 * A board's stacks (columns), in display order, excluding deleted.
 	 *
-	 * @return string
-	 * @throws \Exception if no user found
+	 * @return array<array{id: int, title: string}>
 	 */
-	private function getDefaultUserId(): string {
-		$user = $this->userManager->get('admin');
-		if ($user) {
-			return $user->getUID();
-		}
+	private function stacks(int $boardId): array {
+		$q = $this->db->getQueryBuilder();
+		$q->select('id', 'title')
+			->from('deck_stacks')
+			->where($q->expr()->eq('board_id', $q->createNamedParameter($boardId, \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_INT)))
+			->andWhere($q->expr()->eq('deleted_at', $q->createNamedParameter(0, \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_INT)))
+			->orderBy('order', 'ASC');
 
-		$users = $this->userManager->search('', 1);
-		if (!empty($users)) {
-			$user = reset($users);
-			return $user->getUID();
-		}
-
-		throw new \Exception('No users found');
+		return $q->executeQuery()->fetchAll();
 	}
 
 	/**
-	 * Initialize the FileCardRepository for a user.
+	 * A stack's cards, in order, excluding deleted and archived.
 	 *
-	 * @param string $userId
-	 * @throws \Exception if user folder not accessible
+	 * @return array<array{id: int, title: string, description: ?string, created_at: ?int, duedate: ?string, startdate: ?string}>
 	 */
-	private function initializeRepository(string $userId): void {
-		try {
-			$userFolder = $this->rootFolder->getUserFolder($userId);
-			$kanbanDir = $userFolder->getPath() . '/Kanban';
+	private function cards(int $stackId): array {
+		$q = $this->db->getQueryBuilder();
+		$q->select('id', 'title', 'description', 'created_at', 'duedate', 'startdate')
+			->from('deck_cards')
+			->where($q->expr()->eq('stack_id', $q->createNamedParameter($stackId, \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_INT)))
+			->andWhere($q->expr()->eq('deleted_at', $q->createNamedParameter(0, \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_INT)))
+			->andWhere($q->expr()->eq('archived', $q->createNamedParameter(0, \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_INT)))
+			->orderBy('order', 'ASC');
 
-			// Create Kanban directory if it doesn't exist
-			if (!$userFolder->nodeExists('Kanban')) {
-				$userFolder->newFolder('Kanban');
-			}
+		return $q->executeQuery()->fetchAll();
+	}
 
-			$this->kanbanBasePath = $kanbanDir;
-			$this->repository = new FileCardRepository($kanbanDir);
-		} catch (\Exception $e) {
-			throw new \Exception("Cannot access user folder for $userId: {$e->getMessage()}");
-		}
+	/**
+	 * A card's assigned users (type 0), in assignment order.
+	 *
+	 * @return list<string>
+	 */
+	private function assignees(int $cardId): array {
+		$q = $this->db->getQueryBuilder();
+		$q->select('participant')
+			->from('deck_assigned_users')
+			->where($q->expr()->eq('card_id', $q->createNamedParameter($cardId, \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_INT)))
+			->andWhere($q->expr()->eq('type', $q->createNamedParameter(0, \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_INT)))
+			->orderBy('id', 'ASC');
+
+		return array_map(static fn (array $r): string => (string) $r['participant'], $q->executeQuery()->fetchAll());
+	}
+
+	/**
+	 * A card's Deck labels, by title, in assignment order — become SK tags.
+	 *
+	 * @return list<string>
+	 */
+	private function labels(int $cardId): array {
+		$q = $this->db->getQueryBuilder();
+		$q->select('l.title')
+			->from('deck_assigned_labels', 'al')
+			->innerJoin('al', 'deck_labels', 'l', $q->expr()->eq('al.label_id', 'l.id'))
+			->where($q->expr()->eq('al.card_id', $q->createNamedParameter($cardId, \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_INT)))
+			->orderBy('al.id', 'ASC');
+
+		return array_map(static fn (array $r): string => (string) $r['title'], $q->executeQuery()->fetchAll());
+	}
+
+	/**
+	 * Make a Deck stack title safe as a column folder name component.
+	 */
+	private function columnName(string $title): string {
+		$name = trim(str_replace('/', '-', $title));
+
+		return $name === '' ? 'Colonne' : $name;
 	}
 }

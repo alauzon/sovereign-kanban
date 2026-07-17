@@ -11,7 +11,7 @@ running a **direct** Nextcloud install (not AIO/Docker) behind
 |-----|------|---------------|
 | `sovereign-kanban` | Frontend / UI (page, nav entry, JS, CSS) | no |
 | `sovereign-kanban-md-persistence` | Backend (domain, `.md` persistence, REST API) | **yes** (commonmark, symfony/yaml, ramsey/uuid) |
-| `sovereign-kanban-import` | *Optional* Deck → SK migration (one-shot, removable) | yes |
+| `sovereign-kanban-import` | *Optional* Deck → SK migration (one-shot, removable) | no (uses md-persistence's classes) |
 
 The two first apps are required. The import app is only needed to migrate
 existing Deck boards.

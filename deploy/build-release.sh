@@ -13,7 +13,7 @@ set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="${1:-/tmp/sovereign-kanban-release.tar.gz}"
-APPS=(sovereign-kanban sovereign-kanban-md-persistence)
+APPS=(sovereign-kanban sovereign-kanban-md-persistence sovereign-kanban-import)
 
 command -v composer >/dev/null || { echo "composer is required on the build machine"; exit 1; }
 
