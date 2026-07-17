@@ -3,6 +3,7 @@
 // test then reuses these cookies instead of logging in again.
 const { chromium } = require('@playwright/test')
 const { loadEnv } = require('./env')
+const { dismissWizard } = require('./support')
 
 module.exports = async function globalSetup() {
 	const env = loadEnv()
@@ -15,6 +16,8 @@ module.exports = async function globalSetup() {
 	await page.click('button[type="submit"]')
 	// Landing anywhere authenticated is fine; the dashboard is the default.
 	await page.waitForURL(/apps\//, { timeout: 20_000 })
+
+	await dismissWizard(page)
 
 	await page.context().storageState({ path: env.STORAGE_STATE })
 	await browser.close()

@@ -12,6 +12,7 @@
 //   label.sk-field «Date de fin» · button «Enregistrer» ·
 //   «Supprimer le tableau» + window.confirm
 const { test, expect } = require('@playwright/test')
+const { dismissWizard } = require('./support')
 
 const BOARD = 'zzz-e2e-nav-due'
 const CARD = 'Réunion échéance navigateur'
@@ -22,6 +23,7 @@ test.describe('échéance — la chaîne complète navigateur→fichier→naviga
 		// window.confirm is used by the vanilla UI for deletions.
 		page.on('dialog', (d) => d.accept())
 		await page.goto('/apps/sovereign-kanban/')
+		await dismissWizard(page)
 		// Defensive: a previous killed run may have left the board behind.
 		const leftover = page.locator('.sk-board-tab', { hasText: BOARD })
 		if (await leftover.count()) {
@@ -67,6 +69,7 @@ test.describe('échéance — la chaîne complète navigateur→fichier→naviga
 
 		// Reload the whole app — what the browser shows must come from the file.
 		await page.reload()
+		await dismissWizard(page)
 		await page.locator('.sk-board-tab', { hasText: BOARD }).first().click()
 		await page.locator('article.sk-card', { hasText: CARD }).click()
 
@@ -102,6 +105,7 @@ test.describe('échéance — la chaîne complète navigateur→fichier→naviga
 		await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
 
 		await page.reload()
+		await dismissWizard(page)
 		await page.locator('.sk-board-tab', { hasText: BOARD }).first().click()
 		await page.locator('article.sk-card', { hasText: CARD }).click()
 
