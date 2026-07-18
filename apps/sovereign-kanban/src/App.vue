@@ -53,6 +53,7 @@
 				:board-id="currentId"
 				:card="openedCard"
 				:read-only="readOnly"
+				:known-tags="knownTags"
 				@saved="onCardSaved"
 				@deleted="onCardDeleted"
 				@close="openedCard = null" />
@@ -108,6 +109,18 @@ export default {
 		readOnly() {
 			const b = this.currentBoard
 			return !!(b && b.shared && !((b.permissions || 0) & 2))
+		},
+
+		// Every distinct tag used across the board's cards, sorted — fed to the
+		// card editor so it can suggest existing tags (Alain, 2026-07-18).
+		knownTags() {
+			const seen = new Set()
+			Object.values(this.cardsByColumn).forEach((cards) => {
+				(cards || []).forEach((card) => {
+					(card.tags || []).forEach((tag) => seen.add(tag))
+				})
+			})
+			return [...seen].sort((a, b) => a.localeCompare(b))
 		},
 	},
 

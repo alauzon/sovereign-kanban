@@ -4,5 +4,8 @@
   "description": "Browser (e2e) tier for Sovereign Kanban — Playwright against Tshinanu",
   "devDependencies": {
     "@playwright/test": "^1.61.0"
+  },
+  "dependencies": {
+    "@axe-core/playwright": "^4.12.1"
   }
 }

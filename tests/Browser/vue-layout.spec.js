@@ -73,18 +73,27 @@ test.describe('layout du board Vue', () => {
 	// the real assertion is: the title's text must begin at or after the toggle's
 	// right edge. padding 24 → text at ~333, toggle ends ~360 → overlap; padding
 	// 52 → text at ~361 → clear.
-	test('le texte du titre ne commence pas sous le bouton de navigation', async ({ page }) => {
-		await openBoard(page)
+	//
+	// Multiple viewports (Alain, 2026-07-18: "le D de Démo est toujours caché, ton
+	// test ne le capture pas"). The single 1280 check missed his 2560 screen — the
+	// toggle overlays the content corner at EVERY width, so the norm must hold at
+	// every width. One check per viewport, each named, so a failure says which.
+	for (const width of [1280, 1920, 2560]) {
+		test(`le texte du titre ne commence pas sous le bouton de navigation (${width}px)`, async ({ page }) => {
+			await page.setViewportSize({ width, height: 800 })
+			await openBoard(page)
 
-		const toggle = page.locator('.app-navigation-toggle-wrapper')
-		await expect(toggle).toBeVisible()
-		const toggleRight = (await toggle.boundingBox()).x + (await toggle.boundingBox()).width
+			const toggle = page.locator('.app-navigation-toggle-wrapper')
+			await expect(toggle).toBeVisible()
+			const box = await toggle.boundingBox()
+			const toggleRight = box.x + box.width
 
-		const textLeft = await page.locator('.sk-vue-board-title').evaluate((el) => {
-			const r = el.getBoundingClientRect()
-			return r.left + parseFloat(getComputedStyle(el).paddingLeft)
+			const textLeft = await page.locator('.sk-vue-board-title').evaluate((el) => {
+				const r = el.getBoundingClientRect()
+				return r.left + parseFloat(getComputedStyle(el).paddingLeft)
+			})
+
+			expect(textLeft).toBeGreaterThanOrEqual(toggleRight)
 		})
-
-		expect(textLeft).toBeGreaterThanOrEqual(toggleRight)
-	})
+	}
 })

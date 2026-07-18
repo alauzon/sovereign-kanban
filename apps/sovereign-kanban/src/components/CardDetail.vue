@@ -16,8 +16,17 @@
   - step. Read-only disables every write control — Steve's bare-403, in Vue.
 -->
 <template>
-	<NcModal size="normal" @close="$emit('close')">
-		<div class="sk-detail-vue">
+	<NcModal :size="expanded ? 'full' : 'normal'" @close="$emit('close')">
+		<div class="sk-detail-vue" :class="{ 'sk-detail-vue--expanded': expanded }">
+			<div class="sk-detail-toolbar">
+				<NcButton
+					type="tertiary"
+					:aria-label="expanded ? t('Réduire l\'éditeur') : t('Agrandir l\'éditeur')"
+					@click="expanded = !expanded">
+					{{ expanded ? t('⤡ Réduire') : t('⤢ Plein écran') }}
+				</NcButton>
+			</div>
+
 			<input
 				v-model="form.title"
 				class="sk-detail-title-input"
@@ -62,7 +71,18 @@
 
 			<label class="sk-field">
 				<span>{{ t('Étiquettes (séparées par des virgules)') }}</span>
-				<input v-model="tagsInput" type="text" :disabled="readOnly">
+				<input v-model="tagsInput" type="text" :disabled="readOnly" list="sk-known-tags">
+				<datalist id="sk-known-tags">
+					<option v-for="tag in knownTags" :key="tag" :value="tag" />
+				</datalist>
+				<div v-if="tagSuggestions.length && !readOnly" class="sk-tag-suggestions">
+					<button
+						v-for="tag in tagSuggestions"
+						:key="tag"
+						type="button"
+						class="sk-tag-suggestion"
+						@click="addTag(tag)">+ {{ tag }}</button>
+				</div>
 			</label>
 
 			<label class="sk-field">
@@ -102,6 +122,8 @@ export default {
 		boardId: { type: String, required: true },
 		card: { type: Object, required: true },
 		readOnly: { type: Boolean, default: false },
+		// Every tag already used on the board, for suggestion (Alain, 2026-07-18).
+		knownTags: { type: Array, default: () => [] },
 	},
 
 	emits: ['saved', 'deleted', 'close'],
@@ -122,12 +144,28 @@ export default {
 			phases: ['1', '2', '3', '4'],
 			saving: false,
 			error: '',
+			expanded: false,
 		}
+	},
+
+	computed: {
+		// Known tags not already typed in the field — the ones worth suggesting.
+		tagSuggestions() {
+			const current = new Set(this.splitList(this.tagsInput).map((t) => t.toLowerCase()))
+			return this.knownTags.filter((tag) => !current.has(String(tag).toLowerCase()))
+		},
 	},
 
 	methods: {
 		t(s) {
 			return s
+		},
+
+		// Append a suggested tag to the comma-separated field.
+		addTag(tag) {
+			const list = this.splitList(this.tagsInput)
+			list.push(tag)
+			this.tagsInput = list.join(', ')
 		},
 
 		// 'Y-m-d' → 'Y-m-dT00:00' (the picker needs a time); a full date-time is
@@ -205,10 +243,64 @@ export default {
 	min-width: 420px;
 }
 
+/* Plein écran (Alain, 2026-07-18): the modal takes the whole viewport, so the
+   form gets the full width for editing long descriptions. */
+.sk-detail-vue--expanded {
+	min-width: 0;
+	height: 100%;
+}
+
+.sk-detail-toolbar {
+	display: flex;
+	justify-content: flex-end;
+}
+
+/* The datetime-local picker draws its calendar indicator at the right edge; if
+   the field keeps its narrow intrinsic width the indicator overlaps the value
+   (Alain, 2026-07-18: last date digit hidden). Full width clears it, and gives
+   the description its full width too. */
+.sk-field > input,
+.sk-field > select,
+.sk-field > textarea {
+	width: 100%;
+	box-sizing: border-box;
+}
+
+/* In plein écran the description grows to fill the freed vertical space. */
+.sk-detail-vue--expanded .sk-field:last-of-type {
+	flex: 1 1 auto;
+}
+
+.sk-detail-vue--expanded .sk-field:last-of-type textarea {
+	height: 100%;
+	min-height: 200px;
+	resize: vertical;
+}
+
 .sk-detail-title-input {
 	font-size: 1.2em;
 	font-weight: 600;
 	width: 100%;
+}
+
+.sk-tag-suggestions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin-top: 4px;
+}
+
+.sk-tag-suggestion {
+	font-size: 85%;
+	background: var(--color-background-dark);
+	border: 1px solid var(--color-border);
+	border-radius: 12px;
+	padding: 1px 10px;
+	cursor: pointer;
+}
+
+.sk-tag-suggestion:hover {
+	background: var(--color-background-hover);
 }
 
 .sk-readonly-banner {
