@@ -10,6 +10,11 @@
 <template>
 	<NcContent app-name="sovereign-kanban">
 		<NcAppNavigation>
+			<NcAppNavigationNew :text="t('Nouveau tableau')" @click="openBoardCreate">
+				<template #icon>
+					<span aria-hidden="true">+</span>
+				</template>
+			</NcAppNavigationNew>
 			<template #list>
 				<NcAppNavigationItem
 					v-for="board in boards"
@@ -22,6 +27,20 @@
 					</template>
 					<template v-if="board.shared" #counter>
 						<span :title="sharedTitle(board)">👥</span>
+					</template>
+					<template v-if="!board.shared" #actions>
+						<NcActionButton :aria-label="t('Éditer le tableau')" @click="openBoardEdit(board)">
+							<template #icon>
+								<span aria-hidden="true">✎</span>
+							</template>
+							{{ t('Éditer') }}
+						</NcActionButton>
+						<NcActionButton :aria-label="t('Supprimer le tableau')" @click="deleteBoard(board)">
+							<template #icon>
+								<span aria-hidden="true">🗑</span>
+							</template>
+							{{ t('Supprimer') }}
+						</NcActionButton>
 					</template>
 				</NcAppNavigationItem>
 			</template>
@@ -57,6 +76,14 @@
 				@saved="onCardSaved"
 				@deleted="onCardDeleted"
 				@close="openedCard = null" />
+
+			<BoardEditModal
+				v-if="boardEditorOpen"
+				:board="boardEditorTarget"
+				@saved="onBoardSaved"
+				@deleted="onBoardDeleted"
+				@refresh="onBoardRefresh"
+				@close="boardEditorOpen = false" />
 		</NcAppContent>
 	</NcContent>
 </template>
@@ -67,11 +94,14 @@ import { generateUrl } from '@nextcloud/router'
 import NcContent from '@nextcloud/vue/components/NcContent'
 import NcAppNavigation from '@nextcloud/vue/components/NcAppNavigation'
 import NcAppNavigationItem from '@nextcloud/vue/components/NcAppNavigationItem'
+import NcAppNavigationNew from '@nextcloud/vue/components/NcAppNavigationNew'
 import NcAppContent from '@nextcloud/vue/components/NcAppContent'
 import NcEmptyContent from '@nextcloud/vue/components/NcEmptyContent'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
+import NcActionButton from '@nextcloud/vue/components/NcActionButton'
 import BoardView from './components/BoardView.vue'
 import CardDetail from './components/CardDetail.vue'
+import BoardEditModal from './components/BoardEditModal.vue'
 
 const BOARDS = '/apps/sovereign-kanban-md-persistence/api/v1/boards'
 
@@ -82,11 +112,14 @@ export default {
 		NcContent,
 		NcAppNavigation,
 		NcAppNavigationItem,
+		NcAppNavigationNew,
 		NcAppContent,
 		NcEmptyContent,
 		NcLoadingIcon,
+		NcActionButton,
 		BoardView,
 		CardDetail,
+		BoardEditModal,
 	},
 
 	data() {
@@ -96,6 +129,8 @@ export default {
 			cardsByColumn: {},
 			openedCard: null,
 			loading: true,
+			boardEditorOpen: false,
+			boardEditorTarget: null,
 		}
 	},
 
@@ -205,6 +240,58 @@ export default {
 
 		async onCardDeleted() {
 			this.openedCard = null
+			await this.loadCards()
+		},
+
+		openBoardCreate() {
+			this.boardEditorTarget = null
+			this.boardEditorOpen = true
+		},
+
+		async openBoardEdit(board) {
+			// Select first, so a live column edit reloads this board's cards.
+			if (board.id !== this.currentId) {
+				await this.select(board.id)
+			}
+			this.boardEditorTarget = this.currentBoard || board
+			this.boardEditorOpen = true
+		},
+
+		// Delete straight from the navigation action menu (with confirmation).
+		async deleteBoard(board) {
+			if (!window.confirm(this.t('Supprimer le tableau « ') + board.name + this.t(' » et son contenu ?'))) {
+				return
+			}
+			await axios.delete(this.url('/boards/' + encodeURIComponent(board.id)))
+			await this.onBoardDeleted()
+		},
+
+		async onBoardSaved(newId) {
+			this.boardEditorOpen = false
+			await this.loadBoards()
+			if (newId) {
+				await this.select(newId)
+			}
+		},
+
+		async onBoardDeleted() {
+			this.boardEditorOpen = false
+			await this.loadBoards()
+			// If the current board was the one removed, fall back to the first.
+			if (!this.boards.some((b) => b.id === this.currentId)) {
+				this.currentId = null
+				if (this.boards.length) {
+					await this.select(this.boards[0].id)
+				} else {
+					this.cardsByColumn = {}
+				}
+			}
+		},
+
+		// A column changed inside the editor: reload the board list (columns) and
+		// the current board's cards without closing the modal.
+		async onBoardRefresh() {
+			await this.loadBoards()
 			await this.loadCards()
 		},
 	},
