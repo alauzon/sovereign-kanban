@@ -98,6 +98,9 @@
 				</NcButton>
 			</section>
 
+			<!-- Sharing: owner only (a board shared *with* me can't be reshared). -->
+			<SharePanel v-if="!isCreate && !board.shared" :board-id="board.id" />
+
 			<p v-if="error" class="sk-boardedit-error">{{ error }}</p>
 
 			<div class="sk-boardedit-actions">
@@ -124,13 +127,14 @@ import axios from '@nextcloud/axios'
 import { generateUrl } from '@nextcloud/router'
 import NcModal from '@nextcloud/vue/components/NcModal'
 import NcButton from '@nextcloud/vue/components/NcButton'
+import SharePanel from './SharePanel.vue'
 
 const BASE = '/apps/sovereign-kanban-md-persistence/api/v1/boards'
 
 export default {
 	name: 'BoardEditModal',
 
-	components: { NcModal, NcButton },
+	components: { NcModal, NcButton, SharePanel },
 
 	props: {
 		// null → create; a board object → edit.
