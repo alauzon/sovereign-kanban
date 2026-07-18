@@ -149,8 +149,10 @@ export default {
 	gap: 16px;
 	padding: 16px 24px;
 	align-items: flex-start;
+	/* Columns that overflow scroll horizontally — they must NOT wrap to the next
+	   line (Alain, 2026-07-18). nowrap + overflow-x:auto gives the scroll bar. */
+	flex-wrap: nowrap;
 	overflow-x: auto;
-	flex-wrap: wrap;
 }
 
 .sk-readonly-banner {

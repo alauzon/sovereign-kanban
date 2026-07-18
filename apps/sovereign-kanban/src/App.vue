@@ -207,7 +207,10 @@ export default {
 }
 
 .sk-vue-board-title {
-	padding: 12px 24px 0;
+	/* Left padding clears the NcAppNavigation toggle button, which overlays the
+	   top-left of the content when the sidebar is collapsible (Alain, 2026-07-18:
+	   the toggle hid the first letter of the title). */
+	padding: 12px 24px 0 52px;
 	margin: 0;
 }
 </style>
