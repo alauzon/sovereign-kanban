@@ -16,6 +16,9 @@
 $useVue = !empty($_['useVue']);
 if ($useVue) {
 	\OCP\Util::addScript('sovereign-kanban', 'sovereign-kanban-main');
+	// The Vue bundle's CSS (its own + @nextcloud/vue) — one stable file
+	// (css/sovereign-kanban-style.css) thanks to cssCodeSplit:false.
+	\OCP\Util::addStyle('sovereign-kanban', 'sovereign-kanban-style');
 } else {
 	\OCP\Util::addScript('sovereign-kanban', 'main');
 }

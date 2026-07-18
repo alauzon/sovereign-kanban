@@ -34,5 +34,20 @@ export default createAppConfig(
 		 * that deletes js/main.js — not before.
 		 */
 		emptyOutputDirectory: false,
+
+		/**
+		 * One CSS file, stable name. The default splits CSS into hashed chunks
+		 * (css/main-<hash>.chunk.css) that the .mjs is supposed to lazy-load — but
+		 * loaded via Util::addScript rather than as a resolved ES module, the
+		 * import never fires, so @nextcloud/vue's styles never arrive and the shell
+		 * renders unstyled (verified 2026-07-18). cssCodeSplit:false emits all CSS
+		 * into css/sovereign-kanban-main.css, a stable name the template attaches
+		 * with Util::addStyle.
+		 */
+		config: {
+			build: {
+				cssCodeSplit: false,
+			},
+		},
 	},
 )
