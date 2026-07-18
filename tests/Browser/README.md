@@ -53,3 +53,9 @@ Caveats:
   leftover board by hand — it is under the test account only.
 - Same safety rule as the functional tier: Tshinanu hosts real community
   members. Tests act only as the test accounts, only on `zzz-e2e-*` boards.
+
+## Specs
+
+- `due-date.spec.js` — the due date keeps its time through the browser (Steve's `00:00` bug). Falsified.
+- `readonly-ui.spec.js` — a read-only board shows it and disables saving (Steve's bare-403). Fixture shares board Test 2 → Test 1 read-only. Falsified (was red before the fix).
+- `characterization.spec.js` — **Kate's gate**. Captures the observable behaviour of the central gestures (D2 create, D7 rename) with SEMANTIC locators, so it survives the Vue rewrite without being rewritten. Green on vanilla, proven able to redden (mutation of the gesture → red). Extend with D4 move and C1 filter, each with its own technique.
