@@ -163,6 +163,34 @@ final class Card {
 	}
 
 	/**
+	 * Whether a date-input string is a real calendar date the app may store.
+	 *
+	 * The write path (CardController) MUST call this before normalizeDate:
+	 * normalizeDate is tolerant by design (it must read back files that already
+	 * hold a bad date, to let them be seen and fixed), so it cannot be the guard.
+	 * Found 2026-07-18: Chrome's datetime-local accepts a 6-digit year on manual
+	 * entry ("202607-07-19"), and the tolerant normalize stored it verbatim.
+	 * Normalizing is not validating — same lesson as the D5 assignee hole.
+	 *
+	 * Empty is valid (it clears the date). Otherwise the string must be a real
+	 * 'Y-m-d' or 'Y-m-d\TH:i' — four-digit year, a date that exists on the
+	 * calendar, and an in-range time.
+	 */
+	public static function isValidDateInput(?string $raw): bool {
+		if ($raw === null || $raw === '') {
+			return true;
+		}
+		if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?$/', trim($raw), $m)) {
+			return false;
+		}
+		if (!checkdate((int) $m[2], (int) $m[3], (int) $m[1])) {
+			return false;
+		}
+
+		return !isset($m[4]) || ((int) $m[4] <= 23 && (int) $m[5] <= 59);
+	}
+
+	/**
 	 * Parse a created_at value that YAML may give us as an ISO string or,
 	 * for timestamps, as a Unix epoch integer.
 	 */

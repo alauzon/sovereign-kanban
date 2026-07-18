@@ -449,6 +449,19 @@
 /* '👥' marker on a board shared with the current user. */
 .sk-shared-badge { margin-left: 6px; font-size: 12px; }
 
+/* Read-only banner: a board shared to us without write permission. Uses NC's
+   warning colour so it reads as "heads up", not "error". */
+.sk-readonly-banner {
+	flex: 0 0 100%;
+	margin: 0 0 12px 0;
+	padding: 8px 14px;
+	border-radius: var(--border-radius, 8px);
+	background: var(--color-warning, #e9a13b);
+	color: var(--color-primary-element-text, #fff);
+	font-size: 14px;
+	font-weight: 500;
+}
+
 /* ---- Compact chrome — narrow OR short viewports ----
    The chrome (title, subtitle, toolbar, filter bar) stacks ABOVE the board, so
    on a small viewport it ate ~¾ of the height before a single card showed.

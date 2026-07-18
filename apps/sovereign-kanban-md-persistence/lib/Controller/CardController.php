@@ -156,6 +156,15 @@ final class CardController extends Controller {
 			return new DataResponse(['error' => 'card_not_found'], 404);
 		}
 
+		// Reject a malformed date before it reaches the file. normalizeDate is
+		// tolerant (it must read back already-corrupt cards); the strict guard
+		// belongs here, on the write path. Found 2026-07-18: Chrome accepted a
+		// 6-digit year and the tolerant normalize stored '202607-07-19' verbatim.
+		if (($due_date !== null && !Card::isValidDateInput($due_date))
+			|| ($start_date !== null && !Card::isValidDateInput($start_date))) {
+			return new DataResponse(['error' => 'invalid_date'], 400);
+		}
+
 		// due_date: null = leave unchanged, '' = clear, else set.
 		// Normalized by Card::normalizeDate and NOWHERE else. This line used to
 		// substr($due_date, 0, 10) on its own, which silently dropped the time

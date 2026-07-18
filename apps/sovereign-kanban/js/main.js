@@ -70,6 +70,15 @@
 		return boards.find(function (b) { return b.id === currentId; }) || null;
 	}
 
+	// A shared board without the UPDATE permission (bit 2) is read-only for us.
+	// The server refuses writes on it (403); the UI must say so up front instead
+	// of letting the user hit a bare "Erreur 403" — that reads as data loss, not
+	// as a permission. Own boards and collaborate shares return false.
+	function boardIsReadOnly() {
+		const b = currentBoard();
+		return !!(b && b.shared && !((b.permissions || 0) & 2));
+	}
+
 	/* ---- Tag palette, filters & sort ---- */
 
 	// Phase is a small fixed set (the 4 implementation phases).
@@ -162,6 +171,11 @@
 	function renderColumns(board) {
 		const boardEl = document.getElementById('sk-board');
 		boardEl.innerHTML = '';
+		if (boardIsReadOnly()) {
+			const banner = el('div', 'sk-readonly-banner',
+				'👁 Lecture seule — ce tableau vous est partagé sans droit de modification.');
+			boardEl.appendChild(banner);
+		}
 		const pmap = paletteMap();
 		(board.columns || []).forEach(function (name) {
 			const allCards = cardsByColumn[name] || [];
@@ -247,16 +261,21 @@
 			});
 			col.appendChild(cardsEl);
 
-			const add = el('button', 'sk-add-card', '+ Carte');
-			add.addEventListener('click', function () { showAddCard(col, name); });
-			col.appendChild(add);
+			// No write actions on a read-only board — they would only 403.
+			if (!boardIsReadOnly()) {
+				const add = el('button', 'sk-add-card', '+ Carte');
+				add.addEventListener('click', function () { showAddCard(col, name); });
+				col.appendChild(add);
+			}
 
 			boardEl.appendChild(col);
 		});
 
-		const addColumn = el('button', 'sk-add-column', '+ Colonne');
-		addColumn.addEventListener('click', addColumnPrompt);
-		boardEl.appendChild(addColumn);
+		if (!boardIsReadOnly()) {
+			const addColumn = el('button', 'sk-add-column', '+ Colonne');
+			addColumn.addEventListener('click', addColumnPrompt);
+			boardEl.appendChild(addColumn);
+		}
 	}
 
 	function columnsUrl() { return boardUrl(currentId) + '/columns'; }
@@ -671,6 +690,13 @@
 		}
 
 		const save = el('button', 'sk-btn sk-btn-primary', 'Enregistrer');
+		const readOnly = boardIsReadOnly();
+		if (readOnly) {
+			// The board is shared to us read-only: the server would 403 a save.
+			// Disable it up front rather than let the click fail with a bare 403.
+			save.disabled = true;
+			save.title = 'Lecture seule — vous ne pouvez pas modifier ce tableau.';
+		}
 		save.addEventListener('click', async function () {
 			save.disabled = true;
 			if (await saveCard()) {
@@ -689,6 +715,10 @@
 		comments.appendChild(list);
 
 		const del = el('button', 'sk-btn sk-btn-danger', 'Supprimer');
+		if (readOnly) {
+			del.disabled = true;
+			del.title = 'Lecture seule — vous ne pouvez pas supprimer cette carte.';
+		}
 		del.addEventListener('click', async function () {
 			if (!window.confirm('Supprimer cette carte ?')) { return; }
 			del.disabled = true;
