@@ -85,10 +85,33 @@
 				</div>
 			</label>
 
-			<label class="sk-field">
-				<span>{{ t('Description') }}</span>
-				<textarea v-model="form.description" rows="6" :readonly="readOnly" />
-			</label>
+			<div class="sk-field sk-desc-field">
+				<div class="sk-desc-head">
+					<span>{{ t('Description') }}</span>
+					<NcActions v-if="!readOnly" :aria-label="t('Insérer une procédure')" :title="t('Insérer une procédure')">
+						<template #icon>
+							<span aria-hidden="true">＋</span>
+						</template>
+						<NcActionButton
+							v-for="proc in procedures"
+							:key="proc.name"
+							@click="insertProcedure(proc)">
+							{{ proc.name }}
+						</NcActionButton>
+						<NcActionCaption v-if="!procedures.length" :name="t('Aucune procédure')" />
+					</NcActions>
+				</div>
+				<!-- Rich Text editor mounts here when available; textarea is the
+				     fallback (and the read-only view). -->
+				<div v-show="editorMounted" ref="editorEl" class="sk-desc-editor" />
+				<textarea
+					v-show="!editorMounted"
+					v-model="form.description"
+					class="sk-desc-fallback"
+					rows="6"
+					:readonly="readOnly"
+					:placeholder="t('Description (Markdown)…')" />
+			</div>
 
 			<p v-if="error" class="sk-detail-error">{{ error }}</p>
 
@@ -112,11 +135,17 @@ import axios from '@nextcloud/axios'
 import { generateUrl } from '@nextcloud/router'
 import NcModal from '@nextcloud/vue/components/NcModal'
 import NcButton from '@nextcloud/vue/components/NcButton'
+import NcActions from '@nextcloud/vue/components/NcActions'
+import NcActionButton from '@nextcloud/vue/components/NcActionButton'
+import NcActionCaption from '@nextcloud/vue/components/NcActionCaption'
+import { loadTextEditor } from '../text-editor.js'
+
+const PROCEDURES = '/apps/sovereign-kanban-md-persistence/api/v1/procedures'
 
 export default {
 	name: 'CardDetail',
 
-	components: { NcModal, NcButton },
+	components: { NcModal, NcButton, NcActions, NcActionButton, NcActionCaption },
 
 	props: {
 		boardId: { type: String, required: true },
@@ -145,6 +174,9 @@ export default {
 			saving: false,
 			error: '',
 			expanded: false,
+			procedures: [],
+			editorMounted: false,
+			editorInstance: null,
 		}
 	},
 
@@ -156,9 +188,79 @@ export default {
 		},
 	},
 
+	mounted() {
+		this.loadProcedures()
+		// Mount the rich editor once the DOM (and $refs.editorEl) exist.
+		this.$nextTick(() => this.mountEditor(this.form.description))
+	},
+
+	beforeUnmount() {
+		this.destroyEditor()
+	},
+
 	methods: {
 		t(s) {
 			return s
+		},
+
+		async loadProcedures() {
+			try {
+				const res = await axios.get(generateUrl(PROCEDURES))
+				this.procedures = res.data.procedures || []
+			} catch (e) {
+				this.procedures = []
+			}
+		},
+
+		// Mount (or remount) Nextcloud's Text editor on the description. Read-only
+		// keeps the plain textarea; a missing Text module falls back to it too.
+		async mountEditor(content) {
+			if (this.readOnly) {
+				return
+			}
+			const createEditor = await loadTextEditor()
+			if (!createEditor || !this.$refs.editorEl) {
+				this.editorMounted = false
+				return
+			}
+			await this.destroyEditor()
+			try {
+				const inst = await createEditor({
+					el: this.$refs.editorEl,
+					content,
+					useSession: false,
+					autofocus: false,
+					onUpdate: (data) => {
+						this.form.description = data.markdown
+					},
+				})
+				this.editorInstance = inst
+				this.editorMounted = true
+			} catch (e) {
+				this.editorMounted = false
+			}
+		},
+
+		async destroyEditor() {
+			if (this.editorInstance && typeof this.editorInstance.destroy === 'function') {
+				try {
+					await this.editorInstance.destroy()
+				} catch (e) {
+					// ignore
+				}
+			}
+			this.editorInstance = null
+			if (this.$refs.editorEl) {
+				this.$refs.editorEl.innerHTML = ''
+			}
+		},
+
+		// Append a procedure snippet to the body, then remount so the rich editor
+		// shows it (mirrors the vanilla "+ Procédure" behaviour).
+		insertProcedure(proc) {
+			const base = this.form.description ? this.form.description.replace(/\s+$/, '') + '\n\n' : ''
+			this.form.description = base + proc.body
+			this.mountEditor(this.form.description)
 		},
 
 		// Append a suggested tag to the comma-separated field.
@@ -267,14 +369,52 @@ export default {
 }
 
 /* In plein écran the description grows to fill the freed vertical space. */
-.sk-detail-vue--expanded .sk-field:last-of-type {
+.sk-detail-vue--expanded .sk-desc-field {
 	flex: 1 1 auto;
+	min-height: 0;
 }
 
-.sk-detail-vue--expanded .sk-field:last-of-type textarea {
+.sk-detail-vue--expanded .sk-desc-fallback {
 	height: 100%;
 	min-height: 200px;
 	resize: vertical;
+}
+
+.sk-detail-vue--expanded .sk-desc-editor {
+	max-height: none;
+	flex: 1 1 auto;
+}
+
+.sk-desc-field {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.sk-desc-head {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.sk-desc-head > span {
+	color: var(--color-text-maxcontrast);
+	font-size: 90%;
+}
+
+.sk-desc-editor {
+	border: 1px solid var(--color-border);
+	border-radius: var(--border-radius, 8px);
+	min-height: 160px;
+	max-height: 40vh;
+	overflow-y: auto;
+	padding: 4px 8px;
+}
+
+.sk-desc-fallback {
+	width: 100%;
+	box-sizing: border-box;
+	min-height: 140px;
 }
 
 .sk-detail-title-input {

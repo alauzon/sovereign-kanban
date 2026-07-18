@@ -73,8 +73,11 @@ test.describe('layout de l\'éditeur de carte (Vue)', () => {
 
 	test('la description prend la pleine largeur', async ({ page }) => {
 		await openCardModal(page)
-		const ta = page.locator('.sk-field', { hasText: 'Description' }).locator('textarea')
-		const taW = (await ta.boundingBox()).width
-		expect(taW).toBeGreaterThanOrEqual((await contentWidth(page)) * 0.9)
+		// The description is the rich Text editor when it mounts, else the textarea
+		// fallback — measure whichever is visible.
+		const editor = page.locator('.sk-desc-editor')
+		const field = (await editor.isVisible()) ? editor : page.locator('.sk-desc-fallback')
+		const w = (await field.boundingBox()).width
+		expect(w).toBeGreaterThanOrEqual((await contentWidth(page)) * 0.9)
 	})
 })
