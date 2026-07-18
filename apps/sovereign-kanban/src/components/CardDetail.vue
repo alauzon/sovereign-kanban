@@ -126,6 +126,11 @@
 					{{ t('Enregistrer') }}
 				</NcButton>
 			</div>
+
+			<CommentsSection
+				:board-id="boardId"
+				:card-id="card.id"
+				:read-only="readOnly" />
 		</div>
 	</NcModal>
 </template>
@@ -139,13 +144,14 @@ import NcActions from '@nextcloud/vue/components/NcActions'
 import NcActionButton from '@nextcloud/vue/components/NcActionButton'
 import NcActionCaption from '@nextcloud/vue/components/NcActionCaption'
 import { loadTextEditor } from '../text-editor.js'
+import CommentsSection from './CommentsSection.vue'
 
 const PROCEDURES = '/apps/sovereign-kanban-md-persistence/api/v1/procedures'
 
 export default {
 	name: 'CardDetail',
 
-	components: { NcModal, NcButton, NcActions, NcActionButton, NcActionCaption },
+	components: { NcModal, NcButton, NcActions, NcActionButton, NcActionCaption, CommentsSection },
 
 	props: {
 		boardId: { type: String, required: true },

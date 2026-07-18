@@ -1,0 +1,273 @@
+<!--
+  - @copyright 2026 Alain Lauzon
+  - @license AGPL-3.0-or-later
+  -
+  - Card comments in Vue — migration of the vanilla loadComments/renderAddComment.
+  - List newest-first (author, date, server-sanitized HTML body), add via the
+  - rich Text editor (textarea fallback), delete. Backed by GET/POST/DELETE
+  - /boards/{id}/cards/{cardId}/comments. Read-only hides the write actions.
+  -
+  - Inline editing (click a body to edit, PUT) is a later step; add/list/delete
+  - is the core.
+-->
+<template>
+	<section class="sk-comments">
+		<h4 class="sk-comments-title">{{ t('Commentaires') }}</h4>
+
+		<div v-if="!readOnly" class="sk-comment-add">
+			<div
+				v-if="!adding"
+				class="sk-comment-addph"
+				role="button"
+				tabindex="0"
+				@click="startAdd"
+				@keyup.enter="startAdd">
+				{{ t('Ajouter un commentaire…') }}
+			</div>
+			<div v-else class="sk-comment-editwrap">
+				<div v-show="editorMounted" ref="editorEl" class="sk-comment-editor" />
+				<textarea
+					v-show="!editorMounted"
+					v-model="draft"
+					class="sk-comment-input"
+					rows="3"
+					:placeholder="t('Commentaire (Markdown)…')" />
+				<div class="sk-comment-editactions">
+					<NcButton type="primary" :disabled="posting" @click="submit">
+						{{ t('Commenter') }}
+					</NcButton>
+					<NcButton :disabled="posting" @click="cancelAdd">
+						{{ t('Annuler') }}
+					</NcButton>
+				</div>
+			</div>
+		</div>
+
+		<p v-if="!comments.length" class="sk-loading">{{ t('Aucun commentaire.') }}</p>
+		<div v-for="c in comments" :key="c.id" class="sk-comment">
+			<div class="sk-comment-meta">
+				<span>{{ c.author }} — {{ formatDate(c.created_at) }}</span>
+				<button
+					v-if="!readOnly"
+					class="sk-comment-del"
+					:title="t('Supprimer ce commentaire')"
+					@click="remove(c)">
+					✕
+				</button>
+			</div>
+			<!-- Body HTML is sanitized server-side (same as the vanilla app). -->
+			<!-- eslint-disable-next-line vue/no-v-html -->
+			<div v-if="c.body_html" class="sk-comment-body sk-rich" v-html="c.body_html" />
+			<div v-else class="sk-comment-body">{{ c.body }}</div>
+		</div>
+	</section>
+</template>
+
+<script>
+import axios from '@nextcloud/axios'
+import { generateUrl } from '@nextcloud/router'
+import NcButton from '@nextcloud/vue/components/NcButton'
+import { loadTextEditor } from '../text-editor.js'
+
+export default {
+	name: 'CommentsSection',
+
+	components: { NcButton },
+
+	props: {
+		boardId: { type: String, required: true },
+		cardId: { type: String, required: true },
+		readOnly: { type: Boolean, default: false },
+	},
+
+	data() {
+		return {
+			comments: [],
+			adding: false,
+			draft: '',
+			posting: false,
+			editorMounted: false,
+			editorInstance: null,
+		}
+	},
+
+	mounted() {
+		this.load()
+	},
+
+	beforeUnmount() {
+		this.destroyEditor()
+	},
+
+	methods: {
+		t(s) {
+			return s
+		},
+
+		formatDate(iso) {
+			try {
+				return new Date(iso).toLocaleString('fr-CA')
+			} catch (e) {
+				return iso
+			}
+		},
+
+		commentsUrl() {
+			return generateUrl(
+				'/apps/sovereign-kanban-md-persistence/api/v1/boards/'
+				+ encodeURIComponent(this.boardId) + '/cards/' + encodeURIComponent(this.cardId) + '/comments',
+			)
+		},
+
+		async load() {
+			try {
+				const res = await axios.get(this.commentsUrl())
+				// Newest first.
+				this.comments = (res.data.comments || []).slice().reverse()
+			} catch (e) {
+				this.comments = []
+			}
+		},
+
+		async startAdd() {
+			this.adding = true
+			this.draft = ''
+			await this.$nextTick()
+			const createEditor = await loadTextEditor()
+			if (!createEditor || !this.$refs.editorEl) {
+				this.editorMounted = false
+				return
+			}
+			try {
+				const inst = await createEditor({
+					el: this.$refs.editorEl,
+					content: '',
+					useSession: false,
+					autofocus: true,
+					onUpdate: (data) => {
+						this.draft = data.markdown
+					},
+				})
+				this.editorInstance = inst
+				this.editorMounted = true
+			} catch (e) {
+				this.editorMounted = false
+			}
+		},
+
+		async cancelAdd() {
+			await this.destroyEditor()
+			this.adding = false
+			this.draft = ''
+		},
+
+		async destroyEditor() {
+			if (this.editorInstance && typeof this.editorInstance.destroy === 'function') {
+				try {
+					await this.editorInstance.destroy()
+				} catch (e) {
+					// ignore
+				}
+			}
+			this.editorInstance = null
+			this.editorMounted = false
+		},
+
+		async submit() {
+			const body = (this.draft || '').trim()
+			if (!body) {
+				return
+			}
+			this.posting = true
+			try {
+				await axios.post(this.commentsUrl(), { body })
+				await this.cancelAdd()
+				await this.load()
+			} catch (e) {
+				// leave the draft so the author can retry
+			} finally {
+				this.posting = false
+			}
+		},
+
+		async remove(comment) {
+			if (!window.confirm(this.t('Supprimer ce commentaire ?'))) {
+				return
+			}
+			try {
+				await axios.delete(this.commentsUrl() + '/' + encodeURIComponent(comment.id))
+				await this.load()
+			} catch (e) {
+				// ignore; a failed delete leaves the comment in place
+			}
+		},
+	},
+}
+</script>
+
+<style scoped>
+.sk-comments {
+	margin-top: 12px;
+	border-top: 1px solid var(--color-border);
+	padding-top: 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.sk-comments-title {
+	margin: 0;
+}
+
+.sk-comment-addph {
+	color: var(--color-text-maxcontrast);
+	border: 1px solid var(--color-border);
+	border-radius: var(--border-radius, 8px);
+	padding: 6px 10px;
+	cursor: text;
+}
+
+.sk-comment-editor {
+	border: 1px solid var(--color-border);
+	border-radius: var(--border-radius, 8px);
+	min-height: 80px;
+	padding: 4px 8px;
+}
+
+.sk-comment-input {
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.sk-comment-editactions {
+	display: flex;
+	gap: 8px;
+	margin-top: 6px;
+}
+
+.sk-comment {
+	border: 1px solid var(--color-border);
+	border-radius: var(--border-radius, 8px);
+	padding: 8px 10px;
+}
+
+.sk-comment-meta {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	color: var(--color-text-maxcontrast);
+	font-size: 90%;
+	margin-bottom: 4px;
+}
+
+.sk-comment-del {
+	background: none;
+	border: none;
+	cursor: pointer;
+	color: var(--color-error);
+}
+
+.sk-comment-body {
+	overflow-wrap: anywhere;
+}
+</style>
