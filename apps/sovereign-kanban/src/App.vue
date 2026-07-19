@@ -57,10 +57,29 @@
 				:name="t('Sovereign Kanban')"
 				:description="t('Choisissez un tableau dans la navigation.')" />
 			<template v-else>
-				<h2 class="sk-vue-board-title">{{ currentBoard.name }}</h2>
+				<div class="sk-vue-board-header">
+					<h2 class="sk-vue-board-title">{{ currentBoard.name }}</h2>
+					<div class="sk-vue-toolbar">
+						<NcButton
+							type="tertiary"
+							:class="{ 'sk-toolbtn--on': filtersOpen || activeFilterCount }"
+							:aria-label="t('Filtres')"
+							:title="t('Filtres')"
+							@click="filtersOpen = !filtersOpen">
+							<span aria-hidden="true">⧩</span> {{ t('Filtres') }}{{ activeFilterCount ? ' (' + activeFilterCount + ')' : '' }}
+						</NcButton>
+					</div>
+				</div>
+				<FilterBar
+					v-if="filtersOpen"
+					:dimensions="filterDimensions"
+					:selected="filters"
+					@toggle="toggleFilter"
+					@reset="resetFilters"
+					@close="filtersOpen = false" />
 				<BoardView
 					:board="currentBoard"
-					:cards-by-column="cardsByColumn"
+					:cards-by-column="filteredCardsByColumn"
 					:read-only="readOnly"
 					:templates="templates"
 					@open="openCard"
@@ -102,9 +121,11 @@ import NcAppContent from '@nextcloud/vue/components/NcAppContent'
 import NcEmptyContent from '@nextcloud/vue/components/NcEmptyContent'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import NcActionButton from '@nextcloud/vue/components/NcActionButton'
+import NcButton from '@nextcloud/vue/components/NcButton'
 import BoardView from './components/BoardView.vue'
 import CardDetail from './components/CardDetail.vue'
 import BoardEditModal from './components/BoardEditModal.vue'
+import FilterBar from './components/FilterBar.vue'
 
 const BOARDS = '/apps/sovereign-kanban-md-persistence/api/v1/boards'
 
@@ -120,9 +141,11 @@ export default {
 		NcEmptyContent,
 		NcLoadingIcon,
 		NcActionButton,
+		NcButton,
 		BoardView,
 		CardDetail,
 		BoardEditModal,
+		FilterBar,
 	},
 
 	data() {
@@ -135,6 +158,8 @@ export default {
 			boardEditorOpen: false,
 			boardEditorTarget: null,
 			templates: [],
+			filtersOpen: false,
+			filters: { tags: [], assignees: [], phases: [], priorities: [] },
 		}
 	},
 
@@ -160,6 +185,43 @@ export default {
 				})
 			})
 			return [...seen].sort((a, b) => a.localeCompare(b))
+		},
+
+		allCards() {
+			return Object.values(this.cardsByColumn).flat()
+		},
+
+		// Filter dimensions with the values actually present on the board.
+		filterDimensions() {
+			const cards = this.allCards
+			const uniq = (arr) => [...new Set(arr)]
+			const tags = uniq(cards.flatMap((c) => c.tags || [])).sort((a, b) => a.localeCompare(b))
+			const assignees = uniq(cards.flatMap((c) => c.assignees || [])).sort((a, b) => a.localeCompare(b))
+			const phases = uniq(cards.map((c) => c.phase).filter((p) => p != null).map(String)).sort()
+			const priorities = uniq(cards.map((c) => c.priority).filter((p) => p != null && p !== '').map(String)).sort()
+			return [
+				{ key: 'tags', label: this.t('Étiquettes'), options: tags.map((v) => ({ value: v, label: v, style: this.filterTagStyle(v) })) },
+				{ key: 'assignees', label: this.t('Assignés'), options: assignees.map((v) => ({ value: v, label: v })) },
+				{ key: 'phases', label: this.t('Phase'), options: phases.map((v) => ({ value: v, label: this.t('Phase') + ' ' + v })) },
+				{ key: 'priorities', label: this.t('Priorité'), options: priorities.map((v) => ({ value: v, label: '❗ ' + v })) },
+			]
+		},
+
+		activeFilterCount() {
+			return Object.values(this.filters).reduce((n, arr) => n + (arr ? arr.length : 0), 0)
+		},
+
+		// OR within a dimension, AND between dimensions.
+		filteredCardsByColumn() {
+			if (!this.activeFilterCount) {
+				return this.cardsByColumn
+			}
+			const f = this.filters
+			const out = {}
+			for (const [col, cards] of Object.entries(this.cardsByColumn)) {
+				out[col] = (cards || []).filter((card) => this.matchesFilters(card, f))
+			}
+			return out
 		},
 	},
 
@@ -199,6 +261,7 @@ export default {
 		async select(id) {
 			this.currentId = id
 			this.openedCard = null
+			this.loadFilters()
 			await this.loadCards()
 		},
 
@@ -355,6 +418,73 @@ export default {
 			await this.loadBoards()
 			await this.loadCards()
 		},
+
+		// --- Filters (OR within a dimension, AND between dimensions) ---
+
+		matchesFilters(card, f) {
+			if (f.tags.length && !f.tags.some((t) => (card.tags || []).includes(t))) {
+				return false
+			}
+			if (f.assignees.length && !f.assignees.some((a) => (card.assignees || []).includes(a))) {
+				return false
+			}
+			if (f.phases.length && !f.phases.includes(String(card.phase))) {
+				return false
+			}
+			if (f.priorities.length && !f.priorities.includes(String(card.priority))) {
+				return false
+			}
+			return true
+		},
+
+		filterTagStyle(name) {
+			const board = this.currentBoard
+			const found = board && (board.tags || []).find((t) => t.name === name)
+			if (found && found.color) {
+				return { background: found.color, color: '#fff', borderColor: found.color }
+			}
+			return {}
+		},
+
+		toggleFilter(key, value) {
+			const arr = this.filters[key] || []
+			const i = arr.indexOf(value)
+			if (i === -1) {
+				arr.push(value)
+			} else {
+				arr.splice(i, 1)
+			}
+			this.filters = { ...this.filters, [key]: arr }
+			this.saveFilters()
+		},
+
+		resetFilters() {
+			this.filters = { tags: [], assignees: [], phases: [], priorities: [] }
+			this.saveFilters()
+		},
+
+		filtersKey() {
+			return 'sk-filters-' + this.currentId
+		},
+
+		// Filters persist per board across navigation (Alain, 2026-07-18).
+		loadFilters() {
+			const empty = { tags: [], assignees: [], phases: [], priorities: [] }
+			try {
+				const raw = window.localStorage.getItem(this.filtersKey())
+				this.filters = raw ? { ...empty, ...JSON.parse(raw) } : empty
+			} catch (e) {
+				this.filters = empty
+			}
+		},
+
+		saveFilters() {
+			try {
+				window.localStorage.setItem(this.filtersKey(), JSON.stringify(this.filters))
+			} catch (e) {
+				// storage unavailable — filters just won't persist
+			}
+		},
 	},
 }
 </script>
@@ -381,5 +511,16 @@ export default {
 	   the toggle hid the first letter of the title). */
 	padding: 12px 24px 0 52px;
 	margin: 0;
+}
+
+.sk-vue-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding-top: 8px;
+}
+
+.sk-toolbtn--on {
+	background: var(--color-primary-element-light, var(--color-background-dark));
 }
 </style>
