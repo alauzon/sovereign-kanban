@@ -405,6 +405,20 @@ final class FileCardRepository {
 	}
 
 	/**
+	 * The name of the card's first image attachment, for a tile cover (Alain,
+	 * 2026-07-19), or null when there is none. Folder-as-truth: the cover is simply
+	 * the first image found in attachments/, nothing stored.
+	 */
+	public function firstImageAttachment(string $cardId): ?string {
+		foreach ($this->listAttachments($cardId) as $att) {
+			if (preg_match('/\.(jpe?g|png|gif|webp|bmp|svg)$/i', $att['name'])) {
+				return $att['name'];
+			}
+		}
+		return null;
+	}
+
+	/**
 	 * The card's attachments/ folder path, or null if the card is gone.
 	 */
 	private function attachmentsDir(string $cardId): ?string {

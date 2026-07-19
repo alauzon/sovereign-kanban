@@ -11,7 +11,7 @@
   - !(permissions & 2)), the same bug Steve hit on 2026-07-18.
 -->
 <template>
-	<div class="sk-vue-columns">
+	<div class="sk-vue-columns" :class="{ 'sk-vue-columns--compact': compact }">
 		<div v-if="readOnly" class="sk-readonly-banner">
 			👁 {{ t('Lecture seule — ce tableau vous est partagé sans droit de modification.') }}
 		</div>
@@ -74,6 +74,12 @@
 						⋯
 					</button>
 				</div>
+				<img
+					v-if="showCovers && card.cover"
+					class="sk-vue-card-cover"
+					:src="coverUrl(card)"
+					alt=""
+					loading="lazy">
 				<div class="sk-vue-card-title">
 					<input
 						v-if="renamingCard === card.id"
@@ -227,6 +233,7 @@ import NcButton from '@nextcloud/vue/components/NcButton'
 import NcActions from '@nextcloud/vue/components/NcActions'
 import NcActionButton from '@nextcloud/vue/components/NcActionButton'
 import NcAvatar from '@nextcloud/vue/components/NcAvatar'
+import { generateUrl } from '@nextcloud/router'
 import { prioLabel } from '../priority.js'
 
 export default {
@@ -239,6 +246,8 @@ export default {
 		cardsByColumn: { type: Object, default: () => ({}) },
 		readOnly: { type: Boolean, default: false },
 		templates: { type: Array, default: () => [] },
+		compact: { type: Boolean, default: false },
+		showCovers: { type: Boolean, default: false },
 	},
 
 	emits: ['open', 'add-card', 'move-card', 'add-from-template', 'add-column', 'rename-column', 'remove-column', 'reorder-column', 'toggle-done', 'delete-card', 'mark-column-done', 'rename-card', 'set-card-color', 'archive-card', 'archive-column'],
@@ -273,6 +282,17 @@ export default {
 	methods: {
 		t(s) {
 			return s
+		},
+
+		// URL of a card's cover image (its first image attachment). Same session
+		// cookie authorises it, so a plain <img src> works.
+		coverUrl(card) {
+			const boardId = (this.board && this.board.id) || ''
+			return generateUrl(
+				'/apps/sovereign-kanban-md-persistence/api/v1/boards/'
+				+ encodeURIComponent(boardId) + '/cards/' + encodeURIComponent(card.id)
+				+ '/attachments/' + encodeURIComponent(card.cover),
+			)
 		},
 
 		startRenameColumn(column) {
@@ -689,6 +709,34 @@ export default {
 	padding: 8px 10px;
 	margin-bottom: 8px;
 	cursor: pointer;
+	overflow: hidden;
+}
+
+/* Cover image (first image attachment), shown when « Images de couverture » is on.
+   Full-bleed at the top of the tile. */
+.sk-vue-card-cover {
+	display: block;
+	width: calc(100% + 20px);
+	margin: -8px -10px 8px;
+	max-height: 140px;
+	object-fit: cover;
+}
+
+/* Compact display (Alain, 2026-07-19): denser tiles — drop the excerpt, tighten
+   spacing, cap the cover shorter. */
+.sk-vue-columns--compact .sk-vue-card {
+	padding: 5px 8px;
+	margin-bottom: 5px;
+}
+
+.sk-vue-columns--compact .sk-vue-card-excerpt {
+	display: none;
+}
+
+.sk-vue-columns--compact .sk-vue-card-cover {
+	max-height: 72px;
+	margin: -5px -8px 5px;
+	width: calc(100% + 16px);
 }
 
 /* The ⋯ menu anchor stays visible at rest (Alain, 2026-07-19), a touch muted,

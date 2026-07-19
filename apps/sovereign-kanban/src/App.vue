@@ -121,6 +121,26 @@
 							@click="showArchived = !showArchived">
 							<span aria-hidden="true">📦</span> {{ t('Archivées') }}
 						</NcButton>
+						<div class="sk-present-wrap">
+							<NcButton
+								type="tertiary"
+								:class="{ 'sk-toolbtn--on': presentOpen || compact || showCovers }"
+								:aria-label="t('Présentation')"
+								:title="t('Options de présentation')"
+								@click="presentOpen = !presentOpen">
+								<span aria-hidden="true">🖼</span> {{ t('Présentation') }}
+							</NcButton>
+							<div v-if="presentOpen" class="sk-present-menu">
+								<label class="sk-present-opt">
+									<input type="checkbox" :checked="compact" @change="setPresent('compact', $event.target.checked)">
+									{{ t('Affichage compact') }}
+								</label>
+								<label class="sk-present-opt">
+									<input type="checkbox" :checked="showCovers" @change="setPresent('showCovers', $event.target.checked)">
+									{{ t('Images de couverture') }}
+								</label>
+							</div>
+						</div>
 					</div>
 				</div>
 				<FilterBar
@@ -135,6 +155,8 @@
 					:cards-by-column="filteredCardsByColumn"
 					:read-only="readOnly"
 					:templates="templates"
+					:compact="compact"
+					:show-covers="showCovers"
 					@open="openCard"
 					@add-card="addCard"
 					@move-card="moveCard"
@@ -231,6 +253,9 @@ export default {
 			filtersOpen: false,
 			showArchived: false,
 			archivedOpen: false,
+			presentOpen: false,
+			compact: false,
+			showCovers: false,
 			filters: { tags: [], assignees: [], phases: [], priorities: [], status: [] },
 		}
 	},
@@ -318,6 +343,7 @@ export default {
 	},
 
 	async mounted() {
+		this.loadPresent()
 		await this.loadBoards()
 		this.loadTemplates()
 	},
@@ -592,6 +618,30 @@ export default {
 			}
 		},
 
+		// Presentation prefs (compact / cover images) persist across sessions,
+		// globally (a display taste, not board data). Alain, 2026-07-19.
+		loadPresent() {
+			try {
+				const raw = window.localStorage.getItem('sk-present')
+				if (raw) {
+					const p = JSON.parse(raw)
+					this.compact = !!p.compact
+					this.showCovers = !!p.showCovers
+				}
+			} catch (e) {
+				// ignore a corrupt value
+			}
+		},
+
+		setPresent(key, value) {
+			this[key] = value
+			try {
+				window.localStorage.setItem('sk-present', JSON.stringify({ compact: this.compact, showCovers: this.showCovers }))
+			} catch (e) {
+				// storage disabled — the toggle still works for this session
+			}
+		},
+
 		// Create a card from a template in a specific column (the button lives in
 		// each column footer — Alain, 2026-07-18: clearer than a single top-right
 		// menu, and it makes the target column explicit). Carries the template's
@@ -835,5 +885,39 @@ export default {
 
 .sk-toolbtn--on {
 	background: var(--color-primary-element-light, var(--color-background-dark));
+}
+
+/* Presentation dropdown (compact / cover images). */
+.sk-present-wrap {
+	position: relative;
+}
+
+.sk-present-menu {
+	position: absolute;
+	top: calc(100% + 4px);
+	right: 0;
+	z-index: 50;
+	min-width: 220px;
+	background: var(--color-main-background);
+	border: 1px solid var(--color-border);
+	border-radius: var(--border-radius-large, 12px);
+	box-shadow: 0 2px 12px var(--color-box-shadow, rgba(0, 0, 0, 0.2));
+	padding: 8px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.sk-present-opt {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 6px;
+	border-radius: 6px;
+	cursor: pointer;
+}
+
+.sk-present-opt:hover {
+	background: var(--color-background-hover);
 }
 </style>

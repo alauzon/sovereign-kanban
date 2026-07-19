@@ -17,7 +17,7 @@
 -->
 <template>
 	<NcModal :size="expanded ? 'full' : 'large'" :can-close="false" @close="requestClose">
-		<div class="sk-detail-vue" :class="{ 'sk-detail-vue--expanded': expanded }">
+		<div class="sk-detail-vue" :class="{ 'sk-detail-vue--expanded': expanded }" @click="onLinkClick">
 			<div v-if="confirmClose" class="sk-closeconfirm">
 				<div class="sk-closeconfirm-box">
 					<p class="sk-closeconfirm-msg">{{ t('Que voulez-vous faire de cette carte ?') }}</p>
@@ -85,28 +85,32 @@
 					class="sk-tab"
 					:class="{ 'sk-tab--on': tab === 'details' }"
 					@click="tab = 'details'">
-					{{ t('Détails') }}
+					<span class="sk-tab-ico" aria-hidden="true">🏠</span>
+					<span>{{ t('Détails') }}</span>
 				</button>
 				<button
 					type="button"
 					class="sk-tab"
 					:class="{ 'sk-tab--on': tab === 'attachments' }"
 					@click="openAttachments">
-					{{ t('Pièces jointes') }}
+					<span class="sk-tab-ico" aria-hidden="true">📎</span>
+					<span>{{ t('Pièces jointes') }}</span>
 				</button>
 				<button
 					type="button"
 					class="sk-tab"
 					:class="{ 'sk-tab--on': tab === 'comments' }"
 					@click="tab = 'comments'">
-					{{ t('Commentaires') }}
+					<span class="sk-tab-ico" aria-hidden="true">💬</span>
+					<span>{{ t('Commentaires') }}</span>
 				</button>
 				<button
 					type="button"
 					class="sk-tab"
 					:class="{ 'sk-tab--on': tab === 'activity' }"
 					@click="openActivity">
-					{{ t('Activité') }}
+					<span class="sk-tab-ico" aria-hidden="true">⚡</span>
+					<span>{{ t('Activité') }}</span>
 				</button>
 			</div>
 
@@ -355,6 +359,24 @@ export default {
 		},
 
 		prioLabel,
+
+		// Open http(s) links in a new tab on a plain click, anywhere in the card
+		// (description, comments…) — Alain, 2026-07-19. Modifier-clicks keep their
+		// default so text selection / editing still works.
+		onLinkClick(ev) {
+			if (ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) {
+				return
+			}
+			const a = ev.target.closest && ev.target.closest('a[href]')
+			if (!a) {
+				return
+			}
+			const href = a.getAttribute('href') || ''
+			if (/^https?:\/\//i.test(href)) {
+				ev.preventDefault()
+				window.open(href, '_blank', 'noopener,noreferrer')
+			}
+		},
 
 		nowIso() {
 			return new Date().toISOString()
@@ -728,18 +750,37 @@ export default {
 	border-bottom: 1px solid var(--color-border);
 }
 
+/* Tabs with an icon over the label, and a filled background on the active one
+   (Alain, 2026-07-19, façon Deck). */
 .sk-tab {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 3px;
 	background: none;
 	border: none;
 	border-bottom: 2px solid transparent;
-	padding: 6px 14px;
+	border-top-left-radius: 8px;
+	border-top-right-radius: 8px;
+	padding: 8px 16px 7px;
 	cursor: pointer;
 	color: var(--color-text-maxcontrast);
 	font-weight: 500;
+	font-size: 13px;
+}
+
+.sk-tab:hover {
+	background: var(--color-background-hover);
+}
+
+.sk-tab-ico {
+	font-size: 17px;
+	line-height: 1;
 }
 
 .sk-tab--on {
 	color: var(--color-main-text);
+	background: var(--color-primary-element-light, var(--color-background-dark));
 	border-bottom-color: var(--color-primary-element);
 }
 

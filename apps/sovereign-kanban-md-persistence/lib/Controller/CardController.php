@@ -63,6 +63,8 @@ final class CardController extends Controller {
 				fn (Card $card): array => $card->toArray() + [
 					'excerpt_html' => $this->markdown->toHtml($card->description),
 					'comment_count' => $repository->countComments($card->id),
+					// First image attachment, for the optional tile cover (Alain, 2026-07-19).
+					'cover' => $repository->firstImageAttachment($card->id),
 				],
 				$cards,
 			);
