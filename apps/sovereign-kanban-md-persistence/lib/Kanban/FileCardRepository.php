@@ -82,6 +82,16 @@ final class FileCardRepository {
 	}
 
 	/**
+	 * Last-modified timestamp of a card's card.md, or null if not found — for the
+	 * card's "Modifié" summary (Alain, 2026-07-19).
+	 */
+	public function mtimeOf(string $cardId): ?int {
+		$dir = $this->findCardDirAnywhere($cardId);
+
+		return ($dir !== null) ? $this->storage->mtime($dir . '/card.md') : null;
+	}
+
+	/**
 	 * Rewrite an existing card's card.md in place (keeps its directory).
 	 */
 	public function update(Card $card): void {

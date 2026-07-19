@@ -48,6 +48,10 @@ final class NextcloudStorage implements Storage {
 		return $node instanceof File ? $node->getContent() : '';
 	}
 
+	public function mtime(string $path): ?int {
+		return $this->root->nodeExists($path) ? $this->root->get($path)->getMTime() : null;
+	}
+
 	public function write(string $path, string $content): void {
 		if ($this->root->nodeExists($path)) {
 			$node = $this->root->get($path);

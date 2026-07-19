@@ -124,6 +124,8 @@ try {
 	check('[1] checklist total counted from the body', ($detail['checklist']['total'] ?? null) === 3, json_encode($detail['checklist'] ?? null));
 	check('[2] checklist done counted from the body', ($detail['checklist']['done'] ?? null) === 1, json_encode($detail['checklist'] ?? null));
 	check('[3] a new card is not done', array_key_exists('completed_at', $detail) && $detail['completed_at'] === null, var_export($detail['completed_at'] ?? 'MISSING', true));
+	check('[3a] show returns created_at (ISO)', preg_match('/^\d{4}-\d{2}-\d{2}T/', (string) ($detail['created_at'] ?? '')) === 1, (string) ($detail['created_at'] ?? 'MISSING'));
+	check('[3b] show returns modified (ISO, from the file mtime)', preg_match('/^\d{4}-\d{2}-\d{2}T/', (string) ($detail['modified'] ?? '')) === 1, (string) ($detail['modified'] ?? 'MISSING'));
 
 	// --- mark done: completed_at set + persisted ---------------------------
 	$instant = '2026-07-19T04:00:00Z';

@@ -83,7 +83,14 @@ final class CardController extends Controller {
 			return new DataResponse(['error' => 'card_not_found'], 404);
 		}
 
-		return new DataResponse(['card' => $this->detail($card)]);
+		// created_at and the file's mtime power the card's summary line. created_at
+		// lives in the frontmatter; "modified" is the file's real last-write time.
+		$detail = $this->detail($card);
+		$detail['created_at'] = $card->created_at->format('Y-m-d\TH:i:s\Z');
+		$mtime = $repository->mtimeOf($cardId);
+		$detail['modified'] = $mtime !== null ? gmdate('Y-m-d\TH:i:s\Z', $mtime) : null;
+
+		return new DataResponse(['card' => $detail]);
 	}
 
 	/**

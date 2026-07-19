@@ -68,8 +68,9 @@
 				:readonly="readOnly"
 				:placeholder="t('Titre')">
 
-			<p v-if="card.created_at || completedAt" class="sk-detail-summary">
+			<p v-if="card.created_at || card.modified || completedAt" class="sk-detail-summary">
 				<span v-if="card.created_at">{{ t('Créé') }} {{ formatDate(card.created_at) }}</span>
+				<span v-if="card.modified"> · {{ t('Modifié') }} {{ formatDate(card.modified) }}</span>
 				<span v-if="completedAt"> · ✓ {{ t('Terminé') }} {{ formatDate(completedAt) }}</span>
 			</p>
 

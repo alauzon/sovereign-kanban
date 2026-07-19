@@ -25,6 +25,11 @@ interface Storage {
 
 	public function read(string $path): string;
 
+	/**
+	 * Last-modified time of a file as a Unix timestamp, or null if it is absent.
+	 */
+	public function mtime(string $path): ?int;
+
 	public function write(string $path, string $content): void;
 
 	public function delete(string $path): void;
