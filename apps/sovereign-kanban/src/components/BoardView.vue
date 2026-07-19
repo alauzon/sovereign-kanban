@@ -71,6 +71,14 @@
 				<div v-if="cardMeta(card).length" class="sk-vue-card-meta">
 					<span v-for="(m, i) in cardMeta(card)" :key="i" class="sk-vue-chip">{{ m }}</span>
 				</div>
+				<div v-if="(card.assignees || []).length" class="sk-vue-card-avatars">
+					<NcAvatar
+						v-for="a in card.assignees"
+						:key="a"
+						:user="a"
+						:size="24"
+						:show-user-status="false" />
+				</div>
 			</article>
 
 			<input
@@ -134,12 +142,13 @@
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcActions from '@nextcloud/vue/components/NcActions'
 import NcActionButton from '@nextcloud/vue/components/NcActionButton'
+import NcAvatar from '@nextcloud/vue/components/NcAvatar'
 import { prioLabel } from '../priority.js'
 
 export default {
 	name: 'BoardView',
 
-	components: { NcButton, NcActions, NcActionButton },
+	components: { NcButton, NcActions, NcActionButton, NcAvatar },
 
 	props: {
 		board: { type: Object, required: true },
@@ -248,7 +257,6 @@ export default {
 			if (card.due_date) {
 				out.push('📅 ' + String(card.due_date).replace('T', ' '))
 			}
-			;(card.assignees || []).forEach((a) => out.push('👤 ' + a))
 			;(card.tags || []).forEach((tag) => out.push('🏷 ' + tag))
 			if (card.priority) {
 				out.push(prioLabel(card.priority))
@@ -397,6 +405,13 @@ export default {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 4px;
+}
+
+.sk-vue-card-avatars {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 2px;
+	margin-top: 6px;
 }
 
 .sk-vue-chip {

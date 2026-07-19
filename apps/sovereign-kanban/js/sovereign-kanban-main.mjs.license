@@ -10,14 +10,17 @@ SPDX-FileCopyrightText: David Clark
 SPDX-FileCopyrightText: David Myers <hello@davidmyers.dev>
 SPDX-FileCopyrightText: Dr.-Ing. Mario Heiderich, Cure53 <mario@cure53.de> (https://cure53.de/)
 SPDX-FileCopyrightText: Eduardo San Martin Morote
+SPDX-FileCopyrightText: Eric Norris (https://github.com/ericnorris)
 SPDX-FileCopyrightText: Evan You
 SPDX-FileCopyrightText: GitHub Inc.
 SPDX-FileCopyrightText: Guillaume Chau <guillaume.b.chau@gmail.com>
+SPDX-FileCopyrightText: Jacob Clevenger<https://github.com/wheatjs>
 SPDX-FileCopyrightText: Jeff Sagal <sagalbot@gmail.com>
 SPDX-FileCopyrightText: Matt Zabriskie
 SPDX-FileCopyrightText: Nextcloud GmbH and Nextcloud contributors
 SPDX-FileCopyrightText: atomiks
 SPDX-FileCopyrightText: escape-html developers
+SPDX-FileCopyrightText: ts-md5 developers
 
 This file is generated from multiple sources. Included packages:
 - @floating-ui/core
@@ -80,6 +83,9 @@ This file is generated from multiple sources. Included packages:
 - @vue/shared
 	- version: 3.5.39
 	- license: MIT
+- @vueuse/components
+	- version: 14.3.0
+	- license: MIT
 - @vueuse/core
 	- version: 14.3.0
 	- license: MIT
@@ -110,8 +116,14 @@ This file is generated from multiple sources. Included packages:
 - splitpanes
 	- version: 4.1.2
 	- license: MIT
+- striptags
+	- version: 3.2.0
+	- license: MIT
 - tabbable
 	- version: 6.5.0
+	- license: MIT
+- ts-md5
+	- version: 2.0.1
 	- license: MIT
 - vite
 	- version: 7.3.6
