@@ -88,6 +88,17 @@
 					</template>
 				</NcAppNavigationItem>
 			</template>
+			<template #footer>
+				<NcButton
+					type="tertiary"
+					wide
+					class="sk-import-btn"
+					:aria-label="t('Importer depuis Deck')"
+					@click="importDeck">
+					<template #icon><span aria-hidden="true">⬇</span></template>
+					{{ importing ? t('Import en cours…') : t('Importer depuis Deck') }}
+				</NcButton>
+			</template>
 		</NcAppNavigation>
 
 		<NcAppContent>
@@ -288,6 +299,7 @@ export default {
 			compact: false,
 			showCovers: false,
 			helpOpen: false,
+			importing: false,
 			filters: { tags: [], assignees: [], phases: [], priorities: [], status: [] },
 		}
 	},
@@ -789,6 +801,28 @@ export default {
 			}
 			await axios.delete(this.url('/boards/' + encodeURIComponent(board.id)))
 			await this.onBoardDeleted()
+		},
+
+		// Import the current user's own Deck boards into Sovereign Kanban. Boards
+		// that already exist are skipped (reported in the result).
+		async importDeck() {
+			// eslint-disable-next-line no-alert
+			if (!window.confirm(this.t('Importer vos tableaux Deck dans Sovereign Kanban ? Les tableaux déjà présents seront ignorés.'))) {
+				return
+			}
+			this.importing = true
+			try {
+				const res = await axios.post(generateUrl('/apps/sovereign-kanban-import/api/v1/import'))
+				// eslint-disable-next-line no-alert
+				window.alert(res.data.message || this.t('Import terminé.'))
+				await this.loadBoards()
+			} catch (e) {
+				const msg = (e.response && e.response.data && e.response.data.message) || this.t('Import impossible.')
+				// eslint-disable-next-line no-alert
+				window.alert(msg)
+			} finally {
+				this.importing = false
+			}
 		},
 
 		// Archive or unarchive a board (sidebar action). Toggles on board.archived;
