@@ -92,7 +92,8 @@
 					@remove-column="removeColumn"
 					@reorder-column="reorderColumn"
 					@toggle-done="toggleCardDone"
-					@delete-card="deleteCardTile" />
+					@delete-card="deleteCardTile"
+					@mark-column-done="markColumnDone" />
 				</div>
 			</template>
 
@@ -403,6 +404,25 @@ export default {
 			} catch (e) {
 				// eslint-disable-next-line no-alert
 				window.alert(this.t('Impossible de changer le statut.'))
+			}
+		},
+
+		// Mark every open card in a column done (column ⋯ menu, Alain 2026-07-19).
+		async markColumnDone(column) {
+			const cards = (this.cardsByColumn[column] || []).filter((c) => !c.completed_at)
+			if (!cards.length) {
+				return
+			}
+			const now = new Date().toISOString()
+			try {
+				await Promise.all(cards.map((c) => axios.put(
+					this.url('/boards/' + encodeURIComponent(this.currentId) + '/cards/' + encodeURIComponent(c.id)),
+					{ completed_at: now },
+				)))
+				await this.loadCards()
+			} catch (e) {
+				// eslint-disable-next-line no-alert
+				window.alert(this.t('Impossible de terminer les cartes de la liste.'))
 			}
 		},
 

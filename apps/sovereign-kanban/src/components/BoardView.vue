@@ -36,22 +36,20 @@
 					type="text"
 					@keyup.enter="confirmRenameColumn(column)"
 					@blur="cancelRenameColumn">
-				<span v-else class="sk-vue-column-name">{{ column }}</span>
+				<span
+					v-else
+					class="sk-vue-column-name"
+					:class="{ 'sk-vue-column-name--editable': !readOnly }"
+					:title="!readOnly ? t('Cliquer pour renommer la liste') : ''"
+					@click="!readOnly && startRenameColumn(column)">{{ column }}</span>
 				<span class="sk-vue-count">{{ (cardsByColumn[column] || []).length }}</span>
 				<span v-if="!readOnly" class="sk-vue-col-actions">
 					<NcButton
 						type="tertiary"
-						:aria-label="t('Renommer la liste')"
-						:title="t('Renommer la liste')"
-						@click="startRenameColumn(column)">
-						✎
-					</NcButton>
-					<NcButton
-						type="tertiary"
-						:aria-label="t('Supprimer la liste')"
-						:title="t('Supprimer la liste')"
-						@click="$emit('remove-column', column)">
-						✕
+						:aria-label="t('Menu de la liste')"
+						:title="t('Menu de la liste')"
+						@click="toggleColumnMenu($event, column)">
+						⋯
 					</NcButton>
 				</span>
 			</header>
@@ -153,6 +151,24 @@
 				{{ t('+ Liste') }}
 			</NcButton>
 		</section>
+
+		<!-- Column menu, teleported to the body and positioned fixed: a plain
+		     dropdown inside .sk-vue-columns would be clipped by its overflow, the
+		     same reason NcActions fails here. -->
+		<Teleport to="body">
+			<div v-if="menuColumn !== null" class="sk-col-menu-backdrop" @click="menuColumn = null" />
+			<div v-if="menuColumn !== null" class="sk-col-menu" :style="menuStyle">
+				<button type="button" class="sk-col-menu-item" @click="markColumnDone(menuColumn)">
+					✓ {{ t('Définir les cartes comme « terminées »') }}
+				</button>
+				<button type="button" class="sk-col-menu-item" disabled :title="t('Archivage à venir (barre latérale)')">
+					🗄 {{ t('Archiver toutes les cartes') }}
+				</button>
+				<button type="button" class="sk-col-menu-item sk-col-menu-danger" @click="removeColumnFromMenu(menuColumn)">
+					🗑 {{ t('Supprimer la liste') }}
+				</button>
+			</div>
+		</Teleport>
 	</div>
 </template>
 
@@ -175,7 +191,7 @@ export default {
 		templates: { type: Array, default: () => [] },
 	},
 
-	emits: ['open', 'add-card', 'move-card', 'add-from-template', 'add-column', 'rename-column', 'remove-column', 'reorder-column', 'toggle-done', 'delete-card'],
+	emits: ['open', 'add-card', 'move-card', 'add-from-template', 'add-column', 'rename-column', 'remove-column', 'reorder-column', 'toggle-done', 'delete-card', 'mark-column-done'],
 
 	data() {
 		return {
@@ -186,6 +202,8 @@ export default {
 			renamingColumn: null,
 			renameValue: '',
 			dragOverColumn: null,
+			menuColumn: null,
+			menuStyle: {},
 		}
 	},
 
@@ -216,6 +234,31 @@ export default {
 		cancelRenameColumn() {
 			this.renamingColumn = null
 			this.renameValue = ''
+		},
+
+		// Column ⋯ menu. Anchored fixed under the button (teleported to body) so
+		// the overflow of .sk-vue-columns cannot clip it.
+		toggleColumnMenu(ev, column) {
+			if (this.menuColumn === column) {
+				this.menuColumn = null
+				return
+			}
+			const rect = ev.currentTarget.getBoundingClientRect()
+			this.menuStyle = {
+				top: (rect.bottom + 4) + 'px',
+				left: Math.max(8, rect.right - 260) + 'px',
+			}
+			this.menuColumn = column
+		},
+
+		markColumnDone(column) {
+			this.$emit('mark-column-done', column)
+			this.menuColumn = null
+		},
+
+		removeColumnFromMenu(column) {
+			this.$emit('remove-column', column)
+			this.menuColumn = null
 		},
 
 		startAddList() {
@@ -381,9 +424,67 @@ export default {
 	cursor: grab;
 }
 
+/* The list name is clickable to rename (Alain, 2026-07-19: click the name, no
+   pencil). A subtle hover hints at it. */
+.sk-vue-column-name--editable {
+	cursor: text;
+	border-radius: 4px;
+	padding: 0 4px;
+}
+
+.sk-vue-column-name--editable:hover {
+	background: var(--color-background-hover);
+}
+
 .sk-vue-col-actions {
 	display: flex;
 	gap: 2px;
+}
+
+/* Column ⋯ menu, teleported to body (fixed) so overflow cannot clip it. */
+.sk-col-menu-backdrop {
+	position: fixed;
+	inset: 0;
+	z-index: 10000;
+}
+
+.sk-col-menu {
+	position: fixed;
+	z-index: 10001;
+	min-width: 260px;
+	background: var(--color-main-background);
+	border: 1px solid var(--color-border);
+	border-radius: var(--border-radius-large, 12px);
+	box-shadow: 0 2px 12px var(--color-box-shadow, rgba(0, 0, 0, 0.2));
+	padding: 4px;
+	display: flex;
+	flex-direction: column;
+}
+
+.sk-col-menu-item {
+	display: block;
+	width: 100%;
+	text-align: left;
+	background: none;
+	border: none;
+	border-radius: 6px;
+	padding: 8px 10px;
+	cursor: pointer;
+	color: var(--color-main-text);
+	white-space: nowrap;
+}
+
+.sk-col-menu-item:hover:not([disabled]) {
+	background: var(--color-background-hover);
+}
+
+.sk-col-menu-item[disabled] {
+	opacity: 0.5;
+	cursor: default;
+}
+
+.sk-col-menu-danger {
+	color: var(--color-error, #e9322d);
 }
 
 .sk-vue-col-actions :deep(.button-vue) {

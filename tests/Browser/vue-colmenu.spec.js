@@ -1,12 +1,14 @@
-// Per-column ⋯ menu (Alain, 2026-07-18): rename the list inline, delete the list.
-// (Archive / mark done depend on the not-yet-built status, so they come later.)
+// Per-column header (Alain, 2026-07-19): click the list NAME to rename it (no
+// pencil), and a ⋯ menu for the list actions (mark all done / archive / delete).
+// The menu is teleported to <body> so the columns' overflow can't clip it.
 const { test, expect } = require('@playwright/test')
 const { dismissWizard } = require('./support')
 
 const BOARD = 'zzz-e2e-colmenu'
+const CARD = 'Carte à terminer'
 const NEWNAME = 'zzz-liste-renommee'
 
-test.describe('menu par colonne (Vue)', () => {
+test.describe('en-tête de colonne (Vue)', () => {
 	test.beforeEach(async ({ page }) => {
 		page.on('dialog', (d) => d.accept())
 	})
@@ -36,28 +38,44 @@ test.describe('menu par colonne (Vue)', () => {
 		await expect(page.locator('.sk-vue-columns')).toBeVisible()
 	}
 
-	// Click a direct action button (✎ / ✕) in the first column's header.
-	async function colAction(page, name) {
-		await page.locator('.sk-vue-column-head').first().getByRole('button', { name }).click()
+	function openColMenu(page) {
+		return page.locator('.sk-vue-column-head').first().getByRole('button', { name: 'Menu de la liste' }).click()
 	}
 
-	test('renommer une liste puis la supprimer', async ({ page }) => {
+	test('cliquer le nom pour renommer, puis le menu ⋯ pour supprimer', async ({ page }) => {
 		await openBoard(page)
-		const firstName = await page.locator('.sk-vue-column-name').first().textContent()
 
-		// Rename the first list inline.
-		await colAction(page, 'Renommer la liste')
+		// Rename: click the name itself → the inline input appears.
+		await page.locator('.sk-vue-column-name').first().click()
 		const input = page.locator('.sk-vue-column-rename')
 		await expect(input).toBeVisible()
 		await input.fill(NEWNAME)
 		await input.press('Enter')
 		await expect(page.locator('.sk-vue-column-name', { hasText: NEWNAME })).toHaveCount(1)
 
-		// Delete it → its name disappears, one fewer column.
+		// Delete via the ⋯ menu.
 		const count = await page.locator('.sk-vue-column').count()
-		await colAction(page, 'Supprimer la liste')
+		await openColMenu(page)
+		await page.locator('.sk-col-menu').getByRole('button', { name: 'Supprimer la liste' }).click()
 		await expect(page.locator('.sk-vue-column-name', { hasText: NEWNAME })).toHaveCount(0)
 		await expect(page.locator('.sk-vue-column')).toHaveCount(count - 1)
-		expect(firstName).not.toBe(NEWNAME)
+	})
+
+	test('le menu ⋯ termine toutes les cartes de la liste', async ({ page }) => {
+		await openBoard(page)
+
+		// A card in the first list, open (not done). Wait for the tile to render
+		// (loadCards done → cardsByColumn populated) BEFORE opening the menu, else
+		// mark-all-done acts on an empty column.
+		await page.getByRole('button', { name: '+ Carte' }).first().click()
+		await page.getByPlaceholder('Titre de la carte').fill(CARD)
+		await page.getByPlaceholder('Titre de la carte').press('Enter')
+		await expect(page.locator('.sk-vue-card', { hasText: CARD })).toHaveCount(1)
+		await expect(page.locator('.sk-vue-card--done', { hasText: CARD })).toHaveCount(0)
+
+		// Mark the whole list done via the ⋯ menu.
+		await openColMenu(page)
+		await page.locator('.sk-col-menu').getByRole('button', { name: 'Définir les cartes comme « terminées »' }).click()
+		await expect(page.locator('.sk-vue-card--done', { hasText: CARD })).toHaveCount(1)
 	})
 })
