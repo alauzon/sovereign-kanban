@@ -126,6 +126,7 @@ import BoardView from './components/BoardView.vue'
 import CardDetail from './components/CardDetail.vue'
 import BoardEditModal from './components/BoardEditModal.vue'
 import FilterBar from './components/FilterBar.vue'
+import { prioLabel } from './priority.js'
 
 const BOARDS = '/apps/sovereign-kanban-md-persistence/api/v1/boards'
 
@@ -203,7 +204,7 @@ export default {
 				{ key: 'tags', label: this.t('Étiquettes'), options: tags.map((v) => ({ value: v, label: v, style: this.filterTagStyle(v) })) },
 				{ key: 'assignees', label: this.t('Assignés'), options: assignees.map((v) => ({ value: v, label: v })) },
 				{ key: 'phases', label: this.t('Phase'), options: phases.map((v) => ({ value: v, label: this.t('Phase') + ' ' + v })) },
-				{ key: 'priorities', label: this.t('Priorité'), options: priorities.map((v) => ({ value: v, label: '❗ ' + v })) },
+				{ key: 'priorities', label: this.t('Priorité'), options: priorities.map((v) => ({ value: v, label: prioLabel(v) })) },
 			]
 		},
 

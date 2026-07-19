@@ -95,7 +95,7 @@
 					<span>{{ t('Priorité') }}</span>
 					<select v-model="form.priority" :disabled="readOnly">
 						<option value="">{{ t('—') }}</option>
-						<option v-for="p in priorities" :key="p" :value="p">{{ p }}</option>
+						<option v-for="p in priorities" :key="p" :value="p">{{ prioLabel(p) }}</option>
 					</select>
 				</label>
 			</div>
@@ -180,6 +180,7 @@ import NcActionButton from '@nextcloud/vue/components/NcActionButton'
 import NcActionCaption from '@nextcloud/vue/components/NcActionCaption'
 import NcSelect from '@nextcloud/vue/components/NcSelect'
 import { loadTextEditor } from '../text-editor.js'
+import { prioLabel } from '../priority.js'
 import CommentsSection from './CommentsSection.vue'
 import DateField from './DateField.vue'
 
@@ -254,6 +255,8 @@ export default {
 		t(s) {
 			return s
 		},
+
+		prioLabel,
 
 		// Closing (✕) offers Save / Discard / Delete instead of dropping edits
 		// silently (Alain, 2026-07-18). Read-only has nothing to save → just close.

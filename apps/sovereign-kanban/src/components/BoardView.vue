@@ -82,6 +82,7 @@
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcActions from '@nextcloud/vue/components/NcActions'
 import NcActionButton from '@nextcloud/vue/components/NcActionButton'
+import { prioLabel } from '../priority.js'
 
 export default {
 	name: 'BoardView',
@@ -142,7 +143,7 @@ export default {
 			;(card.assignees || []).forEach((a) => out.push('👤 ' + a))
 			;(card.tags || []).forEach((tag) => out.push('🏷 ' + tag))
 			if (card.priority) {
-				out.push('❗ ' + card.priority)
+				out.push(prioLabel(card.priority))
 			}
 			return out
 		},
