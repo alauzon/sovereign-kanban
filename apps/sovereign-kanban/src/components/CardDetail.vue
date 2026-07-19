@@ -44,8 +44,18 @@
 			</div>
 
 			<label class="sk-field">
-				<span>{{ t('Assignés (séparés par des virgules)') }}</span>
-				<input v-model="assigneesInput" type="text" :disabled="readOnly" placeholder="alain, steve">
+				<span>{{ t('Assignés') }}</span>
+				<NcSelect
+					v-model="assigneesSelected"
+					:options="assigneeOptions"
+					:multiple="true"
+					:close-on-select="false"
+					:user-select="true"
+					:disabled="readOnly"
+					label="displayName"
+					input-label=""
+					:placeholder="t('Assigner une personne…')"
+					@search="onAssigneeSearch" />
 			</label>
 
 			<div class="sk-field-row">
@@ -177,7 +187,9 @@ export default {
 			},
 			startInput: this.toInput(this.card.start_date),
 			dueInput: this.toInput(this.card.due_date),
-			assigneesInput: (this.card.assignees || []).join(', '),
+			assigneesSelected: (this.card.assignees || []).map((uid) => ({ id: uid, displayName: uid })),
+			assigneeOptions: [],
+			assigneeTimer: null,
 			selectedTags: [...(this.card.tags || [])],
 			priorities: ['1', '2', '3', '4', '5'],
 			phases: ['1', '2', '3', '4'],
@@ -208,6 +220,7 @@ export default {
 
 	beforeUnmount() {
 		this.destroyEditor()
+		clearTimeout(this.assigneeTimer)
 	},
 
 	methods: {
@@ -289,6 +302,28 @@ export default {
 			return {}
 		},
 
+		// Autocomplete assignees from the sharees API (same endpoint the share
+		// panel uses), debounced. Options carry {id, displayName} for user-select.
+		onAssigneeSearch(query) {
+			const q = (query || '').trim()
+			clearTimeout(this.assigneeTimer)
+			if (q.length < 2) {
+				this.assigneeOptions = []
+				return
+			}
+			this.assigneeTimer = setTimeout(async () => {
+				try {
+					const res = await axios.get(
+						generateUrl('/apps/sovereign-kanban-md-persistence/api/v1/sharees'),
+						{ params: { search: q, type: 'user' } },
+					)
+					this.assigneeOptions = (res.data.sharees || []).map((s) => ({ id: s.id, displayName: s.label }))
+				} catch (e) {
+					this.assigneeOptions = []
+				}
+			}, 250)
+		},
+
 		// 'Y-m-d' → 'Y-m-dT00:00' (the picker needs a time); a full date-time is
 		// passed through. Empty stays empty.
 		toInput(value) {
@@ -326,7 +361,7 @@ export default {
 					description: this.form.description,
 					start_date: this.fromInput(this.startInput),
 					due_date: this.fromInput(this.dueInput),
-					assignees: this.splitList(this.assigneesInput),
+					assignees: this.assigneesSelected.map((a) => a.id),
 					priority: this.form.priority,
 					tags: this.selectedTags.map((t) => this.optLabel(t)),
 					phase: this.form.phase,
