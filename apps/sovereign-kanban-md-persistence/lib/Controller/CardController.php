@@ -88,7 +88,7 @@ final class CardController extends Controller {
 
 		// created_at and the file's mtime power the card's summary line. created_at
 		// lives in the frontmatter; "modified" is the file's real last-write time.
-		$detail = $this->detail($card);
+		$detail = $this->detail($card, $repository);
 		$detail['created_at'] = $card->created_at->format('Y-m-d\TH:i:s\Z');
 		$mtime = $repository->mtimeOf($cardId);
 		$detail['modified'] = $mtime !== null ? gmdate('Y-m-d\TH:i:s\Z', $mtime) : null;
@@ -136,7 +136,7 @@ final class CardController extends Controller {
 		$repository->save($card);
 		$repository->appendActivity($card->id, 'created', $author, ['title' => $card->title]);
 
-		return new DataResponse(['card' => $this->detail($card)], 201);
+		return new DataResponse(['card' => $this->detail($card, $repository)], 201);
 	}
 
 	/**
@@ -258,6 +258,9 @@ final class CardController extends Controller {
 			// but it MUST be carried through here, or every update erases it. This
 			// is the exact field-by-field drop the extra[] comment below warns of.
 			author: $card->author,
+			// Relations are managed by their own endpoints, but must survive a
+			// field edit — same carry-through rule as author.
+			relations: $card->relations,
 			// Whatever the user put in their own file and we do not understand.
 			// Rebuilding a Card field by field is exactly how it got dropped:
 			// every edit from the browser used to delete the frontmatter keys
@@ -303,7 +306,7 @@ final class CardController extends Controller {
 			$repository->appendActivity($card->id, 'updated', $actor, ['fields' => $changed]);
 		}
 
-		return new DataResponse(['card' => $this->detail($updated)]);
+		return new DataResponse(['card' => $this->detail($updated, $repository)]);
 	}
 
 	/**
@@ -351,7 +354,7 @@ final class CardController extends Controller {
 			$repository->moveCard($cardId, $card->column, $targetFolder);
 		}
 
-		return new DataResponse(['card' => $this->detail($repository->findById($cardId))]);
+		return new DataResponse(['card' => $this->detail($repository->findById($cardId), $repository)]);
 	}
 
 	/**
@@ -470,11 +473,85 @@ final class CardController extends Controller {
 	}
 
 	/**
+	 * Add a typed relation from this card to another (Alain, 2026-07-19).
+	 *
+	 * Two ways to name the target:
+	 *   - `target`: the id of an existing card on this board;
+	 *   - `newTitle`: create a fresh card (same column as the source) and link it.
+	 * The reciprocal is stored on the target automatically. The type must be one
+	 * of child|parent|depends|required|related.
+	 */
+	#[NoAdminRequired]
+	public function addRelation(string $boardId, string $cardId, string $type, ?string $target = null, ?string $newTitle = null): DataResponse {
+		if (!$this->validCardId($cardId)) {
+			return new DataResponse(['error' => 'unavailable'], 400);
+		}
+		if (!isset(Card::RELATION_RECIPROCAL[$type])) {
+			return new DataResponse(['error' => 'invalid_type'], 400);
+		}
+		$repository = $this->writableRepositoryOrError($boardId);
+		if ($repository instanceof DataResponse) {
+			return $repository;
+		}
+		$source = $repository->findById($cardId);
+		if ($source === null) {
+			return new DataResponse(['error' => 'card_not_found'], 404);
+		}
+
+		$actor = $this->userSession->getUser()?->getUID();
+
+		// Create-and-relate: a new card in the source's column, then link it.
+		if ($newTitle !== null && trim($newTitle) !== '') {
+			$fresh = Card::create(trim($newTitle), $source->column);
+			$fresh = new Card(
+				id: $fresh->id,
+				title: $fresh->title,
+				column: $fresh->column,
+				created_at: $fresh->created_at,
+				author: $actor,
+			);
+			$repository->save($fresh);
+			$repository->appendActivity($fresh->id, 'created', $actor, ['title' => $fresh->title]);
+			$target = $fresh->id;
+		}
+
+		if ($target === null || !$this->validCardId($target)) {
+			return new DataResponse(['error' => 'invalid_target'], 400);
+		}
+		if (!$repository->addRelation($cardId, $target, $type)) {
+			return new DataResponse(['error' => 'relation_failed'], 400);
+		}
+		$repository->appendActivity($cardId, 'linked', $actor, ['type' => $type, 'card' => $target]);
+
+		return new DataResponse(['card' => $this->detail($repository->findById($cardId), $repository)]);
+	}
+
+	/**
+	 * Remove every relation between this card and the target, on both sides.
+	 */
+	#[NoAdminRequired]
+	public function removeRelation(string $boardId, string $cardId, string $target): DataResponse {
+		if (!$this->validCardId($cardId) || !$this->validCardId($target)) {
+			return new DataResponse(['error' => 'unavailable'], 400);
+		}
+		$repository = $this->writableRepositoryOrError($boardId);
+		if ($repository instanceof DataResponse) {
+			return $repository;
+		}
+		if (!$repository->removeRelation($cardId, $target)) {
+			return new DataResponse(['error' => 'card_not_found'], 404);
+		}
+		$repository->appendActivity($cardId, 'unlinked', $this->userSession->getUser()?->getUID(), ['card' => $target]);
+
+		return new DataResponse(['card' => $this->detail($repository->findById($cardId), $repository)]);
+	}
+
+	/**
 	 * Full card shape for the detail view (includes the description body).
 	 *
 	 * @return array{id: string, title: string, column: string, description: string, due_date: ?string, start_date: ?string, assignees: list<string>, procedures: list<string>, priority: ?string, tags: list<string>, phase: ?int}
 	 */
-	private function detail(Card $card): array {
+	private function detail(Card $card, ?FileCardRepository $repository = null): array {
 		return [
 			'id' => $card->id,
 			'title' => $card->title,
@@ -490,6 +567,9 @@ final class CardController extends Controller {
 			'completed_at' => $card->completed_at,
 			'author' => $card->author,
 			'author_label' => $this->displayName($card->author),
+			// Relations gain their target's title/done state when a repository is on
+			// hand to resolve them; otherwise the raw {type, card} list is returned.
+			'relations' => $repository !== null ? $repository->resolveRelations($card) : array_values($card->relations),
 			'checklist' => $card->checklist(),
 		];
 	}

@@ -103,8 +103,10 @@
 				:read-only="readOnly"
 				:known-tags="knownTags"
 				:palette="(currentBoard && currentBoard.tags) || []"
+				:board-cards="allCards"
 				@saved="onCardSaved"
 				@deleted="onCardDeleted"
+				@refresh="loadCards"
 				@close="openedCard = null" />
 
 			<BoardEditModal

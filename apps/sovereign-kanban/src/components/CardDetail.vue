@@ -187,6 +187,15 @@
 					:readonly="readOnly"
 					:placeholder="t('Description (Markdown)…')" />
 			</div>
+
+				<RelationsField
+					class="sk-field"
+					:board-id="boardId"
+					:card-id="card.id"
+					:relations="card.relations || []"
+					:board-cards="boardCards"
+					:read-only="readOnly"
+					@changed="onRelationsChanged" />
 			</div>
 
 			<div v-show="tab === 'comments'" class="sk-tab-panel">
@@ -241,13 +250,14 @@ import { loadTextEditor } from '../text-editor.js'
 import { prioLabel } from '../priority.js'
 import CommentsSection from './CommentsSection.vue'
 import DateField from './DateField.vue'
+import RelationsField from './RelationsField.vue'
 
 const PROCEDURES = '/apps/sovereign-kanban-md-persistence/api/v1/procedures'
 
 export default {
 	name: 'CardDetail',
 
-	components: { NcModal, NcButton, NcActions, NcActionButton, NcActionCaption, NcSelect, CommentsSection, DateField },
+	components: { NcModal, NcButton, NcActions, NcActionButton, NcActionCaption, NcSelect, CommentsSection, DateField, RelationsField },
 
 	props: {
 		boardId: { type: String, required: true },
@@ -257,9 +267,11 @@ export default {
 		knownTags: { type: Array, default: () => [] },
 		// The board's tag palette ([{name, color}]) for the label dropdown.
 		palette: { type: Array, default: () => [] },
+		// Flat list of the board's cards ([{id, title}]) for the relation search.
+		boardCards: { type: Array, default: () => [] },
 	},
 
-	emits: ['saved', 'deleted', 'close'],
+	emits: ['saved', 'deleted', 'close', 'refresh'],
 
 	data() {
 		return {
@@ -361,6 +373,16 @@ export default {
 			}
 		},
 
+		// A relation was added/removed (RelationsField already hit the API): refresh
+		// the board so a newly created linked card appears, and reload the journal
+		// if it is showing (the link is a journaled event).
+		onRelationsChanged() {
+			this.$emit('refresh')
+			if (this.activityLoaded) {
+				this.loadActivity()
+			}
+		},
+
 		// Open the Activité tab, loading the sovereign journal once (option C).
 		openActivity() {
 			this.tab = 'activity'
@@ -391,6 +413,8 @@ export default {
 				commented: '💬',
 				done: '✓',
 				reopened: '↺',
+				linked: '🔗',
+				unlinked: '✂️',
 			}[action] || '•'
 		},
 
@@ -418,6 +442,10 @@ export default {
 				return this.t('a rouvert la carte')
 			case 'moved':
 				return this.t('a déplacé la carte')
+			case 'linked':
+				return this.t('a lié une carte')
+			case 'unlinked':
+				return this.t('a délié une carte')
 			case 'updated': {
 				const fields = (ev.detail && ev.detail.fields) || []
 				const names = fields.map((f) => fieldLabels[f] || f)

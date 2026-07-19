@@ -258,6 +258,92 @@ final class FileCardRepository {
 	}
 
 	/**
+	 * Add a typed relation between two cards, storing the reciprocal on the target
+	 * (Alain, 2026-07-19): A --child--> B also writes B --parent--> A. Idempotent —
+	 * an identical link is not duplicated. No self-relation.
+	 *
+	 * @return bool True if both cards exist and the type is known; false otherwise.
+	 */
+	public function addRelation(string $cardId, string $targetId, string $type): bool {
+		if ($cardId === $targetId) {
+			return false;
+		}
+		$reciprocal = Card::RELATION_RECIPROCAL[$type] ?? null;
+		if ($reciprocal === null) {
+			return false;
+		}
+		$a = $this->findById($cardId);
+		$b = $this->findById($targetId);
+		if ($a === null || $b === null) {
+			return false;
+		}
+
+		$this->update($this->withRelationAdded($a, $type, $targetId));
+		$this->update($this->withRelationAdded($b, $reciprocal, $cardId));
+		return true;
+	}
+
+	/**
+	 * Remove every relation between two cards, on both sides.
+	 *
+	 * @return bool True if the source card exists (the target may already be gone).
+	 */
+	public function removeRelation(string $cardId, string $targetId): bool {
+		$a = $this->findById($cardId);
+		if ($a === null) {
+			return false;
+		}
+		$this->update($this->withRelationRemoved($a, $targetId));
+
+		$b = $this->findById($targetId);
+		if ($b !== null) {
+			$this->update($this->withRelationRemoved($b, $cardId));
+		}
+		return true;
+	}
+
+	/**
+	 * Resolve a card's relations for display: each entry gains the target's title
+	 * and done state, looked up live so a rename never goes stale. A relation whose
+	 * target no longer exists keeps a null title (a dangling link, shown as such).
+	 *
+	 * @return list<array{type: string, card: string, title: ?string, done: bool}>
+	 */
+	public function resolveRelations(Card $card): array {
+		return array_map(function (array $r): array {
+			$target = $this->findById($r['card']);
+			return [
+				'type' => $r['type'],
+				'card' => $r['card'],
+				'title' => $target?->title,
+				'done' => $target !== null && $target->completed_at !== null,
+			];
+		}, $card->relations);
+	}
+
+	/**
+	 * A copy of the card with one relation added, unless an identical one exists.
+	 */
+	private function withRelationAdded(Card $card, string $type, string $target): Card {
+		foreach ($card->relations as $r) {
+			if ($r['card'] === $target && $r['type'] === $type) {
+				return $card;
+			}
+		}
+		return $card->withRelations(array_merge($card->relations, [['type' => $type, 'card' => $target]]));
+	}
+
+	/**
+	 * A copy of the card with every relation to the given target removed.
+	 */
+	private function withRelationRemoved(Card $card, string $target): Card {
+		return $card->withRelations(array_filter(
+			$card->relations,
+			static fn (array $r): bool => $r['card'] !== $target,
+		));
+	}
+
+	/**
 	 * Replace the body of one comment, keeping its id, author and timestamp.
 	 *
 	 * @return bool True if the comment was found and rewritten.

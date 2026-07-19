@@ -41,6 +41,11 @@ final class Card {
 		// uid of whoever created the card, written once at creation (Alain,
 		// 2026-07-19). Never rewritten by an edit.
 		public readonly ?string $author = null,
+		// Typed links to other cards (Alain, 2026-07-19): a list of
+		// ['type' => child|parent|depends|required|related, 'card' => <id>]. The
+		// reciprocal is stored on the other card; only the id is kept here, never
+		// the title — a rename must not go stale.
+		public readonly array $relations = [],
 		public readonly array $extra = [],
 	) {
 	}
@@ -55,10 +60,23 @@ final class Card {
 	private const KNOWN_KEYS = [
 		'id', 'title', 'column', 'created_at', 'assignees', 'due_date',
 		'start_date', 'procedures', 'priority', 'tags', 'phase', 'completed_at',
-		'author',
+		'author', 'relations',
 		// Legacy French spellings: read, never written. Files created before
 		// 2026-07-15 carry them; they migrate silently on the next app write.
 		'procédures', 'priorité', 'étiquettes',
+	];
+
+	/**
+	 * Relation types and their reciprocal (Alain, 2026-07-19). Stored in English;
+	 * the UI translates. Adding A --child--> B stores B --parent--> A, and so on.
+	 * 'related' is symmetric. 'depends' (a besoin de) ↔ 'required' (nécessaire pour).
+	 */
+	public const RELATION_RECIPROCAL = [
+		'child' => 'parent',
+		'parent' => 'child',
+		'depends' => 'required',
+		'required' => 'depends',
+		'related' => 'related',
 	];
 
 	/**
@@ -95,6 +113,36 @@ final class Card {
 			start_date: $this->start_date,
 			completed_at: $this->completed_at,
 			author: $this->author,
+			relations: $this->relations,
+			extra: $this->extra,
+		);
+	}
+
+	/**
+	 * Return a copy with the relations list replaced, every other field kept.
+	 *
+	 * Relations are managed on their own (add/remove with a reciprocal on the
+	 * other card); this is the single immutable setter the repository uses.
+	 *
+	 * @param list<array{type: string, card: string}> $relations
+	 */
+	public function withRelations(array $relations): self {
+		return new self(
+			id: $this->id,
+			title: $this->title,
+			column: $this->column,
+			description: $this->description,
+			created_at: $this->created_at,
+			assignees: $this->assignees,
+			due_date: $this->due_date,
+			procedures: $this->procedures,
+			priority: $this->priority,
+			tags: $this->tags,
+			phase: $this->phase,
+			start_date: $this->start_date,
+			completed_at: $this->completed_at,
+			author: $this->author,
+			relations: array_values($relations),
 			extra: $this->extra,
 		);
 	}
@@ -135,6 +183,7 @@ final class Card {
 			start_date: self::normalizeDate($frontmatter['start_date'] ?? null),
 			completed_at: (isset($frontmatter['completed_at']) && $frontmatter['completed_at'] !== '') ? (string) $frontmatter['completed_at'] : null,
 			author: (isset($frontmatter['author']) && $frontmatter['author'] !== '') ? (string) $frontmatter['author'] : null,
+			relations: self::normalizeRelations($frontmatter['relations'] ?? []),
 			extra: array_diff_key($frontmatter, array_flip(self::KNOWN_KEYS)),
 		);
 	}
@@ -157,6 +206,29 @@ final class Card {
 	 *
 	 * Shared by due_date and start_date.
 	 */
+	/**
+	 * Keep only well-formed relation entries when reading a file: each must be a
+	 * map with a non-empty 'type' and 'card'. Protects the card from a hand-edited
+	 * or malformed relations list; the controller is the strict guard on write.
+	 *
+	 * @return list<array{type: string, card: string}>
+	 */
+	private static function normalizeRelations(mixed $raw): array {
+		if (!is_array($raw)) {
+			return [];
+		}
+		$out = [];
+		foreach ($raw as $r) {
+			if (is_array($r)
+				&& isset($r['type'], $r['card'])
+				&& is_scalar($r['type']) && (string) $r['type'] !== ''
+				&& is_scalar($r['card']) && (string) $r['card'] !== '') {
+				$out[] = ['type' => (string) $r['type'], 'card' => (string) $r['card']];
+			}
+		}
+		return $out;
+	}
+
 	public static function normalizeDate(mixed $raw): ?string {
 		if ($raw === null || $raw === '') {
 			return null;
@@ -237,6 +309,7 @@ final class Card {
 			'phase' => $this->phase,
 			'completed_at' => $this->completed_at,
 			'author' => $this->author,
+			'relations' => $this->relations,
 			'checklist' => $this->checklist(),
 			'excerpt' => $this->excerpt(),
 		];
@@ -340,6 +413,10 @@ final class Card {
 
 		if ($this->author !== null) {
 			$frontmatter['author'] = $this->author;
+		}
+
+		if (!empty($this->relations)) {
+			$frontmatter['relations'] = array_values($this->relations);
 		}
 
 		// Keys we do not understand are written back untouched: the vocabulary
