@@ -35,25 +35,18 @@
 				<div
 					v-for="(col, i) in localColumns"
 					:key="col"
-					class="sk-col-row">
+					class="sk-col-row"
+					:class="{ 'sk-col-row--drag': dragIndex === i }"
+					draggable="true"
+					@dragstart="onColDragStart(i)"
+					@dragover.prevent
+					@drop="onColDrop(i)"
+					@dragend="dragIndex = null">
+					<span class="sk-col-handle" :title="t('Glisser pour réordonner')" aria-hidden="true">⠿</span>
 					<input
 						v-model="colDraft[col]"
 						type="text"
 						@keyup.enter="renameColumn(col)">
-					<NcButton
-						type="tertiary"
-						:aria-label="t('Monter la colonne')"
-						:disabled="i === 0 || busy"
-						@click="moveColumn(i, -1)">
-						↑
-					</NcButton>
-					<NcButton
-						type="tertiary"
-						:aria-label="t('Descendre la colonne')"
-						:disabled="i === localColumns.length - 1 || busy"
-						@click="moveColumn(i, 1)">
-						↓
-					</NcButton>
 					<NcButton
 						type="tertiary"
 						:aria-label="t('Renommer la colonne')"
@@ -157,6 +150,7 @@ export default {
 			saving: false,
 			busy: false,
 			error: '',
+			dragIndex: null,
 		}
 	},
 
@@ -262,14 +256,21 @@ export default {
 			})
 		},
 
-		async moveColumn(index, dir) {
-			const target = index + dir
-			if (this.busy || target < 0 || target >= this.localColumns.length) {
+		onColDragStart(index) {
+			this.dragIndex = index
+		},
+
+		// Drop a dragged column onto another → reorder (Alain, 2026-07-18: drag
+		// instead of ↑/↓ arrows).
+		async onColDrop(targetIndex) {
+			const from = this.dragIndex
+			this.dragIndex = null
+			if (from === null || from === targetIndex || this.busy) {
 				return
 			}
 			const next = [...this.localColumns]
-			const [moved] = next.splice(index, 1)
-			next.splice(target, 0, moved)
+			const [moved] = next.splice(from, 1)
+			next.splice(targetIndex, 0, moved)
 			await this.columnOp(async () => {
 				await axios.put(this.columnsUrl() + '/reorder', { columns: next })
 				this.localColumns = next
@@ -351,6 +352,17 @@ export default {
 	display: flex;
 	gap: 4px;
 	align-items: center;
+}
+
+.sk-col-handle {
+	cursor: grab;
+	color: var(--color-text-maxcontrast);
+	padding: 0 2px;
+	user-select: none;
+}
+
+.sk-col-row--drag {
+	opacity: 0.5;
 }
 
 .sk-col-row > input[type="text"],
