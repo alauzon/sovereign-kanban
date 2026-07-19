@@ -112,6 +112,7 @@
 				:name="t('Sovereign Kanban')"
 				:description="t('Choisissez un tableau dans la navigation.')" />
 			<template v-else>
+				<div class="sk-workarea" :class="{ 'sk-workarea--split': openedCard && wide }">
 				<div class="sk-vue-board">
 				<div class="sk-vue-board-header">
 					<h2 class="sk-vue-board-title">{{ currentBoard.name }}</h2>
@@ -199,20 +200,23 @@
 					@archive-card="archiveCard"
 					@archive-column="archiveColumn" />
 				</div>
-			</template>
 
-			<CardDetail
-				v-if="openedCard"
-				:board-id="currentId"
-				:card="openedCard"
-				:read-only="readOnly"
-				:known-tags="knownTags"
-				:palette="(currentBoard && currentBoard.tags) || []"
-				:board-cards="allCards"
-				@saved="onCardSaved"
-				@deleted="onCardDeleted"
-				@refresh="loadCards"
-				@close="openedCard = null" />
+				<CardDetail
+					v-if="openedCard"
+					class="sk-card-dock"
+					:docked="wide"
+					:board-id="currentId"
+					:card="openedCard"
+					:read-only="readOnly"
+					:known-tags="knownTags"
+					:palette="(currentBoard && currentBoard.tags) || []"
+					:board-cards="allCards"
+					@saved="onCardSaved"
+					@deleted="onCardDeleted"
+					@refresh="loadCards"
+					@close="openedCard = null" />
+				</div>
+			</template>
 
 			<BoardEditModal
 				v-if="boardEditorOpen"
@@ -330,6 +334,7 @@ export default {
 			showCovers: false,
 			helpOpen: false,
 			importing: false,
+			wide: false,
 			trashOpen: false,
 			trashCards: [],
 			trashLoading: false,
@@ -421,18 +426,27 @@ export default {
 
 	async mounted() {
 		this.loadPresent()
+		this.updateWide()
 		window.addEventListener('keydown', this.onKeydown)
+		window.addEventListener('resize', this.updateWide)
 		await this.loadBoards()
 		this.loadTemplates()
 	},
 
 	beforeUnmount() {
 		window.removeEventListener('keydown', this.onKeydown)
+		window.removeEventListener('resize', this.updateWide)
 	},
 
 	methods: {
 		t(s) {
 			return s
+		},
+
+		// Dock the card editor to the right above this width; below it, the card
+		// stays a centred overlay (Alain, 2026-07-19).
+		updateWide() {
+			this.wide = window.innerWidth >= 1200
 		},
 
 		// Global keyboard shortcuts (Alain, 2026-07-19). Ignored while typing in a
@@ -1032,6 +1046,36 @@ export default {
 /* Full-height board so the horizontal scrollbar sits at the bottom of the
    viewport (Alain, 2026-07-19: it was hidden below the fold), and each column
    scrolls its own cards. */
+/* Work area: board alone (full width), or board + docked card editor side by
+   side above 1200px (Alain, 2026-07-19). */
+.sk-workarea {
+	height: 100%;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.sk-workarea--split {
+	flex-direction: row;
+	align-items: stretch;
+	gap: 0;
+}
+
+.sk-workarea > .sk-vue-board {
+	flex: 1 1 0;
+	min-width: 0;
+}
+
+.sk-workarea--split > .sk-card-dock {
+	flex: 0 0 46%;
+	min-width: 380px;
+	max-width: 680px;
+	min-height: 0;
+	border-left: 1px solid var(--color-border);
+	background: var(--color-main-background);
+	overflow: hidden;
+}
+
 .sk-vue-board {
 	display: flex;
 	flex-direction: column;

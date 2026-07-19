@@ -16,8 +16,8 @@
   - step. Read-only disables every write control — Steve's bare-403, in Vue.
 -->
 <template>
-	<NcModal :size="expanded ? 'full' : 'large'" :can-close="false" @close="requestClose">
-		<div class="sk-detail-vue" :class="{ 'sk-detail-vue--expanded': expanded }" @click="onLinkClick">
+	<CardShell :docked="docked" :expanded="expanded" @close="requestClose">
+		<div class="sk-detail-vue" :class="{ 'sk-detail-vue--expanded': expanded && !docked, 'sk-detail-vue--docked': docked }" @click="onLinkClick">
 			<div v-if="confirmClose" class="sk-closeconfirm">
 				<div class="sk-closeconfirm-box">
 					<p class="sk-closeconfirm-msg">{{ t('Que voulez-vous faire de cette carte ?') }}</p>
@@ -53,6 +53,7 @@
 					:readonly="readOnly"
 					:placeholder="t('Titre')">
 				<NcButton
+					v-if="!docked"
 					type="tertiary"
 					:aria-label="expanded ? t('Réduire l\'éditeur') : t('Agrandir l\'éditeur')"
 					@click="expanded = !expanded">
@@ -252,13 +253,13 @@
 				</NcButton>
 			</div>
 		</div>
-	</NcModal>
+	</CardShell>
 </template>
 
 <script>
 import axios from '@nextcloud/axios'
 import { generateUrl } from '@nextcloud/router'
-import NcModal from '@nextcloud/vue/components/NcModal'
+import CardShell from './CardShell.vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcActions from '@nextcloud/vue/components/NcActions'
 import NcActionButton from '@nextcloud/vue/components/NcActionButton'
@@ -276,9 +277,10 @@ const PROCEDURES = '/apps/sovereign-kanban-md-persistence/api/v1/procedures'
 export default {
 	name: 'CardDetail',
 
-	components: { NcModal, NcButton, NcActions, NcActionButton, NcActionCaption, NcSelect, CommentsSection, DateField, RelationsField, AttachmentsSection },
+	components: { CardShell, NcButton, NcActions, NcActionButton, NcActionCaption, NcSelect, CommentsSection, DateField, RelationsField, AttachmentsSection },
 
 	props: {
+		docked: { type: Boolean, default: false },
 		boardId: { type: String, required: true },
 		card: { type: Object, required: true },
 		readOnly: { type: Boolean, default: false },
@@ -836,10 +838,18 @@ export default {
 	padding-right: 2px;
 }
 
-.sk-detail-vue--expanded .sk-tab-panel {
+.sk-detail-vue--expanded .sk-tab-panel,
+.sk-detail-vue--docked .sk-tab-panel {
 	height: auto;
 	flex: 1 1 auto;
 	min-height: 0;
+}
+
+/* Docked to the right of the board: fill the dock's height and scroll inside. */
+.sk-detail-vue--docked {
+	height: 100%;
+	min-width: 0;
+	padding: 10px 14px 12px;
 }
 
 /* The datetime-local picker draws its calendar indicator at the right edge; if
