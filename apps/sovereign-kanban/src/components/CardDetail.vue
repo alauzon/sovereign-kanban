@@ -40,6 +40,14 @@
 
 			<div class="sk-detail-toolbar">
 				<NcButton
+					v-if="!readOnly"
+					class="sk-done-btn"
+					:type="completedAt ? 'success' : 'secondary'"
+					@click="completedAt = completedAt ? null : nowIso()">
+					{{ completedAt ? t('✓ Fait') : t('Marquer comme fait') }}
+				</NcButton>
+				<span class="sk-toolbar-spacer" />
+				<NcButton
 					type="tertiary"
 					:aria-label="expanded ? t('Réduire l\'éditeur') : t('Agrandir l\'éditeur')"
 					@click="expanded = !expanded">
@@ -226,6 +234,7 @@ export default {
 			editorMounted: false,
 			editorInstance: null,
 			confirmClose: false,
+			completedAt: this.card.completed_at || null,
 		}
 	},
 
@@ -257,6 +266,10 @@ export default {
 		},
 
 		prioLabel,
+
+		nowIso() {
+			return new Date().toISOString()
+		},
 
 		// Closing (✕) offers Save / Discard / Delete instead of dropping edits
 		// silently (Alain, 2026-07-18). Read-only has nothing to save → just close.
@@ -421,6 +434,7 @@ export default {
 					priority: this.form.priority,
 					tags: this.selectedTags.map((t) => this.optLabel(t)),
 					phase: this.form.phase,
+					completed_at: this.completedAt === null ? '' : this.completedAt,
 				})
 				this.$emit('saved')
 			} catch (e) {
@@ -502,7 +516,12 @@ export default {
 
 .sk-detail-toolbar {
 	display: flex;
-	justify-content: flex-end;
+	align-items: center;
+	gap: 4px;
+}
+
+.sk-toolbar-spacer {
+	flex: 1;
 }
 
 /* The datetime-local picker draws its calendar indicator at the right edge; if

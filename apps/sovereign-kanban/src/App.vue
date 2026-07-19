@@ -164,7 +164,7 @@ export default {
 			boardEditorTarget: null,
 			templates: [],
 			filtersOpen: false,
-			filters: { tags: [], assignees: [], phases: [], priorities: [] },
+			filters: { tags: [], assignees: [], phases: [], priorities: [], status: [] },
 		}
 	},
 
@@ -209,6 +209,7 @@ export default {
 				{ key: 'assignees', label: this.t('Assignés'), options: assignees.map((v) => ({ value: v, label: v })) },
 				{ key: 'phases', label: this.t('Phase'), options: phases.map((v) => ({ value: v, label: this.t('Phase') + ' ' + v })) },
 				{ key: 'priorities', label: this.t('Priorité'), options: priorities.map((v) => ({ value: v, label: prioLabel(v) })) },
+				{ key: 'status', label: this.t('Statut'), options: [{ value: 'done', label: this.t('✓ Terminée') }, { value: 'open', label: this.t('À faire') }] },
 			]
 		},
 
@@ -510,6 +511,15 @@ export default {
 			if (f.priorities.length && !f.priorities.includes(String(card.priority))) {
 				return false
 			}
+			if (f.status && f.status.length) {
+				const done = !!card.completed_at
+				if (done && !f.status.includes('done')) {
+					return false
+				}
+				if (!done && !f.status.includes('open')) {
+					return false
+				}
+			}
 			return true
 		},
 
@@ -535,7 +545,7 @@ export default {
 		},
 
 		resetFilters() {
-			this.filters = { tags: [], assignees: [], phases: [], priorities: [] }
+			this.filters = { tags: [], assignees: [], phases: [], priorities: [], status: [] }
 			this.saveFilters()
 		},
 
@@ -545,7 +555,7 @@ export default {
 
 		// Filters persist per board across navigation (Alain, 2026-07-18).
 		loadFilters() {
-			const empty = { tags: [], assignees: [], phases: [], priorities: [] }
+			const empty = { tags: [], assignees: [], phases: [], priorities: [], status: [] }
 			try {
 				const raw = window.localStorage.getItem(this.filtersKey())
 				this.filters = raw ? { ...empty, ...JSON.parse(raw) } : empty

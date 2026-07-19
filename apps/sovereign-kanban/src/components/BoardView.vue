@@ -60,10 +60,13 @@
 				v-for="card in cardsByColumn[column] || []"
 				:key="card.id"
 				class="sk-vue-card"
+				:class="{ 'sk-vue-card--done': card.completed_at }"
 				:draggable="!readOnly"
 				@dragstart.stop="onDragStart($event, card)"
 				@click="$emit('open', card)">
-				<div class="sk-vue-card-title">{{ card.title }}</div>
+				<div class="sk-vue-card-title">
+					<span v-if="card.completed_at" class="sk-done-check" :title="t('Terminée')">✓ </span>{{ card.title }}
+				</div>
 				<div v-if="card.excerpt" class="sk-vue-card-excerpt">{{ card.excerpt }}</div>
 				<div v-if="cardMeta(card).length" class="sk-vue-card-meta">
 					<span v-for="(m, i) in cardMeta(card)" :key="i" class="sk-vue-chip">{{ m }}</span>
@@ -239,6 +242,9 @@ export default {
 		// One short chip line per card, mirroring the vanilla tile meta.
 		cardMeta(card) {
 			const out = []
+			if (card.checklist && card.checklist.total > 0) {
+				out.push('☑ ' + card.checklist.done + '/' + card.checklist.total)
+			}
 			if (card.due_date) {
 				out.push('📅 ' + String(card.due_date).replace('T', ' '))
 			}
@@ -364,6 +370,20 @@ export default {
 
 .sk-vue-card-title {
 	font-weight: 500;
+}
+
+.sk-vue-card--done {
+	opacity: 0.6;
+}
+
+.sk-vue-card--done .sk-vue-card-title {
+	text-decoration: line-through;
+}
+
+.sk-done-check {
+	color: var(--color-success, #46ba61);
+	text-decoration: none;
+	font-weight: 700;
 }
 
 .sk-vue-card-excerpt {
