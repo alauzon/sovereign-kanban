@@ -18,6 +18,7 @@ use OCA\SovereignKanbanMdPersistence\Storage\NextcloudStorage;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
+use OCP\AppFramework\Http\DataDownloadResponse;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
@@ -544,6 +545,97 @@ final class CardController extends Controller {
 		$repository->appendActivity($cardId, 'unlinked', $this->userSession->getUser()?->getUID(), ['card' => $target]);
 
 		return new DataResponse(['card' => $this->detail($repository->findById($cardId), $repository)]);
+	}
+
+	/** Largest attachment accepted, in bytes (Alain, 2026-07-19): 10 MiB. */
+	private const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+
+	/**
+	 * List a card's attachments — the files in its attachments/ folder.
+	 */
+	#[NoAdminRequired]
+	#[NoCSRFRequired]
+	public function attachments(string $boardId, string $cardId): DataResponse {
+		$repository = $this->repository($boardId);
+		if ($repository === null || !$this->validCardId($cardId)) {
+			return new DataResponse(['error' => 'unavailable'], 400);
+		}
+
+		return new DataResponse(['attachments' => $repository->listAttachments($cardId)]);
+	}
+
+	/**
+	 * Upload one attachment as base64 (Alain, 2026-07-19). base64 JSON rather than
+	 * multipart so the controller stays directly callable from a functional test,
+	 * and the same size guard applies everywhere. Capped at MAX_ATTACHMENT_BYTES.
+	 */
+	#[NoAdminRequired]
+	public function addAttachment(string $boardId, string $cardId, string $name, string $content_base64): DataResponse {
+		if (!$this->validCardId($cardId)) {
+			return new DataResponse(['error' => 'unavailable'], 400);
+		}
+		$repository = $this->writableRepositoryOrError($boardId);
+		if ($repository instanceof DataResponse) {
+			return $repository;
+		}
+		if ($repository->findById($cardId) === null) {
+			return new DataResponse(['error' => 'card_not_found'], 404);
+		}
+
+		$content = base64_decode($content_base64, true);
+		if ($content === false) {
+			return new DataResponse(['error' => 'invalid_content'], 400);
+		}
+		if ($content === '') {
+			return new DataResponse(['error' => 'empty'], 400);
+		}
+		if (strlen($content) > self::MAX_ATTACHMENT_BYTES) {
+			return new DataResponse(['error' => 'too_large', 'max' => self::MAX_ATTACHMENT_BYTES], 413);
+		}
+		if (!$repository->saveAttachment($cardId, $name, $content)) {
+			return new DataResponse(['error' => 'invalid_name'], 400);
+		}
+		$repository->appendActivity($cardId, 'attached', $this->userSession->getUser()?->getUID(), ['name' => basename($name)]);
+
+		return new DataResponse(['attachments' => $repository->listAttachments($cardId)], 201);
+	}
+
+	/**
+	 * Download one attachment (forces a save dialog — octet-stream).
+	 */
+	#[NoAdminRequired]
+	#[NoCSRFRequired]
+	public function downloadAttachment(string $boardId, string $cardId, string $name): DataResponse|DataDownloadResponse {
+		$repository = $this->repository($boardId);
+		if ($repository === null || !$this->validCardId($cardId)) {
+			return new DataResponse(['error' => 'unavailable'], 400);
+		}
+		$content = $repository->readAttachment($cardId, $name);
+		if ($content === null) {
+			return new DataResponse(['error' => 'not_found'], 404);
+		}
+
+		return new DataDownloadResponse($content, basename($name), 'application/octet-stream');
+	}
+
+	/**
+	 * Delete one attachment by name.
+	 */
+	#[NoAdminRequired]
+	public function deleteAttachment(string $boardId, string $cardId, string $name): DataResponse {
+		if (!$this->validCardId($cardId)) {
+			return new DataResponse(['error' => 'unavailable'], 400);
+		}
+		$repository = $this->writableRepositoryOrError($boardId);
+		if ($repository instanceof DataResponse) {
+			return $repository;
+		}
+		if (!$repository->deleteAttachment($cardId, $name)) {
+			return new DataResponse(['error' => 'not_found'], 404);
+		}
+		$repository->appendActivity($cardId, 'detached', $this->userSession->getUser()?->getUID(), ['name' => basename($name)]);
+
+		return new DataResponse(['attachments' => $repository->listAttachments($cardId)]);
 	}
 
 	/**

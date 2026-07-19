@@ -44,6 +44,11 @@ final class LocalStorage implements Storage {
 		return is_file($abs) ? (filemtime($abs) ?: null) : null;
 	}
 
+	public function size(string $path): ?int {
+		$abs = $this->abs($path);
+		return is_file($abs) ? (filesize($abs) === false ? null : filesize($abs)) : null;
+	}
+
 	public function write(string $path, string $content): void {
 		$abs = $this->abs($path);
 		$dir = dirname($abs);

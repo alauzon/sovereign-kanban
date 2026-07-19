@@ -30,6 +30,11 @@ interface Storage {
 	 */
 	public function mtime(string $path): ?int;
 
+	/**
+	 * Size of a file in bytes, or null if it is absent.
+	 */
+	public function size(string $path): ?int;
+
 	public function write(string $path, string $content): void;
 
 	public function delete(string $path): void;

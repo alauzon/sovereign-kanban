@@ -344,6 +344,75 @@ final class FileCardRepository {
 	}
 
 	/**
+	 * List a card's attachments (Alain, 2026-07-19): the files in its attachments/
+	 * subfolder ARE the list — folder-as-truth, nothing mirrored in the frontmatter
+	 * (a mirror would drift). Empty when the card or the folder is absent.
+	 *
+	 * @return list<array{name: string, size: ?int, mtime: ?int}>
+	 */
+	public function listAttachments(string $cardId): array {
+		$adir = $this->attachmentsDir($cardId);
+		if ($adir === null || !$this->storage->exists($adir) || !$this->storage->isDir($adir)) {
+			return [];
+		}
+		$out = [];
+		foreach ($this->storage->childFiles($adir) as $name) {
+			$path = $adir . '/' . $name;
+			$out[] = ['name' => $name, 'size' => $this->storage->size($path), 'mtime' => $this->storage->mtime($path)];
+		}
+		return $out;
+	}
+
+	/**
+	 * Write one attachment into the card's attachments/ folder. The name is reduced
+	 * to a basename (no path traversal); dotfiles and empty names are refused.
+	 *
+	 * @return bool True on success; false if the card is missing or the name is bad.
+	 */
+	public function saveAttachment(string $cardId, string $name, string $content): bool {
+		$adir = $this->attachmentsDir($cardId);
+		$name = basename($name);
+		if ($adir === null || $name === '' || str_starts_with($name, '.')) {
+			return false;
+		}
+		// write() creates the attachments/ folder if needed (both storages do).
+		$this->storage->write($adir . '/' . $name, $content);
+		return true;
+	}
+
+	/**
+	 * Read one attachment's bytes for download, or null if it is absent.
+	 */
+	public function readAttachment(string $cardId, string $name): ?string {
+		$adir = $this->attachmentsDir($cardId);
+		$path = $adir === null ? null : $adir . '/' . basename($name);
+		return ($path !== null && $this->storage->exists($path)) ? $this->storage->read($path) : null;
+	}
+
+	/**
+	 * Remove one attachment by name.
+	 *
+	 * @return bool True if it was found and removed.
+	 */
+	public function deleteAttachment(string $cardId, string $name): bool {
+		$adir = $this->attachmentsDir($cardId);
+		$path = $adir === null ? null : $adir . '/' . basename($name);
+		if ($path === null || !$this->storage->exists($path)) {
+			return false;
+		}
+		$this->storage->delete($path);
+		return true;
+	}
+
+	/**
+	 * The card's attachments/ folder path, or null if the card is gone.
+	 */
+	private function attachmentsDir(string $cardId): ?string {
+		$dir = $this->findCardDirAnywhere($cardId);
+		return $dir === null ? null : $dir . '/attachments';
+	}
+
+	/**
 	 * Replace the body of one comment, keeping its id, author and timestamp.
 	 *
 	 * @return bool True if the comment was found and rewritten.

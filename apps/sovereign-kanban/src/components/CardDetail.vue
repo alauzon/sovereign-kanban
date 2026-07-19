@@ -90,6 +90,13 @@
 				<button
 					type="button"
 					class="sk-tab"
+					:class="{ 'sk-tab--on': tab === 'attachments' }"
+					@click="openAttachments">
+					{{ t('Pièces jointes') }}
+				</button>
+				<button
+					type="button"
+					class="sk-tab"
 					:class="{ 'sk-tab--on': tab === 'comments' }"
 					@click="tab = 'comments'">
 					{{ t('Commentaires') }}
@@ -198,6 +205,15 @@
 					@changed="onRelationsChanged" />
 			</div>
 
+			<div v-show="tab === 'attachments'" class="sk-tab-panel">
+				<AttachmentsSection
+					v-if="attachmentsSeen"
+					:board-id="boardId"
+					:card-id="card.id"
+					:read-only="readOnly"
+					@changed="onAttachmentsChanged" />
+			</div>
+
 			<div v-show="tab === 'comments'" class="sk-tab-panel">
 				<CommentsSection
 					:board-id="boardId"
@@ -251,13 +267,14 @@ import { prioLabel } from '../priority.js'
 import CommentsSection from './CommentsSection.vue'
 import DateField from './DateField.vue'
 import RelationsField from './RelationsField.vue'
+import AttachmentsSection from './AttachmentsSection.vue'
 
 const PROCEDURES = '/apps/sovereign-kanban-md-persistence/api/v1/procedures'
 
 export default {
 	name: 'CardDetail',
 
-	components: { NcModal, NcButton, NcActions, NcActionButton, NcActionCaption, NcSelect, CommentsSection, DateField, RelationsField },
+	components: { NcModal, NcButton, NcActions, NcActionButton, NcActionCaption, NcSelect, CommentsSection, DateField, RelationsField, AttachmentsSection },
 
 	props: {
 		boardId: { type: String, required: true },
@@ -301,6 +318,7 @@ export default {
 			activity: [],
 			activityLoading: false,
 			activityLoaded: false,
+			attachmentsSeen: false,
 		}
 	},
 
@@ -383,6 +401,20 @@ export default {
 			}
 		},
 
+		// Open the Pièces jointes tab; latch the section so it mounts once (lazy).
+		openAttachments() {
+			this.tab = 'attachments'
+			this.attachmentsSeen = true
+		},
+
+		// An attachment was added/removed: reload the journal if it is showing
+		// (attach/detach are journaled events).
+		onAttachmentsChanged() {
+			if (this.activityLoaded) {
+				this.loadActivity()
+			}
+		},
+
 		// Open the Activité tab, loading the sovereign journal once (option C).
 		openActivity() {
 			this.tab = 'activity'
@@ -415,6 +447,8 @@ export default {
 				reopened: '↺',
 				linked: '🔗',
 				unlinked: '✂️',
+				attached: '📎',
+				detached: '🗑️',
 			}[action] || '•'
 		},
 
@@ -446,6 +480,10 @@ export default {
 				return this.t('a lié une carte')
 			case 'unlinked':
 				return this.t('a délié une carte')
+			case 'attached':
+				return this.t('a joint') + (ev.detail && ev.detail.name ? ' ' + ev.detail.name : ' un fichier')
+			case 'detached':
+				return this.t('a retiré') + (ev.detail && ev.detail.name ? ' ' + ev.detail.name : ' un fichier')
 			case 'updated': {
 				const fields = (ev.detail && ev.detail.fields) || []
 				const names = fields.map((f) => fieldLabels[f] || f)
