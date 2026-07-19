@@ -64,19 +64,25 @@ test.describe('layout de l\'éditeur de carte (Vue)', () => {
 		})
 	}
 
-	test('le champ date de fin prend la pleine largeur (l\'indicateur ne couvre pas la valeur)', async ({ page }) => {
+	test('le champ date de fin remplit sa cellule (l\'indicateur ne couvre pas la valeur)', async ({ page }) => {
 		await openCardModal(page)
-		const field = page.locator('.sk-field', { hasText: 'Date de fin' }).locator('input')
-		const fieldW = (await field.boundingBox()).width
-		expect(fieldW).toBeGreaterThanOrEqual((await contentWidth(page)) * 0.9)
+		// The dates now share a row, so the field fills its own cell, not the whole
+		// modal. The bug (calendar indicator over the value) is a field narrower
+		// than its container — so compare to the cell, not the modal width.
+		const cell = page.locator('.sk-field', { hasText: 'Date de fin' })
+		const cellW = (await cell.boundingBox()).width
+		const fieldW = (await cell.locator('input').boundingBox()).width
+		expect(fieldW).toBeGreaterThanOrEqual(cellW * 0.9)
 	})
 
 	test('la description prend la pleine largeur', async ({ page }) => {
 		await openCardModal(page)
 		// The description is the rich Text editor when it mounts, else the textarea
-		// fallback — measure whichever is visible.
+		// fallback — wait for whichever becomes visible, then measure it.
 		const editor = page.locator('.sk-desc-editor')
-		const field = (await editor.isVisible()) ? editor : page.locator('.sk-desc-fallback')
+		const fallback = page.locator('.sk-desc-fallback')
+		await editor.or(fallback).first().waitFor({ state: 'visible' })
+		const field = (await editor.isVisible()) ? editor : fallback
 		const w = (await field.boundingBox()).width
 		expect(w).toBeGreaterThanOrEqual((await contentWidth(page)) * 0.9)
 	})

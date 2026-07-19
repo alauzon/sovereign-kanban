@@ -38,36 +38,38 @@
 				👁 {{ t('Lecture seule — vous ne pouvez pas modifier cette carte.') }}
 			</div>
 
-			<label class="sk-field">
-				<span>{{ t('Date de début') }}</span>
-				<input v-model="startInput" type="datetime-local" :disabled="readOnly">
-			</label>
-
-			<label class="sk-field">
-				<span>{{ t('Date de fin') }}</span>
-				<input v-model="dueInput" type="datetime-local" :disabled="readOnly">
-			</label>
+			<div class="sk-field-row">
+				<label class="sk-field">
+					<span>{{ t('Date de début') }}</span>
+					<input v-model="startInput" type="datetime-local" :disabled="readOnly">
+				</label>
+				<label class="sk-field">
+					<span>{{ t('Date de fin') }}</span>
+					<input v-model="dueInput" type="datetime-local" :disabled="readOnly">
+				</label>
+			</div>
 
 			<label class="sk-field">
 				<span>{{ t('Assignés (séparés par des virgules)') }}</span>
 				<input v-model="assigneesInput" type="text" :disabled="readOnly" placeholder="alain, steve">
 			</label>
 
-			<label class="sk-field">
-				<span>{{ t('Priorité') }}</span>
-				<select v-model="form.priority" :disabled="readOnly">
-					<option value="">{{ t('—') }}</option>
-					<option v-for="p in priorities" :key="p" :value="p">{{ p }}</option>
-				</select>
-			</label>
-
-			<label class="sk-field">
-				<span>{{ t('Phase') }}</span>
-				<select v-model="form.phase" :disabled="readOnly">
-					<option value="">{{ t('—') }}</option>
-					<option v-for="p in phases" :key="p" :value="p">{{ t('Phase') }} {{ p }}</option>
-				</select>
-			</label>
+			<div class="sk-field-row">
+				<label class="sk-field">
+					<span>{{ t('Priorité') }}</span>
+					<select v-model="form.priority" :disabled="readOnly">
+						<option value="">{{ t('—') }}</option>
+						<option v-for="p in priorities" :key="p" :value="p">{{ p }}</option>
+					</select>
+				</label>
+				<label class="sk-field">
+					<span>{{ t('Phase') }}</span>
+					<select v-model="form.phase" :disabled="readOnly">
+						<option value="">{{ t('—') }}</option>
+						<option v-for="p in phases" :key="p" :value="p">{{ t('Phase') }} {{ p }}</option>
+					</select>
+				</label>
+			</div>
 
 			<label class="sk-field">
 				<span>{{ t('Étiquettes (séparées par des virgules)') }}</span>
@@ -460,6 +462,17 @@ export default {
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
+}
+
+/* Two fields side by side (dates; priority + phase) — Alain, 2026-07-18. */
+.sk-field-row {
+	display: flex;
+	gap: 12px;
+}
+
+.sk-field-row > .sk-field {
+	flex: 1 1 0;
+	min-width: 0;
 }
 
 .sk-field > span {
