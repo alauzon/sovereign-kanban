@@ -72,6 +72,24 @@
 				👁 {{ t('Lecture seule — vous ne pouvez pas modifier cette carte.') }}
 			</div>
 
+			<div class="sk-detail-tabs" role="tablist">
+				<button
+					type="button"
+					class="sk-tab"
+					:class="{ 'sk-tab--on': tab === 'details' }"
+					@click="tab = 'details'">
+					{{ t('Détails') }}
+				</button>
+				<button
+					type="button"
+					class="sk-tab"
+					:class="{ 'sk-tab--on': tab === 'comments' }"
+					@click="tab = 'comments'">
+					{{ t('Commentaires') }}
+				</button>
+			</div>
+
+			<div v-show="tab === 'details'" class="sk-tab-panel">
 			<div class="sk-field-row">
 				<DateField v-model="startInput" class="sk-field" :label="t('Date de début')" :disabled="readOnly" />
 				<DateField v-model="dueInput" class="sk-field" :label="t('Date de fin')" :disabled="readOnly" />
@@ -155,6 +173,14 @@
 					:readonly="readOnly"
 					:placeholder="t('Description (Markdown)…')" />
 			</div>
+			</div>
+
+			<div v-show="tab === 'comments'" class="sk-tab-panel">
+				<CommentsSection
+					:board-id="boardId"
+					:card-id="card.id"
+					:read-only="readOnly" />
+			</div>
 
 			<p v-if="error" class="sk-detail-error">{{ error }}</p>
 
@@ -169,11 +195,6 @@
 					{{ t('Enregistrer') }}
 				</NcButton>
 			</div>
-
-			<CommentsSection
-				:board-id="boardId"
-				:card-id="card.id"
-				:read-only="readOnly" />
 		</div>
 	</NcModal>
 </template>
@@ -235,6 +256,7 @@ export default {
 			editorInstance: null,
 			confirmClose: false,
 			completedAt: this.card.completed_at || null,
+			tab: 'details',
 		}
 	},
 
@@ -518,6 +540,33 @@ export default {
 	display: flex;
 	align-items: center;
 	gap: 4px;
+}
+
+.sk-detail-tabs {
+	display: flex;
+	gap: 4px;
+	border-bottom: 1px solid var(--color-border);
+}
+
+.sk-tab {
+	background: none;
+	border: none;
+	border-bottom: 2px solid transparent;
+	padding: 6px 14px;
+	cursor: pointer;
+	color: var(--color-text-maxcontrast);
+	font-weight: 500;
+}
+
+.sk-tab--on {
+	color: var(--color-main-text);
+	border-bottom-color: var(--color-primary-element);
+}
+
+.sk-tab-panel {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
 }
 
 .sk-toolbar-spacer {

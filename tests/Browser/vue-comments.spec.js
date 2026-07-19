@@ -41,6 +41,8 @@ test.describe('commentaires de carte (Vue)', () => {
 		await page.getByPlaceholder('Titre de la carte').press('Enter')
 		await page.locator('.sk-vue-card', { hasText: CARD }).click()
 		await expect(page.locator('.sk-detail-vue')).toBeVisible()
+		// Comments moved into their own tab (2026-07-19).
+		await page.locator('.sk-detail-tabs').getByRole('button', { name: 'Commentaires' }).click()
 	}
 
 	async function typeComment(page, text) {
