@@ -7,6 +7,7 @@
 
 namespace OCA\SovereignKanbanMdPersistence\AppInfo;
 
+use OCA\SovereignKanbanMdPersistence\Notification\Notifier;
 use OCA\SovereignKanbanMdPersistence\Sharing\NextcloudShareGateway;
 use OCA\SovereignKanbanMdPersistence\Sharing\ShareGateway;
 use OCP\AppFramework\App;
@@ -39,6 +40,8 @@ final class Application extends App implements IBootstrap {
 	 */
 	public function register(IRegistrationContext $context): void {
 		$context->registerServiceAlias(ShareGateway::class, NextcloudShareGateway::class);
+		// Renders the due-date notifications the DueDateJob raises (Alain, 2026-07-19).
+		$context->registerNotifierService(Notifier::class);
 	}
 
 	public function boot(IBootContext $context): void {
