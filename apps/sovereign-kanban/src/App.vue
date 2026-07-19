@@ -151,6 +151,10 @@
 									<input type="checkbox" :checked="showCovers" @change="setPresent('showCovers', $event.target.checked)">
 									{{ t('Images de couverture') }}
 								</label>
+								<label class="sk-present-opt">
+									<input type="checkbox" :checked="showId" @change="setPresent('showId', $event.target.checked)">
+									{{ t('Afficher l\'identifiant') }}
+								</label>
 							</div>
 						</div>
 						<NcButton
@@ -184,6 +188,7 @@
 					:templates="templates"
 					:compact="compact"
 					:show-covers="showCovers"
+					:show-id="showId"
 					@open="openCard"
 					@add-card="addCard"
 					@move-card="moveCard"
@@ -332,6 +337,7 @@ export default {
 			presentOpen: false,
 			compact: false,
 			showCovers: false,
+			showId: false,
 			helpOpen: false,
 			importing: false,
 			wide: false,
@@ -799,6 +805,7 @@ export default {
 					const p = JSON.parse(raw)
 					this.compact = !!p.compact
 					this.showCovers = !!p.showCovers
+					this.showId = !!p.showId
 				}
 			} catch (e) {
 				// ignore a corrupt value
@@ -808,7 +815,7 @@ export default {
 		setPresent(key, value) {
 			this[key] = value
 			try {
-				window.localStorage.setItem('sk-present', JSON.stringify({ compact: this.compact, showCovers: this.showCovers }))
+				window.localStorage.setItem('sk-present', JSON.stringify({ compact: this.compact, showCovers: this.showCovers, showId: this.showId }))
 			} catch (e) {
 				// storage disabled — the toggle still works for this session
 			}

@@ -43,7 +43,13 @@ test.describe('menu présentation (Vue)', () => {
 		await page.getByText('Affichage compact').click()
 		await expect(page.locator('.sk-vue-columns--compact')).toHaveCount(1)
 
-		// It persists across a reload (localStorage).
+		// « Afficher l'identifiant » shows the card id on the tile.
+		await expect(page.locator('.sk-vue-card-id')).toHaveCount(0)
+		await page.getByText('Afficher l\'identifiant').click()
+		await expect(page.locator('.sk-vue-card-id')).toHaveCount(1)
+
+		// The prefs persist across a reload (localStorage) — checked on compact,
+		// same mechanism as showId.
 		await page.reload()
 		await dismissWizard(page)
 		await expect(page.locator('.sk-vue-columns--compact')).toHaveCount(1)

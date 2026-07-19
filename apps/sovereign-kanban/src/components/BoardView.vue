@@ -95,6 +95,7 @@
 						<span v-if="card.completed_at" class="sk-done-check" :title="t('Terminée')">✓ </span>{{ card.title }}
 					</template>
 				</div>
+				<div v-if="showId" class="sk-vue-card-id">#{{ shortId(card.id) }}</div>
 				<div v-if="card.excerpt" class="sk-vue-card-excerpt">{{ card.excerpt }}</div>
 				<div v-if="cardMeta(card).length" class="sk-vue-card-meta">
 					<span v-for="(m, i) in cardMeta(card)" :key="i" class="sk-vue-chip">{{ m }}</span>
@@ -248,6 +249,7 @@ export default {
 		templates: { type: Array, default: () => [] },
 		compact: { type: Boolean, default: false },
 		showCovers: { type: Boolean, default: false },
+		showId: { type: Boolean, default: false },
 	},
 
 	emits: ['open', 'add-card', 'move-card', 'add-from-template', 'add-column', 'rename-column', 'remove-column', 'reorder-column', 'toggle-done', 'delete-card', 'mark-column-done', 'rename-card', 'set-card-color', 'archive-card', 'archive-column'],
@@ -282,6 +284,12 @@ export default {
 	methods: {
 		t(s) {
 			return s
+		},
+
+		// A short, human-glanceable form of the card's UUID (Alain, 2026-07-19:
+		// « Afficher l'identifiant »).
+		shortId(id) {
+			return (id || '').replace(/-/g, '').slice(0, 6)
 		},
 
 		// URL of a card's cover image (its first image attachment). Same session
@@ -808,6 +816,14 @@ export default {
 .sk-vue-card-excerpt {
 	color: var(--color-text-maxcontrast);
 	font-size: 90%;
+	margin-top: 2px;
+}
+
+/* Card id, shown only when « Afficher l'identifiant » is on. */
+.sk-vue-card-id {
+	color: var(--color-text-maxcontrast);
+	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	font-size: 80%;
 	margin-top: 2px;
 }
 
