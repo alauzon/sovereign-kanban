@@ -56,6 +56,7 @@
 				</span>
 			</header>
 
+			<div class="sk-vue-column-cards">
 			<article
 				v-for="card in cardsByColumn[column] || []"
 				:key="card.id"
@@ -80,6 +81,7 @@
 						:show-user-status="false" />
 				</div>
 			</article>
+			</div>
 
 			<input
 				v-if="!readOnly && addingColumn === column"
@@ -300,11 +302,17 @@ export default {
 	display: flex;
 	gap: 16px;
 	padding: 16px 24px;
-	align-items: flex-start;
+	align-items: stretch;
 	/* Columns that overflow scroll horizontally — they must NOT wrap to the next
 	   line (Alain, 2026-07-18). nowrap + overflow-x:auto gives the scroll bar. */
 	flex-wrap: nowrap;
 	overflow-x: auto;
+	/* Fill the board's height and keep the horizontal scrollbar at the bottom of
+	   the viewport (Alain, 2026-07-19: it sat below the fold). Cards scroll inside
+	   each column, not the whole area. */
+	overflow-y: hidden;
+	flex: 1 1 auto;
+	min-height: 0;
 }
 
 .sk-readonly-banner {
@@ -321,6 +329,17 @@ export default {
 	background: var(--color-background-hover);
 	border-radius: var(--border-radius-large, 12px);
 	padding: 8px;
+	display: flex;
+	flex-direction: column;
+	max-height: 100%;
+	min-height: 0;
+}
+
+/* The cards scroll here; the header and the ＋ Carte footer stay put. */
+.sk-vue-column-cards {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
 }
 
 .sk-vue-column--droptarget {

@@ -57,6 +57,7 @@
 				:name="t('Sovereign Kanban')"
 				:description="t('Choisissez un tableau dans la navigation.')" />
 			<template v-else>
+				<div class="sk-vue-board">
 				<div class="sk-vue-board-header">
 					<h2 class="sk-vue-board-title">{{ currentBoard.name }}</h2>
 					<div class="sk-vue-toolbar">
@@ -90,6 +91,7 @@
 					@rename-column="renameColumn"
 					@remove-column="removeColumn"
 					@reorder-column="reorderColumn" />
+				</div>
 			</template>
 
 			<CardDetail
@@ -585,12 +587,23 @@ export default {
 	border-radius: 50%;
 }
 
+/* Full-height board so the horizontal scrollbar sits at the bottom of the
+   viewport (Alain, 2026-07-19: it was hidden below the fold), and each column
+   scrolls its own cards. */
+.sk-vue-board {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+}
+
 .sk-vue-board-header {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 	gap: 8px;
 	padding-right: 16px;
+	flex: 0 0 auto;
 }
 
 .sk-vue-board-title {
