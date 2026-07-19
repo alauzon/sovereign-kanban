@@ -42,7 +42,7 @@ final class FileCardRepository {
 	 */
 	public function listByColumn(): array {
 		$result = [];
-		foreach ($this->storage->childDirectories('') as $columnFolder) {
+		foreach ($this->columnFolders() as $columnFolder) {
 			$cleanName = preg_replace('/^\d+-/', '', $columnFolder);
 			$cards = [];
 			foreach ($this->storage->childDirectories($columnFolder) as $cardFolder) {
@@ -61,13 +61,35 @@ final class FileCardRepository {
 	 * Resolve a clean column name to its NN-prefixed folder name, or null.
 	 */
 	public function resolveColumnFolder(string $cleanName): ?string {
-		foreach ($this->storage->childDirectories('') as $columnFolder) {
+		foreach ($this->columnFolders() as $columnFolder) {
 			if (preg_replace('/^\d+-/', '', $columnFolder) === $cleanName) {
 				return $columnFolder;
 			}
 		}
 
 		return null;
+	}
+
+	/**
+	 * The first column folder (for restoring a trashed card when its original
+	 * column is gone), or null on an empty board.
+	 */
+	public function firstColumnFolder(): ?string {
+		$folders = $this->columnFolders();
+		return $folders[0] ?? null;
+	}
+
+	/**
+	 * The board's column folders, excluding hidden folders like .trash — those
+	 * are not columns and must never appear on the board.
+	 *
+	 * @return list<string>
+	 */
+	private function columnFolders(): array {
+		return array_values(array_filter(
+			$this->storage->childDirectories(''),
+			static fn (string $f): bool => !str_starts_with($f, '.'),
+		));
 	}
 
 	/**
@@ -141,6 +163,97 @@ final class FileCardRepository {
 		if ($dir !== null) {
 			$this->storage->delete($dir);
 		}
+	}
+
+	/** Hidden folder holding soft-deleted cards, under the board root. */
+	private const TRASH_DIR = '.trash';
+
+	/**
+	 * Soft-delete a card (Alain, 2026-07-19): move its whole folder into .trash/,
+	 * recoverable from the Corbeille. The card.md keeps its data (including the
+	 * original 'column'), so a restore can put it back where it was.
+	 *
+	 * @return bool True if the card existed and was trashed.
+	 */
+	public function trashCard(string $cardId): bool {
+		$dir = $this->findCardDirAnywhere($cardId);
+		if ($dir === null) {
+			return false;
+		}
+		$this->storage->move($dir, self::TRASH_DIR . '/' . basename($dir));
+		return true;
+	}
+
+	/**
+	 * List the soft-deleted cards (id, title, and the column they came from).
+	 *
+	 * @return list<array{id: string, title: string, column: string}>
+	 */
+	public function listTrash(): array {
+		if (!$this->storage->exists(self::TRASH_DIR) || !$this->storage->isDir(self::TRASH_DIR)) {
+			return [];
+		}
+		$out = [];
+		foreach ($this->storage->childDirectories(self::TRASH_DIR) as $folder) {
+			$file = self::TRASH_DIR . '/' . $folder . '/card.md';
+			if (!$this->storage->exists($file)) {
+				continue;
+			}
+			$card = Card::fromMarkdown($this->storage->read($file));
+			$out[] = ['id' => $card->id, 'title' => $card->title, 'column' => $card->column];
+		}
+		return $out;
+	}
+
+	/**
+	 * Restore a trashed card into a column folder, resyncing its 'column' field.
+	 *
+	 * @return bool True if the card was found in the trash and restored.
+	 */
+	public function restoreCard(string $cardId, string $toColumnFolder): bool {
+		$folder = $this->trashFolderOf($cardId);
+		if ($folder === null) {
+			return false;
+		}
+		$toDir = $toColumnFolder . '/' . basename($folder);
+		$this->storage->move($folder, $toDir);
+
+		$file = $toDir . '/card.md';
+		if ($this->storage->exists($file)) {
+			$card = Card::fromMarkdown($this->storage->read($file));
+			$this->storage->write($file, $this->serialize($card->withColumn($toColumnFolder)));
+		}
+		return true;
+	}
+
+	/**
+	 * Permanently delete a trashed card.
+	 *
+	 * @return bool True if it was found in the trash and removed.
+	 */
+	public function purgeCard(string $cardId): bool {
+		$folder = $this->trashFolderOf($cardId);
+		if ($folder === null) {
+			return false;
+		}
+		$this->storage->delete($folder);
+		return true;
+	}
+
+	/**
+	 * The .trash/ subfolder of a soft-deleted card, or null if absent.
+	 */
+	private function trashFolderOf(string $cardId): ?string {
+		if (!$this->storage->exists(self::TRASH_DIR)) {
+			return null;
+		}
+		$prefix = substr($cardId, 0, 8);
+		foreach ($this->storage->childDirectories(self::TRASH_DIR) as $folder) {
+			if (str_starts_with($folder, $prefix)) {
+				return self::TRASH_DIR . '/' . $folder;
+			}
+		}
+		return null;
 	}
 
 	/**

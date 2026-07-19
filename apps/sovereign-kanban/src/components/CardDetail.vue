@@ -779,9 +779,10 @@ export default {
 }
 
 .sk-tab--on {
-	color: var(--color-main-text);
-	background: var(--color-primary-element-light, var(--color-background-dark));
+	color: var(--color-primary-element);
+	background: color-mix(in srgb, var(--color-primary-element) 16%, transparent);
 	border-bottom-color: var(--color-primary-element);
+	font-weight: 700;
 }
 
 .sk-tab-panel {

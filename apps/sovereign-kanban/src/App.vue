@@ -154,6 +154,13 @@
 						</div>
 						<NcButton
 							type="tertiary"
+							:aria-label="t('Corbeille')"
+							:title="t('Corbeille')"
+							@click="openTrash">
+							<span aria-hidden="true">🗑</span> {{ t('Corbeille') }}
+						</NcButton>
+						<NcButton
+							type="tertiary"
 							:aria-label="t('Raccourcis clavier')"
 							:title="t('Raccourcis clavier (?)')"
 							@click="helpOpen = true">
@@ -215,6 +222,29 @@
 				@refresh="onBoardRefresh"
 				@close="boardEditorOpen = false" />
 		</NcAppContent>
+
+		<!-- Corbeille (Alain, 2026-07-19). -->
+		<Teleport to="body">
+			<div v-if="trashOpen" class="sk-help-overlay" @click.self="trashOpen = false">
+				<div class="sk-help-card sk-trash-card" role="dialog" aria-modal="true">
+					<h2 class="sk-help-title">{{ t('Corbeille') }}</h2>
+					<p v-if="trashLoading" class="sk-help-note">{{ t('Chargement…') }}</p>
+					<p v-else-if="!trashCards.length" class="sk-help-note">{{ t('La corbeille est vide.') }}</p>
+					<ul v-else class="sk-trash-list">
+						<li v-for="c in trashCards" :key="c.id" class="sk-trash-item">
+							<span class="sk-trash-title">{{ c.title || t('(sans titre)') }}</span>
+							<span class="sk-trash-acts">
+								<NcButton type="tertiary" :aria-label="t('Restaurer')" @click="restoreTrashCard(c)">↩ {{ t('Restaurer') }}</NcButton>
+								<NcButton type="tertiary" :aria-label="t('Supprimer définitivement')" @click="purgeTrashCard(c)">🗑</NcButton>
+							</span>
+						</li>
+					</ul>
+					<div class="sk-help-actions">
+						<NcButton type="primary" @click="trashOpen = false">{{ t('Fermer') }}</NcButton>
+					</div>
+				</div>
+			</div>
+		</Teleport>
 
 		<!-- Keyboard-shortcut help (Alain, 2026-07-19: press ?). -->
 		<Teleport to="body">
@@ -300,6 +330,9 @@ export default {
 			showCovers: false,
 			helpOpen: false,
 			importing: false,
+			trashOpen: false,
+			trashCards: [],
+			trashLoading: false,
 			filters: { tags: [], assignees: [], phases: [], priorities: [], status: [] },
 		}
 	},
@@ -681,7 +714,7 @@ export default {
 
 		async deleteCardTile(card) {
 			// eslint-disable-next-line no-alert
-			if (!window.confirm(this.t('Supprimer la carte « ') + card.title + ' » ?')) {
+			if (!window.confirm(this.t('Déplacer « ') + card.title + this.t(' » à la corbeille ?'))) {
 				return
 			}
 			try {
@@ -692,6 +725,45 @@ export default {
 			} catch (e) {
 				// eslint-disable-next-line no-alert
 				window.alert(this.t('Impossible de supprimer la carte.'))
+			}
+		},
+
+		// Corbeille (Alain, 2026-07-19): open + list, restore, purge.
+		async openTrash() {
+			this.trashOpen = true
+			this.trashLoading = true
+			try {
+				const res = await axios.get(this.url('/boards/' + encodeURIComponent(this.currentId) + '/trash'))
+				this.trashCards = res.data.trash || []
+			} catch (e) {
+				this.trashCards = []
+			} finally {
+				this.trashLoading = false
+			}
+		},
+
+		async restoreTrashCard(card) {
+			try {
+				const res = await axios.post(this.url('/boards/' + encodeURIComponent(this.currentId) + '/trash/' + encodeURIComponent(card.id) + '/restore'))
+				this.trashCards = res.data.trash || []
+				await this.loadCards()
+			} catch (e) {
+				// eslint-disable-next-line no-alert
+				window.alert(this.t('Restauration impossible.'))
+			}
+		},
+
+		async purgeTrashCard(card) {
+			// eslint-disable-next-line no-alert
+			if (!window.confirm(this.t('Supprimer définitivement « ') + card.title + ' » ? Cette action est irréversible.')) {
+				return
+			}
+			try {
+				const res = await axios.delete(this.url('/boards/' + encodeURIComponent(this.currentId) + '/trash/' + encodeURIComponent(card.id)))
+				this.trashCards = res.data.trash || []
+			} catch (e) {
+				// eslint-disable-next-line no-alert
+				window.alert(this.t('Suppression impossible.'))
 			}
 		},
 
@@ -1090,5 +1162,41 @@ export default {
 .sk-help-actions {
 	display: flex;
 	justify-content: flex-end;
+}
+
+.sk-trash-card {
+	max-width: 520px;
+}
+
+.sk-trash-list {
+	list-style: none;
+	margin: 8px 0 14px;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	max-height: 50vh;
+	overflow-y: auto;
+}
+
+.sk-trash-item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 4px 6px;
+	border-bottom: 1px solid var(--color-border);
+}
+
+.sk-trash-title {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.sk-trash-acts {
+	display: flex;
+	gap: 4px;
+	flex: 0 0 auto;
 }
 </style>

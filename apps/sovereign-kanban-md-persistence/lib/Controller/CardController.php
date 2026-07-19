@@ -329,7 +329,8 @@ final class CardController extends Controller {
 	}
 
 	/**
-	 * Delete a card.
+	 * Delete a card — soft, to the Corbeille (Alain, 2026-07-19). The card moves to
+	 * .trash/ and can be restored; permanent deletion is a separate action.
 	 */
 	#[NoAdminRequired]
 	public function destroy(string $boardId, string $cardId): DataResponse {
@@ -341,9 +342,69 @@ final class CardController extends Controller {
 			return $repository;
 		}
 
-		$repository->deleteById($cardId);
+		$repository->trashCard($cardId);
 
 		return new DataResponse(['deleted' => true]);
+	}
+
+	/**
+	 * List the board's Corbeille (soft-deleted cards).
+	 */
+	#[NoAdminRequired]
+	#[NoCSRFRequired]
+	public function trash(string $boardId): DataResponse {
+		$repository = $this->repository($boardId);
+		if ($repository === null) {
+			return new DataResponse(['error' => 'unavailable'], 400);
+		}
+
+		return new DataResponse(['trash' => $repository->listTrash()]);
+	}
+
+	/**
+	 * Restore a trashed card into a column (clean name; defaults to the first).
+	 */
+	#[NoAdminRequired]
+	public function restore(string $boardId, string $cardId, ?string $column = null): DataResponse {
+		if (!$this->validCardId($cardId)) {
+			return new DataResponse(['error' => 'unavailable'], 400);
+		}
+		$repository = $this->writableRepositoryOrError($boardId);
+		if ($repository instanceof DataResponse) {
+			return $repository;
+		}
+		$folder = $repository->resolveColumnFolder($column ?? '');
+		if ($folder === null) {
+			$folder = $repository->firstColumnFolder();
+		}
+		if ($folder === null) {
+			return new DataResponse(['error' => 'no_column'], 400);
+		}
+		if (!$repository->restoreCard($cardId, $folder)) {
+			return new DataResponse(['error' => 'not_in_trash'], 404);
+		}
+		$repository->appendActivity($cardId, 'restored', $this->userSession->getUser()?->getUID());
+
+		return new DataResponse(['trash' => $repository->listTrash()]);
+	}
+
+	/**
+	 * Permanently delete a trashed card.
+	 */
+	#[NoAdminRequired]
+	public function purge(string $boardId, string $cardId): DataResponse {
+		if (!$this->validCardId($cardId)) {
+			return new DataResponse(['error' => 'unavailable'], 400);
+		}
+		$repository = $this->writableRepositoryOrError($boardId);
+		if ($repository instanceof DataResponse) {
+			return $repository;
+		}
+		if (!$repository->purgeCard($cardId)) {
+			return new DataResponse(['error' => 'not_in_trash'], 404);
+		}
+
+		return new DataResponse(['trash' => $repository->listTrash()]);
 	}
 
 	/**
