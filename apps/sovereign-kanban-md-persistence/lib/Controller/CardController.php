@@ -156,6 +156,7 @@ final class CardController extends Controller {
 		?string $phase = null,
 		?string $start_date = null,
 		?string $completed_at = null,
+		?string $color = null,
 	): DataResponse {
 		if (!$this->validCardId($cardId)) {
 			return new DataResponse(['error' => 'unavailable'], 400);
@@ -239,6 +240,12 @@ final class CardController extends Controller {
 			$newCompleted = ($completed_at === '') ? null : $completed_at;
 		}
 
+		// color: null = leave, '' = clear, else set (a palette hex).
+		$newColor = $card->color;
+		if ($color !== null) {
+			$newColor = ($color === '') ? null : $color;
+		}
+
 		$newTitle = ($title !== null && trim($title) !== '') ? trim($title) : $card->title;
 
 		$updated = new Card(
@@ -259,6 +266,7 @@ final class CardController extends Controller {
 			// but it MUST be carried through here, or every update erases it. This
 			// is the exact field-by-field drop the extra[] comment below warns of.
 			author: $card->author,
+			color: $newColor,
 			// Relations are managed by their own endpoints, but must survive a
 			// field edit — same carry-through rule as author.
 			relations: $card->relations,
@@ -659,6 +667,7 @@ final class CardController extends Controller {
 			'completed_at' => $card->completed_at,
 			'author' => $card->author,
 			'author_label' => $this->displayName($card->author),
+			'color' => $card->color,
 			// Relations gain their target's title/done state when a repository is on
 			// hand to resolve them; otherwise the raw {type, card} list is returned.
 			'relations' => $repository !== null ? $repository->resolveRelations($card) : array_values($card->relations),

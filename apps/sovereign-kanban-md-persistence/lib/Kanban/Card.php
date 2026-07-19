@@ -41,6 +41,9 @@ final class Card {
 		// uid of whoever created the card, written once at creation (Alain,
 		// 2026-07-19). Never rewritten by an edit.
 		public readonly ?string $author = null,
+		// Card colour (Alain, 2026-07-19): a hex string from the board's palette,
+		// or null. Shown as a left band on the tile.
+		public readonly ?string $color = null,
 		// Typed links to other cards (Alain, 2026-07-19): a list of
 		// ['type' => child|parent|depends|required|related, 'card' => <id>]. The
 		// reciprocal is stored on the other card; only the id is kept here, never
@@ -60,7 +63,7 @@ final class Card {
 	private const KNOWN_KEYS = [
 		'id', 'title', 'column', 'created_at', 'assignees', 'due_date',
 		'start_date', 'procedures', 'priority', 'tags', 'phase', 'completed_at',
-		'author', 'relations',
+		'author', 'color', 'relations',
 		// Legacy French spellings: read, never written. Files created before
 		// 2026-07-15 carry them; they migrate silently on the next app write.
 		'procédures', 'priorité', 'étiquettes',
@@ -113,6 +116,7 @@ final class Card {
 			start_date: $this->start_date,
 			completed_at: $this->completed_at,
 			author: $this->author,
+			color: $this->color,
 			relations: $this->relations,
 			extra: $this->extra,
 		);
@@ -142,6 +146,7 @@ final class Card {
 			start_date: $this->start_date,
 			completed_at: $this->completed_at,
 			author: $this->author,
+			color: $this->color,
 			relations: array_values($relations),
 			extra: $this->extra,
 		);
@@ -183,6 +188,7 @@ final class Card {
 			start_date: self::normalizeDate($frontmatter['start_date'] ?? null),
 			completed_at: (isset($frontmatter['completed_at']) && $frontmatter['completed_at'] !== '') ? (string) $frontmatter['completed_at'] : null,
 			author: (isset($frontmatter['author']) && $frontmatter['author'] !== '') ? (string) $frontmatter['author'] : null,
+			color: (isset($frontmatter['color']) && $frontmatter['color'] !== '') ? (string) $frontmatter['color'] : null,
 			relations: self::normalizeRelations($frontmatter['relations'] ?? []),
 			extra: array_diff_key($frontmatter, array_flip(self::KNOWN_KEYS)),
 		);
@@ -309,6 +315,7 @@ final class Card {
 			'phase' => $this->phase,
 			'completed_at' => $this->completed_at,
 			'author' => $this->author,
+			'color' => $this->color,
 			'relations' => $this->relations,
 			'checklist' => $this->checklist(),
 			'excerpt' => $this->excerpt(),
@@ -413,6 +420,10 @@ final class Card {
 
 		if ($this->author !== null) {
 			$frontmatter['author'] = $this->author;
+		}
+
+		if ($this->color !== null) {
+			$frontmatter['color'] = $this->color;
 		}
 
 		if (!empty($this->relations)) {

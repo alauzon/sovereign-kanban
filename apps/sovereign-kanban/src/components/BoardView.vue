@@ -61,24 +61,11 @@
 				:key="card.id"
 				class="sk-vue-card"
 				:class="{ 'sk-vue-card--done': card.completed_at }"
+				:style="card.color ? { borderLeft: '4px solid ' + card.color } : {}"
 				:draggable="!readOnly"
 				@dragstart.stop="onDragStart($event, card)"
 				@click="$emit('open', card)">
 				<div v-if="!readOnly" class="sk-vue-card-quick">
-					<button
-						type="button"
-						:aria-label="card.completed_at ? t('Rouvrir') : t('Marquer comme fait')"
-						:title="card.completed_at ? t('Rouvrir') : t('Marquer comme fait')"
-						@click.stop="$emit('toggle-done', card)">
-						{{ card.completed_at ? '↺' : '✓' }}
-					</button>
-					<button
-						type="button"
-						:aria-label="t('Supprimer la carte')"
-						:title="t('Supprimer la carte')"
-						@click.stop="$emit('delete-card', card)">
-						✕
-					</button>
 					<button
 						type="button"
 						:aria-label="t('Menu de la carte')"
@@ -195,11 +182,37 @@
 		<Teleport to="body">
 			<div v-if="menuCard !== null" class="sk-col-menu-backdrop" @click="menuCard = null" />
 			<div v-if="menuCard !== null" class="sk-col-menu" :style="cardMenuStyle">
+				<div v-if="paletteColors.length" class="sk-card-swatches">
+					<button
+						v-for="c in paletteColors"
+						:key="c"
+						type="button"
+						class="sk-swatch"
+						:class="{ 'sk-swatch--on': menuCard.color === c }"
+						:style="{ background: c }"
+						:aria-label="t('Couleur') + ' ' + c"
+						:title="c"
+						@click="setCardColor(menuCard, c)" />
+					<button
+						type="button"
+						class="sk-swatch sk-swatch-none"
+						:aria-label="t('Aucune couleur')"
+						:title="t('Aucune couleur')"
+						@click="setCardColor(menuCard, '')">
+						✕
+					</button>
+				</div>
 				<button type="button" class="sk-col-menu-item" @click="cardMenuOpen(menuCard)">
 					🔍 {{ t('Détails de la carte') }}
 				</button>
 				<button type="button" class="sk-col-menu-item" @click="cardMenuRename(menuCard)">
 					✎ {{ t('Modifier le titre') }}
+				</button>
+				<button type="button" class="sk-col-menu-item" @click="cardMenuToggleDone(menuCard)">
+					{{ menuCard.completed_at ? '↺ ' + t('Rouvrir') : '✓ ' + t('Marquer comme fait') }}
+				</button>
+				<button type="button" class="sk-col-menu-item sk-col-menu-danger" @click="cardMenuDelete(menuCard)">
+					🗑 {{ t('Supprimer la carte') }}
 				</button>
 			</div>
 		</Teleport>
@@ -225,7 +238,7 @@ export default {
 		templates: { type: Array, default: () => [] },
 	},
 
-	emits: ['open', 'add-card', 'move-card', 'add-from-template', 'add-column', 'rename-column', 'remove-column', 'reorder-column', 'toggle-done', 'delete-card', 'mark-column-done', 'rename-card'],
+	emits: ['open', 'add-card', 'move-card', 'add-from-template', 'add-column', 'rename-column', 'remove-column', 'reorder-column', 'toggle-done', 'delete-card', 'mark-column-done', 'rename-card', 'set-card-color'],
 
 	data() {
 		return {
@@ -243,6 +256,15 @@ export default {
 			renamingCard: null,
 			cardRenameValue: '',
 		}
+	},
+
+	computed: {
+		// Distinct colours from the board's tag palette, for the card colour
+		// swatches (Alain, 2026-07-19: card colour = the board palette).
+		paletteColors() {
+			const cols = ((this.board && this.board.tags) || []).map((t) => t.color).filter(Boolean)
+			return [...new Set(cols)]
+		},
 	},
 
 	methods: {
@@ -315,6 +337,21 @@ export default {
 
 		cardMenuOpen(card) {
 			this.$emit('open', card)
+			this.menuCard = null
+		},
+
+		setCardColor(card, color) {
+			this.$emit('set-card-color', { card, color })
+			this.menuCard = null
+		},
+
+		cardMenuToggleDone(card) {
+			this.$emit('toggle-done', card)
+			this.menuCard = null
+		},
+
+		cardMenuDelete(card) {
+			this.$emit('delete-card', card)
 			this.menuCard = null
 		},
 
@@ -580,6 +617,38 @@ export default {
 	font: inherit;
 }
 
+/* Colour swatches at the top of the card ⋯ menu. */
+.sk-card-swatches {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	padding: 6px 8px 8px;
+	border-bottom: 1px solid var(--color-border);
+	margin-bottom: 4px;
+}
+
+.sk-swatch {
+	width: 22px;
+	height: 22px;
+	border-radius: 50%;
+	border: 2px solid transparent;
+	cursor: pointer;
+	padding: 0;
+}
+
+.sk-swatch--on {
+	border-color: var(--color-main-text);
+}
+
+.sk-swatch-none {
+	background: var(--color-background-dark);
+	color: var(--color-text-maxcontrast);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 12px;
+}
+
 .sk-vue-col-actions :deep(.button-vue) {
 	min-height: 30px !important;
 	min-width: 30px !important;
@@ -609,13 +678,15 @@ export default {
 	cursor: pointer;
 }
 
+/* The ⋯ menu anchor stays visible at rest (Alain, 2026-07-19), a touch muted,
+   and full-strength on hover/focus. */
 .sk-vue-card-quick {
 	position: absolute;
 	top: 4px;
 	right: 4px;
 	display: flex;
 	gap: 2px;
-	opacity: 0;
+	opacity: 0.55;
 	transition: opacity 0.1s;
 }
 

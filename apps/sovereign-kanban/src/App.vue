@@ -94,7 +94,8 @@
 					@toggle-done="toggleCardDone"
 					@delete-card="deleteCardTile"
 					@mark-column-done="markColumnDone"
-					@rename-card="renameCardTitle" />
+					@rename-card="renameCardTitle"
+					@set-card-color="setCardColor" />
 				</div>
 			</template>
 
@@ -405,6 +406,20 @@ export default {
 			} catch (e) {
 				// eslint-disable-next-line no-alert
 				window.alert(this.t('Impossible de changer le statut.'))
+			}
+		},
+
+		// Set (or clear, with '') a card's colour from the card ⋯ menu swatches.
+		async setCardColor({ card, color }) {
+			try {
+				await axios.put(
+					this.url('/boards/' + encodeURIComponent(this.currentId) + '/cards/' + encodeURIComponent(card.id)),
+					{ color },
+				)
+				await this.loadCards()
+			} catch (e) {
+				// eslint-disable-next-line no-alert
+				window.alert(this.t('Impossible de changer la couleur.'))
 			}
 		},
 
