@@ -34,6 +34,10 @@ final class Card {
 		public readonly array $tags = [],
 		public readonly ?int $phase = null,
 		public readonly ?string $start_date = null,
+		// ISO instant when the card was marked done, or null while it is open
+		// (Alain, 2026-07-19: completed_at rather than a bare boolean, to keep the
+		// "when").
+		public readonly ?string $completed_at = null,
 		public readonly array $extra = [],
 	) {
 	}
@@ -47,7 +51,7 @@ final class Card {
 	 */
 	private const KNOWN_KEYS = [
 		'id', 'title', 'column', 'created_at', 'assignees', 'due_date',
-		'start_date', 'procedures', 'priority', 'tags', 'phase',
+		'start_date', 'procedures', 'priority', 'tags', 'phase', 'completed_at',
 		// Legacy French spellings: read, never written. Files created before
 		// 2026-07-15 carry them; they migrate silently on the next app write.
 		'procédures', 'priorité', 'étiquettes',
@@ -85,6 +89,7 @@ final class Card {
 			tags: $this->tags,
 			phase: $this->phase,
 			start_date: $this->start_date,
+			completed_at: $this->completed_at,
 			extra: $this->extra,
 		);
 	}
@@ -123,6 +128,7 @@ final class Card {
 			tags: $tags,
 			phase: isset($frontmatter['phase']) && $frontmatter['phase'] !== '' ? (int) $frontmatter['phase'] : null,
 			start_date: self::normalizeDate($frontmatter['start_date'] ?? null),
+			completed_at: (isset($frontmatter['completed_at']) && $frontmatter['completed_at'] !== '') ? (string) $frontmatter['completed_at'] : null,
 			extra: array_diff_key($frontmatter, array_flip(self::KNOWN_KEYS)),
 		);
 	}
@@ -223,8 +229,24 @@ final class Card {
 			'priority' => $this->priority,
 			'tags' => array_values($this->tags),
 			'phase' => $this->phase,
+			'completed_at' => $this->completed_at,
+			'checklist' => $this->checklist(),
 			'excerpt' => $this->excerpt(),
 		];
+	}
+
+	/**
+	 * Count the Markdown checkboxes in the description — Deck's "done/total"
+	 * badge, read straight from the body (Alain, 2026-07-18: the checklist is the
+	 * '- [ ]'/'- [x]' items already in the .md, nothing extra to store).
+	 *
+	 * @return array{done: int, total: int}
+	 */
+	public function checklist(): array {
+		preg_match_all('/^\s*[-*]\s+\[([ xX])\]/m', $this->description, $m);
+		$marks = $m[1];
+		$done = count(array_filter($marks, static fn (string $c): bool => strtolower($c) === 'x'));
+		return ['done' => $done, 'total' => count($marks)];
 	}
 
 	/**
@@ -303,6 +325,10 @@ final class Card {
 
 		if ($this->phase !== null) {
 			$frontmatter['phase'] = $this->phase;
+		}
+
+		if ($this->completed_at !== null) {
+			$frontmatter['completed_at'] = $this->completed_at;
 		}
 
 		// Keys we do not understand are written back untouched: the vocabulary

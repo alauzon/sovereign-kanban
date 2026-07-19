@@ -142,6 +142,7 @@ final class CardController extends Controller {
 		?array $tags = null,
 		?string $phase = null,
 		?string $start_date = null,
+		?string $completed_at = null,
 	): DataResponse {
 		if (!$this->validCardId($cardId)) {
 			return new DataResponse(['error' => 'unavailable'], 400);
@@ -219,6 +220,12 @@ final class CardController extends Controller {
 			$newPhase = ($phase === '') ? null : (int) $phase;
 		}
 
+		// completed_at: null = leave, '' = reopen (clear), else set the done instant.
+		$newCompleted = $card->completed_at;
+		if ($completed_at !== null) {
+			$newCompleted = ($completed_at === '') ? null : $completed_at;
+		}
+
 		$updated = new Card(
 			id: $card->id,
 			title: ($title !== null && trim($title) !== '') ? trim($title) : $card->title,
@@ -232,6 +239,7 @@ final class CardController extends Controller {
 			tags: $newTags,
 			phase: $newPhase,
 			start_date: $newStart,
+			completed_at: $newCompleted,
 			// Whatever the user put in their own file and we do not understand.
 			// Rebuilding a Card field by field is exactly how it got dropped:
 			// every edit from the browser used to delete the frontmatter keys
@@ -402,6 +410,8 @@ final class CardController extends Controller {
 			'priority' => $card->priority,
 			'tags' => array_values($card->tags),
 			'phase' => $card->phase,
+			'completed_at' => $card->completed_at,
+			'checklist' => $card->checklist(),
 		];
 	}
 
