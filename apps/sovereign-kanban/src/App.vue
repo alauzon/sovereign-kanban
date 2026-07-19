@@ -90,7 +90,9 @@
 					@add-column="addColumn"
 					@rename-column="renameColumn"
 					@remove-column="removeColumn"
-					@reorder-column="reorderColumn" />
+					@reorder-column="reorderColumn"
+					@toggle-done="toggleCardDone"
+					@delete-card="deleteCardTile" />
 				</div>
 			</template>
 
@@ -384,6 +386,37 @@ export default {
 			} catch (e) {
 				// eslint-disable-next-line no-alert
 				window.alert(this.t('Impossible de supprimer la liste.'))
+			}
+		},
+
+		// Quick actions from a tile, without opening the card (Alain, 2026-07-19).
+		async toggleCardDone(card) {
+			const value = card.completed_at ? '' : new Date().toISOString()
+			try {
+				await axios.put(
+					this.url('/boards/' + encodeURIComponent(this.currentId) + '/cards/' + encodeURIComponent(card.id)),
+					{ completed_at: value },
+				)
+				await this.loadCards()
+			} catch (e) {
+				// eslint-disable-next-line no-alert
+				window.alert(this.t('Impossible de changer le statut.'))
+			}
+		},
+
+		async deleteCardTile(card) {
+			// eslint-disable-next-line no-alert
+			if (!window.confirm(this.t('Supprimer la carte « ') + card.title + ' » ?')) {
+				return
+			}
+			try {
+				await axios.delete(
+					this.url('/boards/' + encodeURIComponent(this.currentId) + '/cards/' + encodeURIComponent(card.id)),
+				)
+				await this.loadCards()
+			} catch (e) {
+				// eslint-disable-next-line no-alert
+				window.alert(this.t('Impossible de supprimer la carte.'))
 			}
 		},
 

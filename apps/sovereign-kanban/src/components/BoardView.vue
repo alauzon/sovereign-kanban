@@ -65,6 +65,22 @@
 				:draggable="!readOnly"
 				@dragstart.stop="onDragStart($event, card)"
 				@click="$emit('open', card)">
+				<div v-if="!readOnly" class="sk-vue-card-quick">
+					<button
+						type="button"
+						:aria-label="card.completed_at ? t('Rouvrir') : t('Marquer comme fait')"
+						:title="card.completed_at ? t('Rouvrir') : t('Marquer comme fait')"
+						@click.stop="$emit('toggle-done', card)">
+						{{ card.completed_at ? '↺' : '✓' }}
+					</button>
+					<button
+						type="button"
+						:aria-label="t('Supprimer la carte')"
+						:title="t('Supprimer la carte')"
+						@click.stop="$emit('delete-card', card)">
+						✕
+					</button>
+				</div>
 				<div class="sk-vue-card-title">
 					<span v-if="card.completed_at" class="sk-done-check" :title="t('Terminée')">✓ </span>{{ card.title }}
 				</div>
@@ -159,7 +175,7 @@ export default {
 		templates: { type: Array, default: () => [] },
 	},
 
-	emits: ['open', 'add-card', 'move-card', 'add-from-template', 'add-column', 'rename-column', 'remove-column', 'reorder-column'],
+	emits: ['open', 'add-card', 'move-card', 'add-from-template', 'add-column', 'rename-column', 'remove-column', 'reorder-column', 'toggle-done', 'delete-card'],
 
 	data() {
 		return {
@@ -390,12 +406,43 @@ export default {
 }
 
 .sk-vue-card {
+	position: relative;
 	background: var(--color-main-background);
 	border: 1px solid var(--color-border);
 	border-radius: var(--border-radius, 8px);
 	padding: 8px 10px;
 	margin-bottom: 8px;
 	cursor: pointer;
+}
+
+.sk-vue-card-quick {
+	position: absolute;
+	top: 4px;
+	right: 4px;
+	display: flex;
+	gap: 2px;
+	opacity: 0;
+	transition: opacity 0.1s;
+}
+
+.sk-vue-card:hover .sk-vue-card-quick,
+.sk-vue-card:focus-within .sk-vue-card-quick {
+	opacity: 1;
+}
+
+.sk-vue-card-quick button {
+	width: 22px;
+	height: 22px;
+	line-height: 1;
+	font-size: 12px;
+	background: var(--color-main-background);
+	border: 1px solid var(--color-border);
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+.sk-vue-card-quick button:hover {
+	background: var(--color-background-hover);
 }
 
 .sk-vue-card-title {
