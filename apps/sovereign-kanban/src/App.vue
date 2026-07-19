@@ -16,8 +16,9 @@
 				</template>
 			</NcAppNavigationNew>
 			<template #list>
+				<!-- Tous les tableaux (owned, active) -->
 				<NcAppNavigationItem
-					v-for="board in boards"
+					v-for="board in myBoards"
 					:key="board.id"
 					:name="board.name"
 					:active="board.id === currentId"
@@ -25,22 +26,65 @@
 					<template #icon>
 						<span class="sk-nav-dot" :style="{ background: board.color || '#888' }" />
 					</template>
-					<template v-if="board.shared" #counter>
-						<span :title="sharedTitle(board)">👥</span>
-					</template>
-					<template v-if="!board.shared" #actions>
+					<template #actions>
 						<NcActionButton :aria-label="t('Éditer le tableau')" @click="openBoardEdit(board)">
-							<template #icon>
-								<span aria-hidden="true">✎</span>
-							</template>
+							<template #icon><span aria-hidden="true">✎</span></template>
 							{{ t('Éditer') }}
 						</NcActionButton>
+						<NcActionButton :aria-label="t('Archiver le tableau')" @click="archiveBoard(board)">
+							<template #icon><span aria-hidden="true">📦</span></template>
+							{{ t('Archiver') }}
+						</NcActionButton>
 						<NcActionButton :aria-label="t('Supprimer le tableau')" @click="deleteBoard(board)">
-							<template #icon>
-								<span aria-hidden="true">🗑</span>
-							</template>
+							<template #icon><span aria-hidden="true">🗑</span></template>
 							{{ t('Supprimer') }}
 						</NcActionButton>
+					</template>
+				</NcAppNavigationItem>
+
+				<!-- Tableaux archivés (repliable) -->
+				<NcAppNavigationItem
+					v-if="archivedBoards.length"
+					:name="t('Tableaux archivés') + ' (' + archivedBoards.length + ')'"
+					:allow-collapse="true"
+					:open="archivedOpen"
+					@update:open="archivedOpen = $event">
+					<template #icon><span aria-hidden="true">📦</span></template>
+					<NcAppNavigationItem
+						v-for="board in archivedBoards"
+						:key="board.id"
+						:name="board.name"
+						:active="board.id === currentId"
+						@click="select(board.id)">
+						<template #icon>
+							<span class="sk-nav-dot" :style="{ background: board.color || '#888' }" />
+						</template>
+						<template #actions>
+							<NcActionButton :aria-label="t('Désarchiver le tableau')" @click="archiveBoard(board)">
+								<template #icon><span aria-hidden="true">📤</span></template>
+								{{ t('Désarchiver') }}
+							</NcActionButton>
+							<NcActionButton :aria-label="t('Supprimer le tableau')" @click="deleteBoard(board)">
+								<template #icon><span aria-hidden="true">🗑</span></template>
+								{{ t('Supprimer') }}
+							</NcActionButton>
+						</template>
+					</NcAppNavigationItem>
+				</NcAppNavigationItem>
+
+				<!-- Partagés avec vous -->
+				<NcAppNavigationCaption v-if="sharedBoards.length" :name="t('Partagés avec vous')" />
+				<NcAppNavigationItem
+					v-for="board in sharedBoards"
+					:key="board.id"
+					:name="board.name"
+					:active="board.id === currentId"
+					@click="select(board.id)">
+					<template #icon>
+						<span class="sk-nav-dot" :style="{ background: board.color || '#888' }" />
+					</template>
+					<template #counter>
+						<span :title="sharedTitle(board)">👥</span>
 					</template>
 				</NcAppNavigationItem>
 			</template>
@@ -139,6 +183,7 @@ import { generateUrl } from '@nextcloud/router'
 import NcContent from '@nextcloud/vue/components/NcContent'
 import NcAppNavigation from '@nextcloud/vue/components/NcAppNavigation'
 import NcAppNavigationItem from '@nextcloud/vue/components/NcAppNavigationItem'
+import NcAppNavigationCaption from '@nextcloud/vue/components/NcAppNavigationCaption'
 import NcAppNavigationNew from '@nextcloud/vue/components/NcAppNavigationNew'
 import NcAppContent from '@nextcloud/vue/components/NcAppContent'
 import NcEmptyContent from '@nextcloud/vue/components/NcEmptyContent'
@@ -160,6 +205,7 @@ export default {
 		NcContent,
 		NcAppNavigation,
 		NcAppNavigationItem,
+		NcAppNavigationCaption,
 		NcAppNavigationNew,
 		NcAppContent,
 		NcEmptyContent,
@@ -184,6 +230,7 @@ export default {
 			templates: [],
 			filtersOpen: false,
 			showArchived: false,
+			archivedOpen: false,
 			filters: { tags: [], assignees: [], phases: [], priorities: [], status: [] },
 		}
 	},
@@ -191,6 +238,20 @@ export default {
 	computed: {
 		currentBoard() {
 			return this.boards.find((b) => b.id === this.currentId) || null
+		},
+
+		// Sidebar sections (Alain, 2026-07-19): active owned / archived owned /
+		// shared with me.
+		myBoards() {
+			return this.boards.filter((b) => !b.shared && !b.archived)
+		},
+
+		archivedBoards() {
+			return this.boards.filter((b) => !b.shared && b.archived)
+		},
+
+		sharedBoards() {
+			return this.boards.filter((b) => b.shared)
 		},
 
 		// A shared board without the UPDATE bit (2) is read-only — same rule and
@@ -604,6 +665,22 @@ export default {
 			}
 			await axios.delete(this.url('/boards/' + encodeURIComponent(board.id)))
 			await this.onBoardDeleted()
+		},
+
+		// Archive or unarchive a board (sidebar action). Toggles on board.archived;
+		// archived boards move to the collapsible « Tableaux archivés » section.
+		async archiveBoard(board) {
+			const value = board.archived ? '' : new Date().toISOString()
+			try {
+				await axios.put(this.url('/boards/' + encodeURIComponent(board.id)), { archived: value })
+				if (!board.archived) {
+					this.archivedOpen = true
+				}
+				await this.loadBoards()
+			} catch (e) {
+				// eslint-disable-next-line no-alert
+				window.alert(this.t('Impossible d\'archiver le tableau.'))
+			}
 		},
 
 		async onBoardSaved(newId) {

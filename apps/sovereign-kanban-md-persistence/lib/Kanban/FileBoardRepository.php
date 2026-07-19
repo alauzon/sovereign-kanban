@@ -215,6 +215,7 @@ final class FileBoardRepository {
 			columns: $data['columns'] ?? [],
 			created_at: new DateTime($data['created_at']),
 			tags: $data['tags'] ?? [],
+			archived: (isset($data['archived']) && $data['archived'] !== '') ? (string) $data['archived'] : null,
 		);
 	}
 }

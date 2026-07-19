@@ -115,7 +115,7 @@ final class BoardController extends Controller {
 	 *   or null to leave the palette unchanged.
 	 */
 	#[NoAdminRequired]
-	public function update(string $boardId, ?string $name = null, ?string $color = null, ?array $tags = null): DataResponse {
+	public function update(string $boardId, ?string $name = null, ?string $color = null, ?array $tags = null, ?string $archived = null): DataResponse {
 		$repository = $this->repository();
 		if ($repository === null) {
 			return new DataResponse(['error' => 'not_logged_in'], 401);
@@ -144,6 +144,10 @@ final class BoardController extends Controller {
 		}
 		if ($tags !== null) {
 			$board = $board->withTags($this->sanitizePalette($tags));
+		}
+		// archived: null = leave, '' = unarchive, else set the archive instant.
+		if ($archived !== null) {
+			$board = $board->withArchived($archived === '' ? null : $archived);
 		}
 		$repository->save($board);
 

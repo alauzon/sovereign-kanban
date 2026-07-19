@@ -31,6 +31,9 @@ final class Board {
 		public readonly array $columns = self::DEFAULT_COLUMNS,
 		public readonly DateTime $created_at = new DateTime(),
 		public readonly array $tags = [],
+		// ISO instant when the board was archived, or null while active (Alain,
+		// 2026-07-19). Archived boards move to the sidebar's « Tableaux archivés ».
+		public readonly ?string $archived = null,
 	) {
 	}
 
@@ -58,6 +61,7 @@ final class Board {
 			columns: $this->columns,
 			created_at: $this->created_at,
 			tags: $this->tags,
+			archived: $this->archived,
 		);
 	}
 
@@ -72,6 +76,7 @@ final class Board {
 			columns: $this->columns,
 			created_at: $this->created_at,
 			tags: $this->tags,
+			archived: $this->archived,
 		);
 	}
 
@@ -87,6 +92,7 @@ final class Board {
 			'color' => $this->color,
 			'columns' => array_values($this->columns),
 			'tags' => array_values($this->tags),
+			'archived' => $this->archived,
 		];
 	}
 
@@ -126,6 +132,7 @@ final class Board {
 			columns: array_values($columns),
 			created_at: $this->created_at,
 			tags: $this->tags,
+			archived: $this->archived,
 		);
 	}
 
@@ -147,6 +154,22 @@ final class Board {
 			columns: $this->columns,
 			created_at: $this->created_at,
 			tags: array_values($tags),
+			archived: $this->archived,
+		);
+	}
+
+	/**
+	 * Return a copy archived (pass an ISO instant) or unarchived (pass null).
+	 */
+	public function withArchived(?string $archived): self {
+		return new self(
+			id: $this->id,
+			name: $this->name,
+			color: $this->color,
+			columns: $this->columns,
+			created_at: $this->created_at,
+			tags: $this->tags,
+			archived: $archived,
 		);
 	}
 
@@ -154,14 +177,19 @@ final class Board {
 	 * Serialize board config as YAML for .board.yml.
 	 */
 	public function toYaml(): string {
-		return Yaml::dump([
+		$data = [
 			'id' => $this->id,
 			'name' => $this->name,
 			'color' => $this->color,
 			'columns' => array_values($this->columns),
 			'tags' => array_values($this->tags),
 			'created_at' => $this->created_at->format('Y-m-d\TH:i:s\Z'),
-		], 4, 2);
+		];
+		if ($this->archived !== null) {
+			$data['archived'] = $this->archived;
+		}
+
+		return Yaml::dump($data, 4, 2);
 	}
 
 	/**
