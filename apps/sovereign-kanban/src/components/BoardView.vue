@@ -79,9 +79,28 @@
 						@click.stop="$emit('delete-card', card)">
 						✕
 					</button>
+					<button
+						type="button"
+						:aria-label="t('Menu de la carte')"
+						:title="t('Menu de la carte')"
+						@click.stop="toggleCardMenu($event, card)">
+						⋯
+					</button>
 				</div>
 				<div class="sk-vue-card-title">
-					<span v-if="card.completed_at" class="sk-done-check" :title="t('Terminée')">✓ </span>{{ card.title }}
+					<input
+						v-if="renamingCard === card.id"
+						ref="cardRenameInput"
+						v-model="cardRenameValue"
+						class="sk-vue-card-rename"
+						type="text"
+						@click.stop
+						@keyup.enter="confirmRenameCard(card)"
+						@keyup.esc="cancelRenameCard"
+						@blur="confirmRenameCard(card)">
+					<template v-else>
+						<span v-if="card.completed_at" class="sk-done-check" :title="t('Terminée')">✓ </span>{{ card.title }}
+					</template>
 				</div>
 				<div v-if="card.excerpt" class="sk-vue-card-excerpt">{{ card.excerpt }}</div>
 				<div v-if="cardMeta(card).length" class="sk-vue-card-meta">
@@ -170,6 +189,20 @@
 				</button>
 			</div>
 		</Teleport>
+
+		<!-- Card ⋯ menu (Alain, 2026-07-19): Détails + Modifier le titre for now;
+		     couleur / m'affecter / déplacer / archiver come with those features. -->
+		<Teleport to="body">
+			<div v-if="menuCard !== null" class="sk-col-menu-backdrop" @click="menuCard = null" />
+			<div v-if="menuCard !== null" class="sk-col-menu" :style="cardMenuStyle">
+				<button type="button" class="sk-col-menu-item" @click="cardMenuOpen(menuCard)">
+					🔍 {{ t('Détails de la carte') }}
+				</button>
+				<button type="button" class="sk-col-menu-item" @click="cardMenuRename(menuCard)">
+					✎ {{ t('Modifier le titre') }}
+				</button>
+			</div>
+		</Teleport>
 	</div>
 </template>
 
@@ -192,7 +225,7 @@ export default {
 		templates: { type: Array, default: () => [] },
 	},
 
-	emits: ['open', 'add-card', 'move-card', 'add-from-template', 'add-column', 'rename-column', 'remove-column', 'reorder-column', 'toggle-done', 'delete-card', 'mark-column-done'],
+	emits: ['open', 'add-card', 'move-card', 'add-from-template', 'add-column', 'rename-column', 'remove-column', 'reorder-column', 'toggle-done', 'delete-card', 'mark-column-done', 'rename-card'],
 
 	data() {
 		return {
@@ -205,6 +238,10 @@ export default {
 			dragOverColumn: null,
 			menuColumn: null,
 			menuStyle: {},
+			menuCard: null,
+			cardMenuStyle: {},
+			renamingCard: null,
+			cardRenameValue: '',
 		}
 	},
 
@@ -260,6 +297,55 @@ export default {
 		removeColumnFromMenu(column) {
 			this.$emit('remove-column', column)
 			this.menuColumn = null
+		},
+
+		// Card ⋯ menu — same teleported-fixed pattern as the column menu.
+		toggleCardMenu(ev, card) {
+			if (this.menuCard && this.menuCard.id === card.id) {
+				this.menuCard = null
+				return
+			}
+			const rect = ev.currentTarget.getBoundingClientRect()
+			this.cardMenuStyle = {
+				top: (rect.bottom + 4) + 'px',
+				left: Math.max(8, rect.right - 220) + 'px',
+			}
+			this.menuCard = card
+		},
+
+		cardMenuOpen(card) {
+			this.$emit('open', card)
+			this.menuCard = null
+		},
+
+		cardMenuRename(card) {
+			this.menuCard = null
+			this.startRenameCard(card)
+		},
+
+		startRenameCard(card) {
+			this.renamingCard = card.id
+			this.cardRenameValue = card.title
+			this.$nextTick(() => {
+				if (this.$refs.cardRenameInput) {
+					this.$refs.cardRenameInput.focus()
+					this.$refs.cardRenameInput.select()
+				}
+			})
+		},
+
+		confirmRenameCard(card) {
+			const to = this.cardRenameValue.trim()
+			this.renamingCard = null
+			this.cardRenameValue = ''
+			if (to && to !== card.title) {
+				this.$emit('rename-card', { card, title: to })
+			}
+		},
+
+		cancelRenameCard() {
+			this.renamingCard = null
+			this.cardRenameValue = ''
 		},
 
 		startAddList() {
@@ -486,6 +572,12 @@ export default {
 
 .sk-col-menu-danger {
 	color: var(--color-error, #e9322d);
+}
+
+.sk-vue-card-rename {
+	width: 100%;
+	box-sizing: border-box;
+	font: inherit;
 }
 
 .sk-vue-col-actions :deep(.button-vue) {

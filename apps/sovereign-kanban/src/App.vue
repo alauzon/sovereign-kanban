@@ -93,7 +93,8 @@
 					@reorder-column="reorderColumn"
 					@toggle-done="toggleCardDone"
 					@delete-card="deleteCardTile"
-					@mark-column-done="markColumnDone" />
+					@mark-column-done="markColumnDone"
+					@rename-card="renameCardTitle" />
 				</div>
 			</template>
 
@@ -404,6 +405,20 @@ export default {
 			} catch (e) {
 				// eslint-disable-next-line no-alert
 				window.alert(this.t('Impossible de changer le statut.'))
+			}
+		},
+
+		// Rename a card's title from the tile (card ⋯ menu → Modifier le titre).
+		async renameCardTitle({ card, title }) {
+			try {
+				await axios.put(
+					this.url('/boards/' + encodeURIComponent(this.currentId) + '/cards/' + encodeURIComponent(card.id)),
+					{ title },
+				)
+				await this.loadCards()
+			} catch (e) {
+				// eslint-disable-next-line no-alert
+				window.alert(this.t('Impossible de renommer la carte.'))
 			}
 		},
 
