@@ -141,6 +141,13 @@
 								</label>
 							</div>
 						</div>
+						<NcButton
+							type="tertiary"
+							:aria-label="t('Raccourcis clavier')"
+							:title="t('Raccourcis clavier (?)')"
+							@click="helpOpen = true">
+							<span aria-hidden="true">⌨</span>
+						</NcButton>
 					</div>
 				</div>
 				<FilterBar
@@ -151,6 +158,7 @@
 					@reset="resetFilters"
 					@close="filtersOpen = false" />
 				<BoardView
+					ref="boardView"
 					:board="currentBoard"
 					:cards-by-column="filteredCardsByColumn"
 					:read-only="readOnly"
@@ -196,6 +204,29 @@
 				@refresh="onBoardRefresh"
 				@close="boardEditorOpen = false" />
 		</NcAppContent>
+
+		<!-- Keyboard-shortcut help (Alain, 2026-07-19: press ?). -->
+		<Teleport to="body">
+			<div v-if="helpOpen" class="sk-help-overlay" @click.self="helpOpen = false">
+				<div class="sk-help-card" role="dialog" aria-modal="true">
+					<h2 class="sk-help-title">{{ t('Raccourcis clavier') }}</h2>
+					<dl class="sk-help-keys">
+						<div><dt>?</dt><dd>{{ t('Afficher ou masquer cette aide') }}</dd></div>
+						<div><dt>n</dt><dd>{{ t('Nouvelle carte (première liste)') }}</dd></div>
+						<div><dt>f</dt><dd>{{ t('Filtres') }}</dd></div>
+						<div><dt>a</dt><dd>{{ t('Afficher les cartes archivées') }}</dd></div>
+						<div><dt>c</dt><dd>{{ t('Affichage compact') }}</dd></div>
+						<div><dt>{{ t('Échap') }}</dt><dd>{{ t('Fermer (aide, carte)') }}</dd></div>
+					</dl>
+					<p class="sk-help-note">
+						{{ t('Souris : glisser une carte entre listes, glisser une colonne pour la réordonner, cliquer le nom d\'une liste pour la renommer.') }}
+					</p>
+					<div class="sk-help-actions">
+						<NcButton type="primary" @click="helpOpen = false">{{ t('Fermer') }}</NcButton>
+					</div>
+				</div>
+			</div>
+		</Teleport>
 	</NcContent>
 </template>
 
@@ -256,6 +287,7 @@ export default {
 			presentOpen: false,
 			compact: false,
 			showCovers: false,
+			helpOpen: false,
 			filters: { tags: [], assignees: [], phases: [], priorities: [], status: [] },
 		}
 	},
@@ -344,13 +376,55 @@ export default {
 
 	async mounted() {
 		this.loadPresent()
+		window.addEventListener('keydown', this.onKeydown)
 		await this.loadBoards()
 		this.loadTemplates()
+	},
+
+	beforeUnmount() {
+		window.removeEventListener('keydown', this.onKeydown)
 	},
 
 	methods: {
 		t(s) {
 			return s
+		},
+
+		// Global keyboard shortcuts (Alain, 2026-07-19). Ignored while typing in a
+		// field or when a card modal is open, so they never eat real input.
+		onKeydown(e) {
+			const el = e.target
+			const typing = el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)
+			if (e.key === 'Escape' && this.helpOpen) {
+				this.helpOpen = false
+				return
+			}
+			if (typing || this.openedCard || this.boardEditorOpen) {
+				return
+			}
+			if (e.key === '?') {
+				this.helpOpen = !this.helpOpen
+				e.preventDefault()
+				return
+			}
+			if (this.helpOpen || !this.currentBoard) {
+				return
+			}
+			if (e.key === 'n' && !this.readOnly) {
+				if (this.$refs.boardView) {
+					this.$refs.boardView.startAddFirst()
+				}
+				e.preventDefault()
+			} else if (e.key === 'f') {
+				this.filtersOpen = !this.filtersOpen
+				e.preventDefault()
+			} else if (e.key === 'a') {
+				this.showArchived = !this.showArchived
+				e.preventDefault()
+			} else if (e.key === 'c') {
+				this.setPresent('compact', !this.compact)
+				e.preventDefault()
+			}
 		},
 
 		sharedTitle(board) {
@@ -919,5 +993,68 @@ export default {
 
 .sk-present-opt:hover {
 	background: var(--color-background-hover);
+}
+
+/* Keyboard-shortcut help overlay. */
+.sk-help-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: 10050;
+	background: rgba(0, 0, 0, 0.4);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 16px;
+}
+
+.sk-help-card {
+	background: var(--color-main-background);
+	border-radius: var(--border-radius-large, 12px);
+	box-shadow: 0 6px 30px rgba(0, 0, 0, 0.3);
+	padding: 20px 24px;
+	max-width: 440px;
+	width: 100%;
+}
+
+.sk-help-title {
+	margin: 0 0 12px;
+}
+
+.sk-help-keys {
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.sk-help-keys > div {
+	display: flex;
+	align-items: baseline;
+	gap: 12px;
+}
+
+.sk-help-keys dt {
+	flex: 0 0 64px;
+	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	font-weight: 700;
+	background: var(--color-background-dark);
+	border-radius: 6px;
+	padding: 1px 8px;
+	text-align: center;
+}
+
+.sk-help-keys dd {
+	margin: 0;
+}
+
+.sk-help-note {
+	color: var(--color-text-maxcontrast);
+	font-size: 90%;
+	margin: 14px 0;
+}
+
+.sk-help-actions {
+	display: flex;
+	justify-content: flex-end;
 }
 </style>

@@ -452,6 +452,14 @@ export default {
 			})
 		},
 
+		// Open the new-card input on the first column (keyboard shortcut « n »).
+		startAddFirst() {
+			const first = this.board && this.board.columns && this.board.columns[0]
+			if (first) {
+				this.startAdd(first)
+			}
+		},
+
 		confirmAdd(column) {
 			const title = this.newTitle.trim()
 			this.addingColumn = null
