@@ -21,7 +21,11 @@
 			class="sk-vue-column"
 			@dragover.prevent
 			@drop="onDrop($event, column)">
-			<header class="sk-vue-column-head">
+			<header
+				class="sk-vue-column-head"
+				:draggable="!readOnly && renamingColumn !== column"
+				@dragstart="onColumnDragStart($event, column)">
+				<span v-if="!readOnly" class="sk-vue-col-grip" aria-hidden="true">⠿</span>
 				<input
 					v-if="renamingColumn === column"
 					ref="renameInput"
@@ -139,7 +143,7 @@ export default {
 		templates: { type: Array, default: () => [] },
 	},
 
-	emits: ['open', 'add-card', 'move-card', 'add-from-template', 'add-column', 'rename-column', 'remove-column'],
+	emits: ['open', 'add-card', 'move-card', 'add-from-template', 'add-column', 'rename-column', 'remove-column', 'reorder-column'],
 
 	data() {
 		return {
@@ -247,8 +251,22 @@ export default {
 			e.dataTransfer.setData('text/plain', card.id)
 		},
 
+		// Dragging a column by its header reorders columns (Alain, 2026-07-18:
+		// drag the columns themselves on the board). A distinct data type keeps it
+		// separate from card drags.
+		onColumnDragStart(e, column) {
+			e.dataTransfer.setData('application/x-sk-column', column)
+		},
+
 		onDrop(e, column) {
 			if (this.readOnly) {
+				return
+			}
+			const draggedColumn = e.dataTransfer.getData('application/x-sk-column')
+			if (draggedColumn) {
+				if (draggedColumn !== column) {
+					this.$emit('reorder-column', { from: draggedColumn, to: column })
+				}
 				return
 			}
 			const cardId = e.dataTransfer.getData('text/plain')
@@ -292,6 +310,15 @@ export default {
 	flex: 1 1 auto;
 	min-width: 0;
 	font-weight: 600;
+}
+
+.sk-vue-column-head[draggable="true"] {
+	cursor: grab;
+}
+
+.sk-vue-col-grip {
+	color: var(--color-text-maxcontrast);
+	cursor: grab;
 }
 
 .sk-vue-col-actions {

@@ -88,7 +88,8 @@
 					@add-from-template="addCardFromTemplate"
 					@add-column="addColumn"
 					@rename-column="renameColumn"
-					@remove-column="removeColumn" />
+					@remove-column="removeColumn"
+					@reorder-column="reorderColumn" />
 			</template>
 
 			<CardDetail
@@ -339,6 +340,29 @@ export default {
 			} catch (e) {
 				// eslint-disable-next-line no-alert
 				window.alert(this.t('Impossible de renommer la liste (nom déjà pris ?).'))
+			}
+		},
+
+		// Reorder columns by dropping one header on another (Alain, 2026-07-18).
+		async reorderColumn({ from, to }) {
+			const cols = [...((this.currentBoard && this.currentBoard.columns) || [])]
+			const fromIdx = cols.indexOf(from)
+			const toIdx = cols.indexOf(to)
+			if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) {
+				return
+			}
+			cols.splice(fromIdx, 1)
+			cols.splice(toIdx, 0, from)
+			try {
+				await axios.put(
+					this.url('/boards/' + encodeURIComponent(this.currentId) + '/columns/reorder'),
+					{ columns: cols },
+				)
+				await this.loadBoards()
+				await this.loadCards()
+			} catch (e) {
+				// eslint-disable-next-line no-alert
+				window.alert(this.t('Impossible de réordonner les listes.'))
 			}
 		},
 

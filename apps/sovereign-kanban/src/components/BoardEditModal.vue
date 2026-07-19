@@ -30,49 +30,9 @@
 				<input v-model="color" type="color">
 			</label>
 
-			<section v-if="!isCreate" class="sk-field">
-				<span>{{ t('Colonnes') }}</span>
-				<div
-					v-for="(col, i) in localColumns"
-					:key="col"
-					class="sk-col-row"
-					:class="{ 'sk-col-row--drag': dragIndex === i }"
-					draggable="true"
-					@dragstart="onColDragStart(i)"
-					@dragover.prevent
-					@drop="onColDrop(i)"
-					@dragend="dragIndex = null">
-					<span class="sk-col-handle" :title="t('Glisser pour réordonner')" aria-hidden="true">⠿</span>
-					<input
-						v-model="colDraft[col]"
-						type="text"
-						@keyup.enter="renameColumn(col)">
-					<NcButton
-						type="tertiary"
-						:aria-label="t('Renommer la colonne')"
-						:disabled="busy || !colDraft[col] || colDraft[col] === col"
-						@click="renameColumn(col)">
-						✓
-					</NcButton>
-					<NcButton
-						type="error"
-						:aria-label="t('Supprimer la colonne')"
-						:disabled="busy"
-						@click="removeColumn(col)">
-						✕
-					</NcButton>
-				</div>
-				<div class="sk-col-add">
-					<input
-						v-model="newColumn"
-						type="text"
-						:placeholder="t('Nouvelle colonne')"
-						@keyup.enter="addColumn">
-					<NcButton :disabled="busy || !newColumn.trim()" @click="addColumn">
-						{{ t('+ Colonne') }}
-					</NcButton>
-				</div>
-			</section>
+			<p v-if="!isCreate" class="sk-boardedit-hint">
+				{{ t('Les listes se gèrent directement sur le tableau (＋ Liste, glisser pour réordonner, ✎ / ✕ sur chaque liste).') }}
+			</p>
 
 			<section v-if="!isCreate" class="sk-field">
 				<span>{{ t('Palette d\'étiquettes') }}</span>
@@ -140,17 +100,13 @@ export default {
 		return {
 			name: this.board ? this.board.name : '',
 			color: (this.board && this.board.color) || '#0082c9',
-			localColumns: this.board ? [...(this.board.columns || [])] : [],
-			colDraft: this.initColDraft(),
 			palette: (this.board && this.board.tags ? this.board.tags : []).map((t) => ({
 				name: t.name,
 				color: t.color || '#0082c9',
 			})),
-			newColumn: '',
 			saving: false,
 			busy: false,
 			error: '',
-			dragIndex: null,
 		}
 	},
 
@@ -169,20 +125,8 @@ export default {
 			return s
 		},
 
-		initColDraft() {
-			const out = {}
-			;(this.board && this.board.columns ? this.board.columns : []).forEach((c) => {
-				out[c] = c
-			})
-			return out
-		},
-
 		boardUrl() {
 			return generateUrl(BASE + '/' + encodeURIComponent(this.board.id))
-		},
-
-		columnsUrl() {
-			return this.boardUrl() + '/columns'
 		},
 
 		async submit() {
@@ -210,87 +154,6 @@ export default {
 					: this.t('Erreur à l\'enregistrement.')
 			} finally {
 				this.saving = false
-			}
-		},
-
-		async addColumn() {
-			const name = this.newColumn.trim()
-			if (!name || this.busy) {
-				return
-			}
-			await this.columnOp(async () => {
-				await axios.post(this.columnsUrl(), { name })
-				this.localColumns.push(name)
-				this.colDraft[name] = name
-				this.newColumn = ''
-			})
-		},
-
-		async renameColumn(from) {
-			const to = (this.colDraft[from] || '').trim()
-			if (!to || to === from || this.busy) {
-				return
-			}
-			await this.columnOp(async () => {
-				await axios.put(this.columnsUrl() + '/rename', { from, to })
-				const i = this.localColumns.indexOf(from)
-				if (i !== -1) {
-					this.localColumns.splice(i, 1, to)
-				}
-				delete this.colDraft[from]
-				this.colDraft[to] = to
-			})
-		},
-
-		async removeColumn(name) {
-			if (this.busy || !window.confirm(this.t('Supprimer la colonne « ') + name + ' » ?')) {
-				return
-			}
-			await this.columnOp(async () => {
-				await axios.delete(this.columnsUrl(), { data: { name } })
-				const i = this.localColumns.indexOf(name)
-				if (i !== -1) {
-					this.localColumns.splice(i, 1)
-				}
-				delete this.colDraft[name]
-			})
-		},
-
-		onColDragStart(index) {
-			this.dragIndex = index
-		},
-
-		// Drop a dragged column onto another → reorder (Alain, 2026-07-18: drag
-		// instead of ↑/↓ arrows).
-		async onColDrop(targetIndex) {
-			const from = this.dragIndex
-			this.dragIndex = null
-			if (from === null || from === targetIndex || this.busy) {
-				return
-			}
-			const next = [...this.localColumns]
-			const [moved] = next.splice(from, 1)
-			next.splice(targetIndex, 0, moved)
-			await this.columnOp(async () => {
-				await axios.put(this.columnsUrl() + '/reorder', { columns: next })
-				this.localColumns = next
-			})
-		},
-
-		// A column mutation: run it, surface errors, tell the parent to reload the
-		// board (columns changed, cards may have moved).
-		async columnOp(fn) {
-			this.busy = true
-			this.error = ''
-			try {
-				await fn()
-				this.$emit('refresh')
-			} catch (e) {
-				this.error = (e.response && e.response.status === 409)
-					? this.t('Ce nom de colonne est déjà pris.')
-					: this.t('Erreur sur la colonne.')
-			} finally {
-				this.busy = false
 			}
 		},
 
@@ -322,6 +185,12 @@ export default {
 
 .sk-boardedit-title {
 	margin: 0;
+}
+
+.sk-boardedit-hint {
+	margin: 0;
+	color: var(--color-text-maxcontrast);
+	font-size: 90%;
 }
 
 .sk-field {
