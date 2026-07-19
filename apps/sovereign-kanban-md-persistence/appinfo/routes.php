@@ -28,6 +28,7 @@ return [
 		['name' => 'card#activity', 'url' => '/api/v1/boards/{boardId}/cards/{cardId}/activity', 'verb' => 'GET'],
 		['name' => 'card#addRelation', 'url' => '/api/v1/boards/{boardId}/cards/{cardId}/relations', 'verb' => 'POST'],
 		['name' => 'card#removeRelation', 'url' => '/api/v1/boards/{boardId}/cards/{cardId}/relations/{target}', 'verb' => 'DELETE'],
+		['name' => 'presence#heartbeat', 'url' => '/api/v1/boards/{boardId}/presence', 'verb' => 'POST'],
 		['name' => 'card#trash', 'url' => '/api/v1/boards/{boardId}/trash', 'verb' => 'GET'],
 		['name' => 'card#restore', 'url' => '/api/v1/boards/{boardId}/trash/{cardId}/restore', 'verb' => 'POST'],
 		['name' => 'card#purge', 'url' => '/api/v1/boards/{boardId}/trash/{cardId}', 'verb' => 'DELETE'],

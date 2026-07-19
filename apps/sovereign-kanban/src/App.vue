@@ -117,6 +117,14 @@
 				<div class="sk-vue-board-header">
 					<h2 class="sk-vue-board-title">{{ currentBoard.name }}</h2>
 					<div class="sk-vue-toolbar">
+						<span v-if="viewers.length" class="sk-presence" :title="t('Présent·es sur ce tableau')">
+							<NcAvatar
+								v-for="v in viewers"
+								:key="v"
+								:user="v"
+								:size="26"
+								:show-user-status="false" />
+						</span>
 						<NcButton
 							type="tertiary"
 							:class="{ 'sk-toolbtn--on': filtersOpen || activeFilterCount }"
@@ -293,6 +301,7 @@ import NcEmptyContent from '@nextcloud/vue/components/NcEmptyContent'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import NcActionButton from '@nextcloud/vue/components/NcActionButton'
 import NcButton from '@nextcloud/vue/components/NcButton'
+import NcAvatar from '@nextcloud/vue/components/NcAvatar'
 import BoardView from './components/BoardView.vue'
 import CardDetail from './components/CardDetail.vue'
 import BoardEditModal from './components/BoardEditModal.vue'
@@ -315,6 +324,7 @@ export default {
 		NcLoadingIcon,
 		NcActionButton,
 		NcButton,
+		NcAvatar,
 		BoardView,
 		CardDetail,
 		BoardEditModal,
@@ -344,6 +354,8 @@ export default {
 			trashOpen: false,
 			trashCards: [],
 			trashLoading: false,
+			viewers: [],
+			presenceTimer: null,
 			filters: { tags: [], assignees: [], phases: [], priorities: [], status: [] },
 		}
 	},
@@ -430,6 +442,13 @@ export default {
 		},
 	},
 
+	watch: {
+		// Restart the presence heartbeat whenever the open board changes.
+		currentId(id) {
+			this.startPresence(id)
+		},
+	},
+
 	async mounted() {
 		this.loadPresent()
 		this.updateWide()
@@ -442,11 +461,43 @@ export default {
 	beforeUnmount() {
 		window.removeEventListener('keydown', this.onKeydown)
 		window.removeEventListener('resize', this.updateWide)
+		this.stopPresence()
 	},
 
 	methods: {
 		t(s) {
 			return s
+		},
+
+		// Board presence (Alain, 2026-07-19): heartbeat every 15 s while a board is
+		// open, showing the avatars of who else is looking. Ephemeral, cache-backed.
+		startPresence(boardId) {
+			this.stopPresence()
+			this.viewers = []
+			if (!boardId) {
+				return
+			}
+			this.heartbeat(boardId)
+			this.presenceTimer = window.setInterval(() => this.heartbeat(boardId), 15000)
+		},
+
+		stopPresence() {
+			if (this.presenceTimer) {
+				window.clearInterval(this.presenceTimer)
+				this.presenceTimer = null
+			}
+		},
+
+		async heartbeat(boardId) {
+			if (boardId !== this.currentId) {
+				return
+			}
+			try {
+				const res = await axios.post(this.url('/boards/' + encodeURIComponent(boardId) + '/presence'))
+				this.viewers = res.data.viewers || []
+			} catch (e) {
+				this.viewers = []
+			}
 		},
 
 		// Dock the card editor to the right above this width; below it, the card
@@ -1112,6 +1163,17 @@ export default {
 	align-items: center;
 	gap: 4px;
 	padding-top: 8px;
+}
+
+/* Presence avatars (who else is on this board). */
+.sk-presence {
+	display: inline-flex;
+	align-items: center;
+	margin-right: 6px;
+}
+
+.sk-presence > * + * {
+	margin-left: -8px;
 }
 
 .sk-toolbtn--on {
