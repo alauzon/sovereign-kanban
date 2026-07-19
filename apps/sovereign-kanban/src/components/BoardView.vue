@@ -35,7 +35,8 @@
 					class="sk-vue-column-rename"
 					type="text"
 					@keyup.enter="confirmRenameColumn(column)"
-					@blur="cancelRenameColumn">
+					@keyup.esc="cancelRenameColumn"
+					@blur="confirmRenameColumn(column)">
 				<span
 					v-else
 					class="sk-vue-column-name"

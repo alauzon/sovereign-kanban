@@ -61,6 +61,20 @@ test.describe('en-tête de colonne (Vue)', () => {
 		await expect(page.locator('.sk-vue-column')).toHaveCount(count - 1)
 	})
 
+	test('renommer une liste puis cliquer ailleurs (blur) enregistre le nom', async ({ page }) => {
+		await openBoard(page)
+
+		// Edit the name, then blur (click elsewhere) WITHOUT pressing Enter.
+		await page.locator('.sk-vue-column-name').first().click()
+		const input = page.locator('.sk-vue-column-rename')
+		await expect(input).toBeVisible()
+		await input.fill('zzz-blur-save')
+		await input.blur()
+
+		// Alain, 2026-07-19: blur should SAVE, not discard.
+		await expect(page.locator('.sk-vue-column-name', { hasText: 'zzz-blur-save' })).toHaveCount(1)
+	})
+
 	test('le menu ⋯ termine toutes les cartes de la liste', async ({ page }) => {
 		await openBoard(page)
 
