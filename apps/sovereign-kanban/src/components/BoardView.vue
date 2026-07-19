@@ -75,6 +75,25 @@
 				</NcActions>
 			</div>
 		</section>
+
+		<section v-if="!readOnly" class="sk-vue-addlist">
+			<input
+				v-if="addingList"
+				ref="newListInput"
+				v-model="newListName"
+				class="sk-vue-newcard"
+				type="text"
+				:placeholder="t('Nom de la liste')"
+				@keyup.enter="confirmAddList"
+				@blur="cancelAddList">
+			<NcButton
+				v-else
+				type="tertiary"
+				class="sk-vue-addcard"
+				@click="startAddList">
+				{{ t('+ Liste') }}
+			</NcButton>
+		</section>
 	</div>
 </template>
 
@@ -96,18 +115,44 @@ export default {
 		templates: { type: Array, default: () => [] },
 	},
 
-	emits: ['open', 'add-card', 'move-card', 'add-from-template'],
+	emits: ['open', 'add-card', 'move-card', 'add-from-template', 'add-column'],
 
 	data() {
 		return {
 			addingColumn: null,
 			newTitle: '',
+			addingList: false,
+			newListName: '',
 		}
 	},
 
 	methods: {
 		t(s) {
 			return s
+		},
+
+		startAddList() {
+			this.addingList = true
+			this.newListName = ''
+			this.$nextTick(() => {
+				if (this.$refs.newListInput) {
+					this.$refs.newListInput.focus()
+				}
+			})
+		},
+
+		confirmAddList() {
+			const name = this.newListName.trim()
+			this.addingList = false
+			this.newListName = ''
+			if (name) {
+				this.$emit('add-column', name)
+			}
+		},
+
+		cancelAddList() {
+			this.addingList = false
+			this.newListName = ''
 		},
 
 		startAdd(column) {
@@ -235,6 +280,11 @@ export default {
 	background: var(--color-background-dark);
 	border-radius: 6px;
 	padding: 1px 6px;
+}
+
+.sk-vue-addlist {
+	flex: 0 0 200px;
+	padding: 8px;
 }
 
 .sk-vue-colfooter {

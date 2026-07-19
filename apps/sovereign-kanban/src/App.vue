@@ -85,7 +85,8 @@
 					@open="openCard"
 					@add-card="addCard"
 					@move-card="moveCard"
-					@add-from-template="addCardFromTemplate" />
+					@add-from-template="addCardFromTemplate"
+					@add-column="addColumn" />
 			</template>
 
 			<CardDetail
@@ -307,6 +308,22 @@ export default {
 				}
 			}
 			await this.loadCards()
+		},
+
+		// Add a list/column inline from the board (Alain, 2026-07-18). The columns
+		// live in .board.yml, so reload the board list too, then the cards.
+		async addColumn(name) {
+			try {
+				await axios.post(
+					this.url('/boards/' + encodeURIComponent(this.currentId) + '/columns'),
+					{ name },
+				)
+				await this.loadBoards()
+				await this.loadCards()
+			} catch (e) {
+				// eslint-disable-next-line no-alert
+				window.alert(this.t('Impossible d\'ajouter la liste (nom déjà pris ?).'))
+			}
 		},
 
 		async loadTemplates() {
