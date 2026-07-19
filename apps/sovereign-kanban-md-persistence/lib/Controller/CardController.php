@@ -59,7 +59,10 @@ final class CardController extends Controller {
 		$cardsByColumn = [];
 		foreach ($repository->listByColumn() as $column => $cards) {
 			$cardsByColumn[$column] = array_map(
-				fn (Card $card): array => $card->toArray() + ['excerpt_html' => $this->markdown->toHtml($card->description)],
+				fn (Card $card): array => $card->toArray() + [
+					'excerpt_html' => $this->markdown->toHtml($card->description),
+					'comment_count' => $repository->countComments($card->id),
+				],
 				$cards,
 			);
 		}

@@ -175,6 +175,23 @@ final class FileCardRepository {
 	}
 
 	/**
+	 * Cheap count of a card's comments for the tile badge (Alain, 2026-07-19):
+	 * counts the '<!-- sk-comment ' markers without parsing each comment.
+	 */
+	public function countComments(string $cardId): int {
+		$dir = $this->findCardDirAnywhere($cardId);
+		if ($dir === null) {
+			return 0;
+		}
+
+		$file = $dir . '/comments.md';
+
+		return $this->storage->exists($file)
+			? substr_count($this->storage->read($file), '<!-- sk-comment ')
+			: 0;
+	}
+
+	/**
 	 * Replace the body of one comment, keeping its id, author and timestamp.
 	 *
 	 * @return bool True if the comment was found and rewritten.

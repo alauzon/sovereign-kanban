@@ -256,6 +256,9 @@ export default {
 			if (card.checklist && card.checklist.total > 0) {
 				out.push('☑ ' + card.checklist.done + '/' + card.checklist.total)
 			}
+			if (card.comment_count > 0) {
+				out.push('💬 ' + card.comment_count)
+			}
 			if (card.due_date) {
 				out.push('📅 ' + String(card.due_date).replace('T', ' '))
 			}
