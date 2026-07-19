@@ -16,7 +16,7 @@ test.describe('layout de l\'éditeur de carte (Vue)', () => {
 	test.beforeEach(async ({ page }) => {
 		page.on('dialog', (d) => d.accept())
 		// Boards can't be created in the Vue shell yet, so use the vanilla UI.
-		await page.goto('/apps/sovereign-kanban/')
+		await page.goto('/apps/sovereign-kanban/?vue=0')
 		await dismissWizard(page)
 		await cleanup(page)
 		await page.getByRole('button', { name: '+ Nouveau tableau' }).click()
@@ -26,7 +26,7 @@ test.describe('layout de l\'éditeur de carte (Vue)', () => {
 	})
 
 	test.afterEach(async ({ page }) => {
-		await page.goto('/apps/sovereign-kanban/')
+		await page.goto('/apps/sovereign-kanban/?vue=0')
 		await dismissWizard(page)
 		await cleanup(page)
 	})

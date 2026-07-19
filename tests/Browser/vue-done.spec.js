@@ -13,7 +13,7 @@ test.describe('statut « fait » (Vue)', () => {
 	})
 
 	test.afterEach(async ({ page }) => {
-		await page.goto('/apps/sovereign-kanban/')
+		await page.goto('/apps/sovereign-kanban/?vue=0')
 		await dismissWizard(page)
 		if (await page.locator('.sk-board-tab', { hasText: BOARD }).count()) {
 			await page.locator('.sk-board-tab', { hasText: BOARD }).first().click()

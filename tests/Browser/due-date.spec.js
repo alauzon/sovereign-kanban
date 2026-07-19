@@ -22,7 +22,7 @@ test.describe('échéance — la chaîne complète navigateur→fichier→naviga
 	test.beforeEach(async ({ page }) => {
 		// window.confirm is used by the vanilla UI for deletions.
 		page.on('dialog', (d) => d.accept())
-		await page.goto('/apps/sovereign-kanban/')
+		await page.goto('/apps/sovereign-kanban/?vue=0')
 		await dismissWizard(page)
 		// Defensive: a previous killed run may have left the board behind.
 		const leftover = page.locator('.sk-board-tab', { hasText: BOARD })

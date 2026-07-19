@@ -45,7 +45,7 @@ test.describe('créer une carte depuis un gabarit (Vue)', () => {
 	})
 
 	test.afterEach(async ({ page }) => {
-		await page.goto('/apps/sovereign-kanban/')
+		await page.goto('/apps/sovereign-kanban/?vue=0')
 		await dismissWizard(page)
 		if (await page.locator('.sk-board-tab', { hasText: BOARD }).count()) {
 			await page.locator('.sk-board-tab', { hasText: BOARD }).first().click()
@@ -71,7 +71,7 @@ test.describe('créer une carte depuis un gabarit (Vue)', () => {
 	}
 
 	test('le menu 📋 crée une carte portant le corps du gabarit', async ({ page }) => {
-		await page.goto('/apps/sovereign-kanban/')
+		await page.goto('/apps/sovereign-kanban/?vue=0')
 		await dismissWizard(page)
 		await page.getByRole('button', { name: '+ Nouveau tableau' }).click()
 		await page.getByPlaceholder('Nom du tableau').fill(BOARD)

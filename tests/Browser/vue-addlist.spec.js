@@ -12,7 +12,7 @@ test.describe('ajout de liste inline (Vue)', () => {
 	})
 
 	test.afterEach(async ({ page }) => {
-		await page.goto('/apps/sovereign-kanban/')
+		await page.goto('/apps/sovereign-kanban/?vue=0')
 		await dismissWizard(page)
 		if (await page.locator('.sk-board-tab', { hasText: BOARD }).count()) {
 			await page.locator('.sk-board-tab', { hasText: BOARD }).first().click()
@@ -23,7 +23,7 @@ test.describe('ajout de liste inline (Vue)', () => {
 	})
 
 	test('« + Liste » crée une nouvelle colonne', async ({ page }) => {
-		await page.goto('/apps/sovereign-kanban/')
+		await page.goto('/apps/sovereign-kanban/?vue=0')
 		await dismissWizard(page)
 		await page.getByRole('button', { name: '+ Nouveau tableau' }).click()
 		await page.getByPlaceholder('Nom du tableau').fill(BOARD)

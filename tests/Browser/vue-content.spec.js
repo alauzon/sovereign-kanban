@@ -15,7 +15,7 @@ const BOARD = 'zzz-e2e-vuecontent'
 test.describe('migration du contenu en Vue — parité des gestes carte', () => {
 	test.beforeEach(async ({ page }) => {
 		page.on('dialog', (d) => d.accept())
-		await page.goto('/apps/sovereign-kanban/')
+		await page.goto('/apps/sovereign-kanban/?vue=0')
 		await dismissWizard(page)
 		await cleanup(page)
 		// Create the board in vanilla.
@@ -26,7 +26,7 @@ test.describe('migration du contenu en Vue — parité des gestes carte', () => 
 	})
 
 	test.afterEach(async ({ page }) => {
-		await page.goto('/apps/sovereign-kanban/')
+		await page.goto('/apps/sovereign-kanban/?vue=0')
 		await dismissWizard(page)
 		await cleanup(page)
 	})

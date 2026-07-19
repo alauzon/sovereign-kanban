@@ -52,7 +52,7 @@ test.describe('un tableau en lecture seule le montre et bloque l\'enregistrement
 	})
 
 	test('bannière lecture seule + bouton Enregistrer désactivé', async ({ page }) => {
-		await page.goto('/apps/sovereign-kanban/')
+		await page.goto('/apps/sovereign-kanban/?vue=0')
 		await dismissWizard(page)
 
 		// The received board carries the 👥 badge; open it.

@@ -13,7 +13,7 @@ const BOARD = 'zzz-e2e-shell'
 test.describe('shell Vue phase 2 — la navigation liste les tableaux', () => {
 	test.beforeEach(async ({ page }) => {
 		page.on('dialog', (d) => d.accept())
-		await page.goto('/apps/sovereign-kanban/')
+		await page.goto('/apps/sovereign-kanban/?vue=0')
 		await dismissWizard(page)
 		if (await page.locator('.sk-board-tab', { hasText: BOARD }).count()) {
 			await deleteBoard(page)
@@ -21,7 +21,7 @@ test.describe('shell Vue phase 2 — la navigation liste les tableaux', () => {
 	})
 
 	test.afterEach(async ({ page }) => {
-		await page.goto('/apps/sovereign-kanban/')
+		await page.goto('/apps/sovereign-kanban/?vue=0')
 		await dismissWizard(page)
 		if (await page.locator('.sk-board-tab', { hasText: BOARD }).count()) {
 			await deleteBoard(page)

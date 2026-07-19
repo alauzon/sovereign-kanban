@@ -10,9 +10,9 @@
 
 \OCP\Util::addStyle('sovereign-kanban', 'style');
 
-// `?vue=1` opts into the phase-2 Vue shell; the default is the vanilla app. The
-// two never load together: one script, one mount point. Until the shell reaches
-// parity, a normal page load is unchanged.
+// The Vue shell is the default now (Alain, 2026-07-19); `?vue=0` loads the
+// vanilla app for a side-by-side compare. The two never load together: one
+// script, one mount point.
 $useVue = !empty($_['useVue']);
 if ($useVue) {
 	\OCP\Util::addScript('sovereign-kanban', 'sovereign-kanban-main');

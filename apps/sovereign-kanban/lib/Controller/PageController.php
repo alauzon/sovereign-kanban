@@ -28,16 +28,16 @@ final class PageController extends Controller {
 	 * NoCSRFRequired + NoAdminRequired let a logged-in user open this page
 	 * directly in the browser (a GET page load carries no request token).
 	 *
-	 * `?vue=1` opts into the Vue shell (phase 2, under construction) instead of
-	 * the vanilla app. The default stays vanilla so the transition is not a
-	 * big-bang cutover: the shell reaches parity behind this flag, then becomes
-	 * the default. Nothing changes for a normal page load until then.
+	 * The Vue shell is now the DEFAULT (Alain, 2026-07-19: parity reached, no more
+	 * `?vue=1`). `?vue=0` still loads the vanilla app for a side-by-side compare.
+	 * This only affects instances where this version is deployed — Entre Tablées
+	 * stays on the previous build until Alain's explicit go.
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
 	public function index(): TemplateResponse {
 		return new TemplateResponse('sovereign-kanban', 'main', [
-			'useVue' => $this->request->getParam('vue') === '1',
+			'useVue' => $this->request->getParam('vue') !== '0',
 		]);
 	}
 }

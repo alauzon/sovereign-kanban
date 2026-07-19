@@ -20,7 +20,7 @@ test.describe('menu par tableau (Vue)', () => {
 	// leave a stray board behind.
 	async function vanillaCleanup(page, name) {
 		page.on('dialog', (d) => d.accept())
-		await page.goto('/apps/sovereign-kanban/')
+		await page.goto('/apps/sovereign-kanban/?vue=0')
 		await dismissWizard(page)
 		if (await page.locator('.sk-board-tab', { hasText: name }).count()) {
 			await page.locator('.sk-board-tab', { hasText: name }).first().click()

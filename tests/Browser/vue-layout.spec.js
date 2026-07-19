@@ -15,7 +15,7 @@ const BOARD = 'zzz-e2e-layout'
 test.describe('layout du board Vue', () => {
 	test.beforeEach(async ({ page }) => {
 		page.on('dialog', (d) => d.accept())
-		await page.goto('/apps/sovereign-kanban/')
+		await page.goto('/apps/sovereign-kanban/?vue=0')
 		await dismissWizard(page)
 		await cleanup(page)
 		await page.getByRole('button', { name: '+ Nouveau tableau' }).click()
@@ -25,7 +25,7 @@ test.describe('layout du board Vue', () => {
 	})
 
 	test.afterEach(async ({ page }) => {
-		await page.goto('/apps/sovereign-kanban/')
+		await page.goto('/apps/sovereign-kanban/?vue=0')
 		await dismissWizard(page)
 		await cleanup(page)
 	})
