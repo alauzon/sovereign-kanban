@@ -25,6 +25,7 @@ return [
 		['name' => 'card#addComment', 'url' => '/api/v1/boards/{boardId}/cards/{cardId}/comments', 'verb' => 'POST'],
 		['name' => 'card#updateComment', 'url' => '/api/v1/boards/{boardId}/cards/{cardId}/comments/{commentId}', 'verb' => 'PUT'],
 		['name' => 'card#destroyComment', 'url' => '/api/v1/boards/{boardId}/cards/{cardId}/comments/{commentId}', 'verb' => 'DELETE'],
+		['name' => 'card#activity', 'url' => '/api/v1/boards/{boardId}/cards/{cardId}/activity', 'verb' => 'GET'],
 		['name' => 'template#index', 'url' => '/api/v1/templates', 'verb' => 'GET'],
 		['name' => 'template#procedures', 'url' => '/api/v1/procedures', 'verb' => 'GET'],
 		['name' => 'share#sharees', 'url' => '/api/v1/sharees', 'verb' => 'GET'],

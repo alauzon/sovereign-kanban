@@ -68,9 +68,10 @@
 				:readonly="readOnly"
 				:placeholder="t('Titre')">
 
-			<p v-if="card.created_at || card.modified || completedAt" class="sk-detail-summary">
+			<p v-if="card.created_at || card.modified || completedAt || card.author_label" class="sk-detail-summary">
 				<span v-if="card.created_at">{{ t('Créé') }} {{ formatDate(card.created_at) }}</span>
 				<span v-if="card.modified"> · {{ t('Modifié') }} {{ formatDate(card.modified) }}</span>
+				<span v-if="card.author_label"> · {{ card.author_label }}</span>
 				<span v-if="completedAt"> · ✓ {{ t('Terminé') }} {{ formatDate(completedAt) }}</span>
 			</p>
 
@@ -92,6 +93,13 @@
 					:class="{ 'sk-tab--on': tab === 'comments' }"
 					@click="tab = 'comments'">
 					{{ t('Commentaires') }}
+				</button>
+				<button
+					type="button"
+					class="sk-tab"
+					:class="{ 'sk-tab--on': tab === 'activity' }"
+					@click="openActivity">
+					{{ t('Activité') }}
 				</button>
 			</div>
 
@@ -188,6 +196,21 @@
 					:read-only="readOnly" />
 			</div>
 
+			<div v-show="tab === 'activity'" class="sk-tab-panel">
+				<p v-if="activityLoading" class="sk-activity-empty">{{ t('Chargement…') }}</p>
+				<p v-else-if="!activity.length" class="sk-activity-empty">{{ t('Aucune activité pour l\'instant.') }}</p>
+				<ol v-else class="sk-activity-list">
+					<li v-for="(ev, i) in activityReversed" :key="i" class="sk-activity-item">
+						<span class="sk-activity-dot" aria-hidden="true">{{ activityIcon(ev.action) }}</span>
+						<span class="sk-activity-text">
+							<strong>{{ ev.actor_label || t('Quelqu\'un') }}</strong>
+							{{ activityVerb(ev) }}
+						</span>
+						<time class="sk-activity-time">{{ formatDate(ev.ts) }}</time>
+					</li>
+				</ol>
+			</div>
+
 			<p v-if="error" class="sk-detail-error">{{ error }}</p>
 
 			<div class="sk-detail-actions">
@@ -263,6 +286,9 @@ export default {
 			confirmClose: false,
 			completedAt: this.card.completed_at || null,
 			tab: 'details',
+			activity: [],
+			activityLoading: false,
+			activityLoaded: false,
 		}
 	},
 
@@ -273,6 +299,11 @@ export default {
 			const names = new Set(this.palette.map((t) => t.name))
 			;(this.card.tags || []).forEach((t) => names.add(t))
 			return [...names]
+		},
+
+		// Journal newest-first for the panel (the file stores it oldest-first).
+		activityReversed() {
+			return [...this.activity].reverse()
 		},
 	},
 
@@ -327,6 +358,75 @@ export default {
 				this.procedures = res.data.procedures || []
 			} catch (e) {
 				this.procedures = []
+			}
+		},
+
+		// Open the Activité tab, loading the sovereign journal once (option C).
+		openActivity() {
+			this.tab = 'activity'
+			if (!this.activityLoaded) {
+				this.loadActivity()
+			}
+		},
+
+		async loadActivity() {
+			this.activityLoading = true
+			try {
+				const res = await axios.get(this.url() + '/activity')
+				this.activity = res.data.activity || []
+				this.activityLoaded = true
+			} catch (e) {
+				this.activity = []
+			} finally {
+				this.activityLoading = false
+			}
+		},
+
+		// A glyph per event kind — a quiet visual anchor, never load-bearing.
+		activityIcon(action) {
+			return {
+				created: '✨',
+				updated: '✏️',
+				moved: '➡️',
+				commented: '💬',
+				done: '✓',
+				reopened: '↺',
+			}[action] || '•'
+		},
+
+		// French sentence for one journal event. Field ids (stored in English) are
+		// translated here for display — the record stays identifier-stable.
+		activityVerb(ev) {
+			const fieldLabels = {
+				title: this.t('le titre'),
+				description: this.t('la description'),
+				due_date: this.t('la date de fin'),
+				start_date: this.t('la date de début'),
+				assignees: this.t('les assignés'),
+				priority: this.t('la priorité'),
+				tags: this.t('les étiquettes'),
+				phase: this.t('la phase'),
+			}
+			switch (ev.action) {
+			case 'created':
+				return this.t('a créé la carte')
+			case 'commented':
+				return this.t('a commenté')
+			case 'done':
+				return this.t('a marqué la carte comme faite')
+			case 'reopened':
+				return this.t('a rouvert la carte')
+			case 'moved':
+				return this.t('a déplacé la carte')
+			case 'updated': {
+				const fields = (ev.detail && ev.detail.fields) || []
+				const names = fields.map((f) => fieldLabels[f] || f)
+				return names.length
+					? this.t('a modifié') + ' ' + names.join(', ')
+					: this.t('a modifié la carte')
+			}
+			default:
+				return ev.action
 			}
 		},
 
@@ -657,6 +757,47 @@ export default {
 	margin: 0;
 	color: var(--color-text-maxcontrast);
 	font-size: 90%;
+}
+
+/* Sovereign activity journal (option C) — one line per event, newest first. */
+.sk-activity-empty {
+	color: var(--color-text-maxcontrast);
+	padding: 8px 0;
+}
+
+.sk-activity-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.sk-activity-item {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	padding: 4px 0;
+	border-bottom: 1px solid var(--color-border);
+}
+
+.sk-activity-dot {
+	flex: 0 0 auto;
+	width: 1.4em;
+	text-align: center;
+}
+
+.sk-activity-text {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.sk-activity-time {
+	flex: 0 0 auto;
+	color: var(--color-text-maxcontrast);
+	font-size: 85%;
+	white-space: nowrap;
 }
 
 .sk-tagchip {

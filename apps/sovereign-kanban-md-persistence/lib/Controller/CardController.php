@@ -116,23 +116,25 @@ final class CardController extends Controller {
 			return new DataResponse(['error' => 'invalid_column'], 400);
 		}
 
+		// Whoever creates the card is its author, written once (Alain, 2026-07-19).
+		$author = $this->userSession->getUser()?->getUID();
 		$card = Card::create($title, $folder);
 		// Optional initial body and suggested procedures — e.g. from a template.
 		$hasBody = $description !== null && trim($description) !== '';
 		$hasProcedures = $procedures !== null && $procedures !== [];
-		if ($hasBody || $hasProcedures) {
-			$card = new Card(
-				id: $card->id,
-				title: $card->title,
-				column: $card->column,
-				description: $description ?? '',
-				created_at: $card->created_at,
-				assignees: $card->assignees,
-				due_date: $card->due_date,
-				procedures: $hasProcedures ? array_values($procedures) : [],
-			);
-		}
+		$card = new Card(
+			id: $card->id,
+			title: $card->title,
+			column: $card->column,
+			description: $hasBody ? $description : '',
+			created_at: $card->created_at,
+			assignees: $card->assignees,
+			due_date: $card->due_date,
+			procedures: $hasProcedures ? array_values($procedures) : [],
+			author: $author,
+		);
 		$repository->save($card);
+		$repository->appendActivity($card->id, 'created', $author, ['title' => $card->title]);
 
 		return new DataResponse(['card' => $this->detail($card)], 201);
 	}
@@ -236,9 +238,11 @@ final class CardController extends Controller {
 			$newCompleted = ($completed_at === '') ? null : $completed_at;
 		}
 
+		$newTitle = ($title !== null && trim($title) !== '') ? trim($title) : $card->title;
+
 		$updated = new Card(
 			id: $card->id,
-			title: ($title !== null && trim($title) !== '') ? trim($title) : $card->title,
+			title: $newTitle,
 			column: $card->column,
 			description: $description ?? $card->description,
 			created_at: $card->created_at,
@@ -250,6 +254,10 @@ final class CardController extends Controller {
 			phase: $newPhase,
 			start_date: $newStart,
 			completed_at: $newCompleted,
+			// author is written once at creation and never rewritten by an edit —
+			// but it MUST be carried through here, or every update erases it. This
+			// is the exact field-by-field drop the extra[] comment below warns of.
+			author: $card->author,
 			// Whatever the user put in their own file and we do not understand.
 			// Rebuilding a Card field by field is exactly how it got dropped:
 			// every edit from the browser used to delete the frontmatter keys
@@ -258,6 +266,42 @@ final class CardController extends Controller {
 			extra: $card->extra,
 		);
 		$repository->update($updated);
+
+		// Sovereign activity journal (option C): record what changed. done/reopened
+		// are their own verbs; every other field edit folds into one 'updated' event
+		// carrying the English field ids (the UI translates them for display).
+		$actor = $this->userSession->getUser()?->getUID();
+		if ($newCompleted !== $card->completed_at) {
+			$repository->appendActivity($card->id, $newCompleted === null ? 'reopened' : 'done', $actor);
+		}
+		$changed = [];
+		if ($newTitle !== $card->title) {
+			$changed[] = 'title';
+		}
+		if ($description !== null && $description !== $card->description) {
+			$changed[] = 'description';
+		}
+		if ($newDue !== $card->due_date) {
+			$changed[] = 'due_date';
+		}
+		if ($newStart !== $card->start_date) {
+			$changed[] = 'start_date';
+		}
+		if ($newAssignees !== $card->assignees) {
+			$changed[] = 'assignees';
+		}
+		if ($newPriority !== $card->priority) {
+			$changed[] = 'priority';
+		}
+		if ($newTags !== $card->tags) {
+			$changed[] = 'tags';
+		}
+		if ($newPhase !== $card->phase) {
+			$changed[] = 'phase';
+		}
+		if ($changed !== []) {
+			$repository->appendActivity($card->id, 'updated', $actor, ['fields' => $changed]);
+		}
 
 		return new DataResponse(['card' => $this->detail($updated)]);
 	}
@@ -354,6 +398,7 @@ final class CardController extends Controller {
 		$author = $user->getDisplayName() ?: $user->getUID();
 		$comment = Comment::create($author, $body);
 		$repository->addComment($cardId, $comment);
+		$repository->appendActivity($cardId, 'commented', $user->getUID());
 
 		return new DataResponse(['comment' => $comment->toArray()], 201);
 	}
@@ -403,6 +448,28 @@ final class CardController extends Controller {
 	}
 
 	/**
+	 * The card's sovereign activity journal, chronological (oldest first).
+	 *
+	 * Each event's actor uid is resolved to a display label for the UI; the raw
+	 * uid stays in 'actor' so the record remains identifier-stable.
+	 */
+	#[NoAdminRequired]
+	#[NoCSRFRequired]
+	public function activity(string $boardId, string $cardId): DataResponse {
+		$repository = $this->repository($boardId);
+		if ($repository === null || !$this->validCardId($cardId)) {
+			return new DataResponse(['error' => 'unavailable'], 400);
+		}
+
+		$events = array_map(
+			fn (array $event): array => $event + ['actor_label' => $this->displayName($event['actor'] ?? null)],
+			$repository->listActivity($cardId),
+		);
+
+		return new DataResponse(['activity' => $events]);
+	}
+
+	/**
 	 * Full card shape for the detail view (includes the description body).
 	 *
 	 * @return array{id: string, title: string, column: string, description: string, due_date: ?string, start_date: ?string, assignees: list<string>, procedures: list<string>, priority: ?string, tags: list<string>, phase: ?int}
@@ -421,8 +488,21 @@ final class CardController extends Controller {
 			'tags' => array_values($card->tags),
 			'phase' => $card->phase,
 			'completed_at' => $card->completed_at,
+			'author' => $card->author,
+			'author_label' => $this->displayName($card->author),
 			'checklist' => $card->checklist(),
 		];
+	}
+
+	/**
+	 * Resolve a uid to its Nextcloud display name for UI labels, falling back to
+	 * the uid when the account is unknown (never invents a name). Null in, null out.
+	 */
+	private function displayName(?string $uid): ?string {
+		if ($uid === null || $uid === '') {
+			return null;
+		}
+		return $this->userManager->get($uid)?->getDisplayName() ?? $uid;
 	}
 
 	/**

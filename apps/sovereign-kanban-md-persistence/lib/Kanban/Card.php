@@ -38,6 +38,9 @@ final class Card {
 		// (Alain, 2026-07-19: completed_at rather than a bare boolean, to keep the
 		// "when").
 		public readonly ?string $completed_at = null,
+		// uid of whoever created the card, written once at creation (Alain,
+		// 2026-07-19). Never rewritten by an edit.
+		public readonly ?string $author = null,
 		public readonly array $extra = [],
 	) {
 	}
@@ -52,6 +55,7 @@ final class Card {
 	private const KNOWN_KEYS = [
 		'id', 'title', 'column', 'created_at', 'assignees', 'due_date',
 		'start_date', 'procedures', 'priority', 'tags', 'phase', 'completed_at',
+		'author',
 		// Legacy French spellings: read, never written. Files created before
 		// 2026-07-15 carry them; they migrate silently on the next app write.
 		'procédures', 'priorité', 'étiquettes',
@@ -90,6 +94,7 @@ final class Card {
 			phase: $this->phase,
 			start_date: $this->start_date,
 			completed_at: $this->completed_at,
+			author: $this->author,
 			extra: $this->extra,
 		);
 	}
@@ -129,6 +134,7 @@ final class Card {
 			phase: isset($frontmatter['phase']) && $frontmatter['phase'] !== '' ? (int) $frontmatter['phase'] : null,
 			start_date: self::normalizeDate($frontmatter['start_date'] ?? null),
 			completed_at: (isset($frontmatter['completed_at']) && $frontmatter['completed_at'] !== '') ? (string) $frontmatter['completed_at'] : null,
+			author: (isset($frontmatter['author']) && $frontmatter['author'] !== '') ? (string) $frontmatter['author'] : null,
 			extra: array_diff_key($frontmatter, array_flip(self::KNOWN_KEYS)),
 		);
 	}
@@ -230,6 +236,7 @@ final class Card {
 			'tags' => array_values($this->tags),
 			'phase' => $this->phase,
 			'completed_at' => $this->completed_at,
+			'author' => $this->author,
 			'checklist' => $this->checklist(),
 			'excerpt' => $this->excerpt(),
 		];
@@ -329,6 +336,10 @@ final class Card {
 
 		if ($this->completed_at !== null) {
 			$frontmatter['completed_at'] = $this->completed_at;
+		}
+
+		if ($this->author !== null) {
+			$frontmatter['author'] = $this->author;
 		}
 
 		// Keys we do not understand are written back untouched: the vocabulary

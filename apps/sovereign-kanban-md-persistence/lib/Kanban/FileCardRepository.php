@@ -192,6 +192,72 @@ final class FileCardRepository {
 	}
 
 	/**
+	 * Append one event to a card's sovereign activity journal (Alain, 2026-07-19,
+	 * option C): activity.jsonl next to card.md, one JSON object per line,
+	 * append-only. The history lives IN the card's folder — it travels with the
+	 * card, is never pruned by Nextcloud, and records what changed, not just when.
+	 *
+	 * The timestamp is stamped here in UTC; callers pass only the semantic event.
+	 *
+	 * @param string      $cardId Card whose journal to append to.
+	 * @param string      $action Event verb: created|updated|moved|commented|done|reopened.
+	 * @param string|null $actor  uid of whoever acted, or null when unknown.
+	 * @param array       $detail Action-specific payload (changed fields, from/to, …).
+	 */
+	public function appendActivity(string $cardId, string $action, ?string $actor, array $detail = []): void {
+		$dir = $this->findCardDirAnywhere($cardId);
+		if ($dir === null) {
+			return;
+		}
+
+		$event = [
+			'ts' => gmdate('Y-m-d\TH:i:s\Z'),
+			'actor' => $actor,
+			'action' => $action,
+			'detail' => $detail,
+		];
+		$line = json_encode($event, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+		$file = $dir . '/activity.jsonl';
+		$existing = $this->storage->exists($file) ? rtrim($this->storage->read($file), "\n") : '';
+		$this->storage->write($file, $existing === '' ? $line . "\n" : $existing . "\n" . $line . "\n");
+	}
+
+	/**
+	 * Read a card's activity journal in chronological order (oldest first).
+	 *
+	 * Malformed lines are skipped rather than aborting the read — the journal is
+	 * a record to be shown, never a gate. Returns [] when the card has no journal.
+	 *
+	 * @return array<int, array{ts: string, actor: ?string, action: string, detail: array}>
+	 */
+	public function listActivity(string $cardId): array {
+		$dir = $this->findCardDirAnywhere($cardId);
+		if ($dir === null) {
+			return [];
+		}
+
+		$file = $dir . '/activity.jsonl';
+		if (!$this->storage->exists($file)) {
+			return [];
+		}
+
+		$events = [];
+		foreach (explode("\n", trim($this->storage->read($file))) as $line) {
+			$line = trim($line);
+			if ($line === '') {
+				continue;
+			}
+			$decoded = json_decode($line, true);
+			if (is_array($decoded) && isset($decoded['action'])) {
+				$events[] = $decoded;
+			}
+		}
+
+		return $events;
+	}
+
+	/**
 	 * Replace the body of one comment, keeping its id, author and timestamp.
 	 *
 	 * @return bool True if the comment was found and rewritten.
