@@ -68,6 +68,11 @@
 				:readonly="readOnly"
 				:placeholder="t('Titre')">
 
+			<p v-if="card.created_at || completedAt" class="sk-detail-summary">
+				<span v-if="card.created_at">{{ t('Créé') }} {{ formatDate(card.created_at) }}</span>
+				<span v-if="completedAt"> · ✓ {{ t('Terminé') }} {{ formatDate(completedAt) }}</span>
+			</p>
+
 			<div v-if="readOnly" class="sk-readonly-banner">
 				👁 {{ t('Lecture seule — vous ne pouvez pas modifier cette carte.') }}
 			</div>
@@ -291,6 +296,14 @@ export default {
 
 		nowIso() {
 			return new Date().toISOString()
+		},
+
+		formatDate(iso) {
+			try {
+				return new Date(iso).toLocaleString('fr-CA', { dateStyle: 'medium', timeStyle: 'short' })
+			} catch (e) {
+				return iso
+			}
 		},
 
 		// Closing (✕) offers Save / Discard / Delete instead of dropping edits
@@ -637,6 +650,12 @@ export default {
 	font-size: 1.2em;
 	font-weight: 600;
 	width: 100%;
+}
+
+.sk-detail-summary {
+	margin: 0;
+	color: var(--color-text-maxcontrast);
+	font-size: 90%;
 }
 
 .sk-tagchip {

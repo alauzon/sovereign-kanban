@@ -427,11 +427,13 @@ export default {
 		},
 
 		async openCard(card) {
-			// Fetch the full card (the list carries an excerpt, not the body).
+			// Fetch the full card (the list carries an excerpt, not the body). The
+			// list item already carries created_at (the detail endpoint doesn't), so
+			// merge it in for the card's summary line — no backend round-trip.
 			const res = await axios.get(
 				this.url('/boards/' + encodeURIComponent(this.currentId) + '/cards/' + encodeURIComponent(card.id)),
 			)
-			this.openedCard = res.data.card
+			this.openedCard = { created_at: card.created_at, ...res.data.card }
 		},
 
 		async onCardSaved() {
