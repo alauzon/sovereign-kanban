@@ -69,6 +69,14 @@
 							@click="filtersOpen = !filtersOpen">
 							<span aria-hidden="true">⧩</span> {{ t('Filtres') }}{{ activeFilterCount ? ' (' + activeFilterCount + ')' : '' }}
 						</NcButton>
+						<NcButton
+							type="tertiary"
+							:class="{ 'sk-toolbtn--on': showArchived }"
+							:aria-label="t('Afficher les archivées')"
+							:title="t('Afficher les cartes archivées')"
+							@click="showArchived = !showArchived">
+							<span aria-hidden="true">📦</span> {{ t('Archivées') }}
+						</NcButton>
 					</div>
 				</div>
 				<FilterBar
@@ -95,7 +103,9 @@
 					@delete-card="deleteCardTile"
 					@mark-column-done="markColumnDone"
 					@rename-card="renameCardTitle"
-					@set-card-color="setCardColor" />
+					@set-card-color="setCardColor"
+					@archive-card="archiveCard"
+					@archive-column="archiveColumn" />
 				</div>
 			</template>
 
@@ -173,6 +183,7 @@ export default {
 			boardEditorTarget: null,
 			templates: [],
 			filtersOpen: false,
+			showArchived: false,
 			filters: { tags: [], assignees: [], phases: [], priorities: [], status: [] },
 		}
 	},
@@ -228,13 +239,18 @@ export default {
 
 		// OR within a dimension, AND between dimensions.
 		filteredCardsByColumn() {
-			if (!this.activeFilterCount) {
-				return this.cardsByColumn
-			}
 			const f = this.filters
+			const hasFilters = this.activeFilterCount > 0
 			const out = {}
 			for (const [col, cards] of Object.entries(this.cardsByColumn)) {
-				out[col] = (cards || []).filter((card) => this.matchesFilters(card, f))
+				out[col] = (cards || []).filter((card) => {
+					// Archived cards are hidden unless the « Afficher les archivées »
+					// toggle is on (Alain, 2026-07-19).
+					if (!this.showArchived && card.archived) {
+						return false
+					}
+					return !hasFilters || this.matchesFilters(card, f)
+				})
 			}
 			return out
 		},
@@ -406,6 +422,40 @@ export default {
 			} catch (e) {
 				// eslint-disable-next-line no-alert
 				window.alert(this.t('Impossible de changer le statut.'))
+			}
+		},
+
+		// Archive or unarchive a card (card ⋯ menu). Toggles on card.archived.
+		async archiveCard(card) {
+			const value = card.archived ? '' : new Date().toISOString()
+			try {
+				await axios.put(
+					this.url('/boards/' + encodeURIComponent(this.currentId) + '/cards/' + encodeURIComponent(card.id)),
+					{ archived: value },
+				)
+				await this.loadCards()
+			} catch (e) {
+				// eslint-disable-next-line no-alert
+				window.alert(this.t('Impossible d\'archiver la carte.'))
+			}
+		},
+
+		// Archive every non-archived card in a column (column ⋯ menu).
+		async archiveColumn(column) {
+			const cards = (this.cardsByColumn[column] || []).filter((c) => !c.archived)
+			if (!cards.length) {
+				return
+			}
+			const now = new Date().toISOString()
+			try {
+				await Promise.all(cards.map((c) => axios.put(
+					this.url('/boards/' + encodeURIComponent(this.currentId) + '/cards/' + encodeURIComponent(c.id)),
+					{ archived: now },
+				)))
+				await this.loadCards()
+			} catch (e) {
+				// eslint-disable-next-line no-alert
+				window.alert(this.t('Impossible d\'archiver les cartes de la liste.'))
 			}
 		},
 

@@ -44,6 +44,10 @@ final class Card {
 		// Card colour (Alain, 2026-07-19): a hex string from the board's palette,
 		// or null. Shown as a left band on the tile.
 		public readonly ?string $color = null,
+		// ISO instant when the card was archived, or null while it is active
+		// (Alain, 2026-07-19). Archived cards are hidden from the board unless the
+		// « Afficher les archivées » toggle is on.
+		public readonly ?string $archived = null,
 		// Typed links to other cards (Alain, 2026-07-19): a list of
 		// ['type' => child|parent|depends|required|related, 'card' => <id>]. The
 		// reciprocal is stored on the other card; only the id is kept here, never
@@ -63,7 +67,7 @@ final class Card {
 	private const KNOWN_KEYS = [
 		'id', 'title', 'column', 'created_at', 'assignees', 'due_date',
 		'start_date', 'procedures', 'priority', 'tags', 'phase', 'completed_at',
-		'author', 'color', 'relations',
+		'author', 'color', 'archived', 'relations',
 		// Legacy French spellings: read, never written. Files created before
 		// 2026-07-15 carry them; they migrate silently on the next app write.
 		'procédures', 'priorité', 'étiquettes',
@@ -117,6 +121,7 @@ final class Card {
 			completed_at: $this->completed_at,
 			author: $this->author,
 			color: $this->color,
+			archived: $this->archived,
 			relations: $this->relations,
 			extra: $this->extra,
 		);
@@ -147,6 +152,7 @@ final class Card {
 			completed_at: $this->completed_at,
 			author: $this->author,
 			color: $this->color,
+			archived: $this->archived,
 			relations: array_values($relations),
 			extra: $this->extra,
 		);
@@ -189,6 +195,7 @@ final class Card {
 			completed_at: (isset($frontmatter['completed_at']) && $frontmatter['completed_at'] !== '') ? (string) $frontmatter['completed_at'] : null,
 			author: (isset($frontmatter['author']) && $frontmatter['author'] !== '') ? (string) $frontmatter['author'] : null,
 			color: (isset($frontmatter['color']) && $frontmatter['color'] !== '') ? (string) $frontmatter['color'] : null,
+			archived: (isset($frontmatter['archived']) && $frontmatter['archived'] !== '') ? (string) $frontmatter['archived'] : null,
 			relations: self::normalizeRelations($frontmatter['relations'] ?? []),
 			extra: array_diff_key($frontmatter, array_flip(self::KNOWN_KEYS)),
 		);
@@ -316,6 +323,7 @@ final class Card {
 			'completed_at' => $this->completed_at,
 			'author' => $this->author,
 			'color' => $this->color,
+			'archived' => $this->archived,
 			'relations' => $this->relations,
 			'checklist' => $this->checklist(),
 			'excerpt' => $this->excerpt(),
@@ -424,6 +432,10 @@ final class Card {
 
 		if ($this->color !== null) {
 			$frontmatter['color'] = $this->color;
+		}
+
+		if ($this->archived !== null) {
+			$frontmatter['archived'] = $this->archived;
 		}
 
 		if (!empty($this->relations)) {

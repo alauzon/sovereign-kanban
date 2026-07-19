@@ -157,6 +157,7 @@ final class CardController extends Controller {
 		?string $start_date = null,
 		?string $completed_at = null,
 		?string $color = null,
+		?string $archived = null,
 	): DataResponse {
 		if (!$this->validCardId($cardId)) {
 			return new DataResponse(['error' => 'unavailable'], 400);
@@ -246,6 +247,12 @@ final class CardController extends Controller {
 			$newColor = ($color === '') ? null : $color;
 		}
 
+		// archived: null = leave, '' = unarchive (clear), else set the instant.
+		$newArchived = $card->archived;
+		if ($archived !== null) {
+			$newArchived = ($archived === '') ? null : $archived;
+		}
+
 		$newTitle = ($title !== null && trim($title) !== '') ? trim($title) : $card->title;
 
 		$updated = new Card(
@@ -267,6 +274,7 @@ final class CardController extends Controller {
 			// is the exact field-by-field drop the extra[] comment below warns of.
 			author: $card->author,
 			color: $newColor,
+			archived: $newArchived,
 			// Relations are managed by their own endpoints, but must survive a
 			// field edit — same carry-through rule as author.
 			relations: $card->relations,
@@ -668,6 +676,7 @@ final class CardController extends Controller {
 			'author' => $card->author,
 			'author_label' => $this->displayName($card->author),
 			'color' => $card->color,
+			'archived' => $card->archived,
 			// Relations gain their target's title/done state when a repository is on
 			// hand to resolve them; otherwise the raw {type, card} list is returned.
 			'relations' => $repository !== null ? $repository->resolveRelations($card) : array_values($card->relations),

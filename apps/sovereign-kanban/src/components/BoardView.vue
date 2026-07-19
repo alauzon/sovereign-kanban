@@ -60,7 +60,7 @@
 				v-for="card in cardsByColumn[column] || []"
 				:key="card.id"
 				class="sk-vue-card"
-				:class="{ 'sk-vue-card--done': card.completed_at }"
+				:class="{ 'sk-vue-card--done': card.completed_at, 'sk-vue-card--archived': card.archived }"
 				:style="card.color ? { borderLeft: '4px solid ' + card.color } : {}"
 				:draggable="!readOnly"
 				@dragstart.stop="onDragStart($event, card)"
@@ -168,8 +168,8 @@
 				<button type="button" class="sk-col-menu-item" @click="markColumnDone(menuColumn)">
 					✓ {{ t('Définir les cartes comme « terminées »') }}
 				</button>
-				<button type="button" class="sk-col-menu-item" disabled :title="t('Archivage à venir (barre latérale)')">
-					🗄 {{ t('Archiver toutes les cartes') }}
+				<button type="button" class="sk-col-menu-item" @click="archiveColumnFromMenu(menuColumn)">
+					📦 {{ t('Archiver toutes les cartes') }}
 				</button>
 				<button type="button" class="sk-col-menu-item sk-col-menu-danger" @click="removeColumnFromMenu(menuColumn)">
 					🗑 {{ t('Supprimer la liste') }}
@@ -211,6 +211,9 @@
 				<button type="button" class="sk-col-menu-item" @click="cardMenuToggleDone(menuCard)">
 					{{ menuCard.completed_at ? '↺ ' + t('Rouvrir') : '✓ ' + t('Marquer comme fait') }}
 				</button>
+				<button type="button" class="sk-col-menu-item" @click="cardMenuArchive(menuCard)">
+					{{ menuCard.archived ? '📤 ' + t('Désarchiver la carte') : '📦 ' + t('Archiver la carte') }}
+				</button>
 				<button type="button" class="sk-col-menu-item sk-col-menu-danger" @click="cardMenuDelete(menuCard)">
 					🗑 {{ t('Supprimer la carte') }}
 				</button>
@@ -238,7 +241,7 @@ export default {
 		templates: { type: Array, default: () => [] },
 	},
 
-	emits: ['open', 'add-card', 'move-card', 'add-from-template', 'add-column', 'rename-column', 'remove-column', 'reorder-column', 'toggle-done', 'delete-card', 'mark-column-done', 'rename-card', 'set-card-color'],
+	emits: ['open', 'add-card', 'move-card', 'add-from-template', 'add-column', 'rename-column', 'remove-column', 'reorder-column', 'toggle-done', 'delete-card', 'mark-column-done', 'rename-card', 'set-card-color', 'archive-card', 'archive-column'],
 
 	data() {
 		return {
@@ -350,9 +353,19 @@ export default {
 			this.menuCard = null
 		},
 
+		cardMenuArchive(card) {
+			this.$emit('archive-card', card)
+			this.menuCard = null
+		},
+
 		cardMenuDelete(card) {
 			this.$emit('delete-card', card)
 			this.menuCard = null
+		},
+
+		archiveColumnFromMenu(column) {
+			this.$emit('archive-column', column)
+			this.menuColumn = null
 		},
 
 		cardMenuRename(card) {
@@ -720,6 +733,14 @@ export default {
 
 .sk-vue-card--done .sk-vue-card-title {
 	text-decoration: line-through;
+}
+
+/* Archived card, only shown when « Afficher les archivées » is on: muted with a
+   dashed outline so it reads as put-away, not active. */
+.sk-vue-card--archived {
+	opacity: 0.5;
+	border-style: dashed;
+	border-color: var(--color-border);
 }
 
 .sk-done-check {
