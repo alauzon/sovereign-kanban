@@ -11,11 +11,11 @@
 		Installation: occ app:install sovereign-kanban-import
 		Uninstall: occ app:remove sovereign-kanban-import
 	</description>
-	<version>1.0.2</version>
+	<version>1.0.3</version>
 	<licence>AGPL-3.0-or-later</licence>
 	<author>Alain Lauzon</author>
 	<author mail="alauzon@alainlauzon.com">Alain</author>
-	<namespace>OCA\SovereignKanbanImport</namespace>
+	<namespace>SovereignKanbanImport</namespace>
 	<category>migration</category>
 	<website>https://serveursdupeuple.net</website>
 	<documentation>https://github.com/alauzon/sovereign-kanban-md-persistence</documentation>
