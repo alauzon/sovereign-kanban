@@ -47,18 +47,32 @@
 		<div v-for="c in comments" :key="c.id" class="sk-comment">
 			<div class="sk-comment-meta">
 				<span>{{ c.author }} — {{ formatDate(c.created_at) }}</span>
-				<button
-					v-if="!readOnly"
-					class="sk-comment-del"
-					:title="t('Supprimer ce commentaire')"
-					@click="remove(c)">
-					✕
-				</button>
+				<span v-if="!readOnly && editingId !== c.id" class="sk-comment-actions">
+					<button class="sk-comment-act" :aria-label="t('Modifier ce commentaire')" :title="t('Modifier ce commentaire')" @click="startEdit(c)">✎</button>
+					<button class="sk-comment-del" :aria-label="t('Supprimer ce commentaire')" :title="t('Supprimer ce commentaire')" @click="remove(c)">✕</button>
+				</span>
 			</div>
-			<!-- Body HTML is sanitized server-side (same as the vanilla app). -->
-			<!-- eslint-disable-next-line vue/no-v-html -->
-			<div v-if="c.body_html" class="sk-comment-body sk-rich" v-html="c.body_html" />
-			<div v-else class="sk-comment-body">{{ c.body }}</div>
+			<template v-if="editingId === c.id">
+				<textarea
+					v-model="editDraft"
+					class="sk-comment-input"
+					rows="3"
+					@keyup.esc="cancelEdit" />
+				<div class="sk-comment-editactions">
+					<NcButton type="primary" :disabled="savingEdit" @click="saveEdit(c)">
+						{{ t('Enregistrer') }}
+					</NcButton>
+					<NcButton :disabled="savingEdit" @click="cancelEdit">
+						{{ t('Annuler') }}
+					</NcButton>
+				</div>
+			</template>
+			<template v-else>
+				<!-- Body HTML is sanitized server-side (same as the vanilla app). -->
+				<!-- eslint-disable-next-line vue/no-v-html -->
+				<div v-if="c.body_html" class="sk-comment-body sk-rich" v-html="c.body_html" />
+				<div v-else class="sk-comment-body">{{ c.body }}</div>
+			</template>
 		</div>
 	</section>
 </template>
@@ -88,6 +102,9 @@ export default {
 			posting: false,
 			editorMounted: false,
 			editorInstance: null,
+			editingId: null,
+			editDraft: '',
+			savingEdit: false,
 		}
 	},
 
@@ -190,6 +207,33 @@ export default {
 			}
 		},
 
+		startEdit(comment) {
+			this.editingId = comment.id
+			this.editDraft = comment.body || ''
+		},
+
+		cancelEdit() {
+			this.editingId = null
+			this.editDraft = ''
+		},
+
+		async saveEdit(comment) {
+			const body = (this.editDraft || '').trim()
+			if (!body) {
+				return
+			}
+			this.savingEdit = true
+			try {
+				await axios.put(this.commentsUrl() + '/' + encodeURIComponent(comment.id), { body })
+				this.cancelEdit()
+				await this.load()
+			} catch (e) {
+				// leave the editor open so the author can retry
+			} finally {
+				this.savingEdit = false
+			}
+		},
+
 		async remove(comment) {
 			if (!window.confirm(this.t('Supprimer ce commentaire ?'))) {
 				return
@@ -258,6 +302,18 @@ export default {
 	color: var(--color-text-maxcontrast);
 	font-size: 90%;
 	margin-bottom: 4px;
+}
+
+.sk-comment-actions {
+	display: flex;
+	gap: 4px;
+}
+
+.sk-comment-act {
+	background: none;
+	border: none;
+	cursor: pointer;
+	color: var(--color-text-maxcontrast);
 }
 
 .sk-comment-del {
