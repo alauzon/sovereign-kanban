@@ -215,10 +215,33 @@ export default {
 		},
 
 		async addCard({ column, title }) {
-			await axios.post(this.url('/boards/' + encodeURIComponent(this.currentId) + '/cards'), {
+			const res = await axios.post(this.url('/boards/' + encodeURIComponent(this.currentId) + '/cards'), {
 				title,
 				column,
 			})
+			// Default priority 3 (Alain, 2026-07-18). The create endpoint doesn't
+			// take a priority, so set it with a follow-up update, preserving the
+			// rest of the new card.
+			const c = res.data && res.data.card
+			if (c && c.id) {
+				try {
+					await axios.put(
+						this.url('/boards/' + encodeURIComponent(this.currentId) + '/cards/' + encodeURIComponent(c.id)),
+						{
+							title: c.title,
+							description: c.description || '',
+							start_date: c.start_date || '',
+							due_date: c.due_date || '',
+							assignees: c.assignees || [],
+							priority: '3',
+							tags: c.tags || [],
+							phase: c.phase != null ? String(c.phase) : '',
+						},
+					)
+				} catch (e) {
+					// Best effort: the card exists even if the priority didn't stick.
+				}
+			}
 			await this.loadCards()
 		},
 

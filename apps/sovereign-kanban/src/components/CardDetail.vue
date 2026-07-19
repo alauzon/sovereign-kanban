@@ -16,14 +16,40 @@
   - step. Read-only disables every write control — Steve's bare-403, in Vue.
 -->
 <template>
-	<NcModal :size="expanded ? 'full' : 'large'" @close="$emit('close')">
+	<NcModal :size="expanded ? 'full' : 'large'" :can-close="false" @close="requestClose">
 		<div class="sk-detail-vue" :class="{ 'sk-detail-vue--expanded': expanded }">
+			<div v-if="confirmClose" class="sk-closeconfirm">
+				<div class="sk-closeconfirm-box">
+					<p class="sk-closeconfirm-msg">{{ t('Que voulez-vous faire de cette carte ?') }}</p>
+					<div class="sk-closeconfirm-actions">
+						<NcButton type="primary" :disabled="saving" @click="saveAndClose">
+							{{ t('Enregistrer') }}
+						</NcButton>
+						<NcButton @click="$emit('close')">
+							{{ t('Revenir sans enregistrer') }}
+						</NcButton>
+						<NcButton type="error" @click="remove">
+							{{ t('Supprimer') }}
+						</NcButton>
+						<NcButton type="tertiary" @click="confirmClose = false">
+							{{ t('Continuer l\'édition') }}
+						</NcButton>
+					</div>
+				</div>
+			</div>
+
 			<div class="sk-detail-toolbar">
 				<NcButton
 					type="tertiary"
 					:aria-label="expanded ? t('Réduire l\'éditeur') : t('Agrandir l\'éditeur')"
 					@click="expanded = !expanded">
 					{{ expanded ? t('⤡ Réduire') : t('⤢ Plein écran') }}
+				</NcButton>
+				<NcButton
+					type="tertiary"
+					:aria-label="t('Fermer')"
+					@click="requestClose">
+					✕
 				</NcButton>
 			</div>
 
@@ -54,8 +80,7 @@
 					:disabled="readOnly"
 					label="displayName"
 					input-label=""
-					:placeholder="t('Assigner une personne…')"
-					@search="onAssigneeSearch" />
+					:placeholder="t('Assigner une personne…')" />
 			</label>
 
 			<div class="sk-field-row">
@@ -199,6 +224,7 @@ export default {
 			procedures: [],
 			editorMounted: false,
 			editorInstance: null,
+			confirmClose: false,
 		}
 	},
 
@@ -214,6 +240,7 @@ export default {
 
 	mounted() {
 		this.loadProcedures()
+		this.loadBoardMembers()
 		// Mount the rich editor once the DOM (and $refs.editorEl) exist.
 		this.$nextTick(() => this.mountEditor(this.form.description))
 	},
@@ -226,6 +253,20 @@ export default {
 	methods: {
 		t(s) {
 			return s
+		},
+
+		// Closing (✕) offers Save / Discard / Delete instead of dropping edits
+		// silently (Alain, 2026-07-18). Read-only has nothing to save → just close.
+		requestClose() {
+			if (this.readOnly) {
+				this.$emit('close')
+				return
+			}
+			this.confirmClose = true
+		},
+
+		async saveAndClose() {
+			await this.save()
 		},
 
 		async loadProcedures() {
@@ -302,26 +343,38 @@ export default {
 			return {}
 		},
 
-		// Autocomplete assignees from the sharees API (same endpoint the share
-		// panel uses), debounced. Options carry {id, displayName} for user-select.
-		onAssigneeSearch(query) {
-			const q = (query || '').trim()
-			clearTimeout(this.assigneeTimer)
-			if (q.length < 2) {
-				this.assigneeOptions = []
-				return
-			}
-			this.assigneeTimer = setTimeout(async () => {
-				try {
-					const res = await axios.get(
-						generateUrl('/apps/sovereign-kanban-md-persistence/api/v1/sharees'),
-						{ params: { search: q, type: 'user' } },
-					)
-					this.assigneeOptions = (res.data.sharees || []).map((s) => ({ id: s.id, displayName: s.label }))
-				} catch (e) {
-					this.assigneeOptions = []
+		// Assignee options = the board's members (owner + user shares), like Deck:
+		// all are shown on click and NcSelect filters them locally as you type
+		// (Alain, 2026-07-18). The sharees API rejects an empty search, so we build
+		// the list from the shares instead of enumerating users.
+		async loadBoardMembers() {
+			const members = []
+			const seen = new Set()
+			const push = (id, displayName) => {
+				if (id && !seen.has(id)) {
+					seen.add(id)
+					members.push({ id, displayName: displayName || id })
 				}
-			}, 250)
+			}
+			const cur = (window.OC && window.OC.getCurrentUser) ? window.OC.getCurrentUser() : null
+			if (cur && cur.uid) {
+				push(cur.uid, cur.displayName)
+			}
+			try {
+				const res = await axios.get(generateUrl(
+					'/apps/sovereign-kanban-md-persistence/api/v1/boards/' + encodeURIComponent(this.boardId) + '/shares',
+				))
+				;(res.data.shares || []).forEach((s) => {
+					if (s.type === 'user') {
+						push(s.with, s.with)
+					}
+				})
+			} catch (e) {
+				// A received board can't list its shares; fall back to what we have.
+			}
+			// Keep anyone already assigned even if not in the member list.
+			;(this.card.assignees || []).forEach((uid) => push(uid, uid))
+			this.assigneeOptions = members
 		},
 
 		// 'Y-m-d' → 'Y-m-dT00:00' (the picker needs a time); a full date-time is
@@ -397,6 +450,37 @@ export default {
 	flex-direction: column;
 	gap: 10px;
 	min-width: 420px;
+}
+
+/* Close confirmation (Alain, 2026-07-18): the ✕ asks Save / Discard / Delete. */
+.sk-closeconfirm {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.4);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 10000;
+}
+
+.sk-closeconfirm-box {
+	background: var(--color-main-background);
+	border-radius: var(--border-radius-large, 12px);
+	padding: 20px 24px;
+	max-width: 420px;
+	box-shadow: 0 2px 16px rgba(0, 0, 0, 0.3);
+}
+
+.sk-closeconfirm-msg {
+	margin: 0 0 14px;
+	font-weight: 500;
+}
+
+.sk-closeconfirm-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	justify-content: flex-end;
 }
 
 /* Plein écran (Alain, 2026-07-18): the modal takes the whole viewport, so the
