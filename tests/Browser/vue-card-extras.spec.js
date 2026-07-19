@@ -53,11 +53,14 @@ test.describe('comportements de carte (Vue)', () => {
 		await openCard(page)
 		const dialog = page.locator('.sk-closeconfirm')
 
+		// Only one ✕: the native modal close is hidden (Alain saw two).
+		await expect(page.locator('.modal-container__close')).toBeHidden()
+
 		// Click the modal's ✕ → the confirmation appears with three choices.
 		await page.locator('.sk-detail-toolbar').getByRole('button', { name: 'Fermer' }).click()
 		await expect(dialog).toBeVisible()
 		await expect(dialog.getByRole('button', { name: 'Enregistrer', exact: true })).toBeVisible()
-		await expect(dialog.getByRole('button', { name: 'Revenir sans enregistrer' })).toBeVisible()
+		await expect(dialog.getByRole('button', { name: 'Annuler' })).toBeVisible()
 		await expect(dialog.getByRole('button', { name: 'Supprimer' })).toBeVisible()
 
 		// « Continuer l'édition » dismisses it, the modal stays.
@@ -67,7 +70,7 @@ test.describe('comportements de carte (Vue)', () => {
 
 		// Reopen the confirmation and discard → the modal closes.
 		await page.locator('.sk-detail-toolbar').getByRole('button', { name: 'Fermer' }).click()
-		await page.locator('.sk-closeconfirm').getByRole('button', { name: 'Revenir sans enregistrer' }).click()
+		await page.locator('.sk-closeconfirm').getByRole('button', { name: 'Annuler' }).click()
 		await expect(page.locator('.sk-detail-vue')).toHaveCount(0)
 	})
 })

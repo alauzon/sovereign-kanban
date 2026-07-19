@@ -26,7 +26,7 @@
 							{{ t('Enregistrer') }}
 						</NcButton>
 						<NcButton @click="$emit('close')">
-							{{ t('Revenir sans enregistrer') }}
+							{{ t('Annuler') }}
 						</NcButton>
 						<NcButton type="error" @click="remove">
 							{{ t('Supprimer') }}
@@ -421,12 +421,19 @@ export default {
 				})
 				this.$emit('saved')
 			} catch (e) {
+				const status = e.response && e.response.status
 				const code = e.response && e.response.data && e.response.data.error
-				this.error = code === 'invalid_date'
-					? this.t('Date invalide.')
-					: code === 'invalid_assignee'
-						? this.t('Un assigné n\'existe pas comme compte.')
-						: this.t('Erreur à l\'enregistrement.')
+				if (status === 401 || status === 403 || status >= 500) {
+					// A stale session/CSRF token after the page sat open a long time
+					// returns HTML, not our JSON (Alain, 2026-07-18).
+					this.error = this.t('La session a peut-être expiré. Rafraîchissez la page (F5), puis réessayez.')
+				} else if (code === 'invalid_date') {
+					this.error = this.t('Date invalide.')
+				} else if (code === 'invalid_assignee') {
+					this.error = this.t('Un assigné n\'existe pas comme compte.')
+				} else {
+					this.error = this.t('Erreur à l\'enregistrement.')
+				}
 			} finally {
 				this.saving = false
 			}
@@ -609,5 +616,15 @@ export default {
 	justify-content: flex-end;
 	gap: 8px;
 	margin-top: 8px;
+}
+</style>
+
+<!-- Non-scoped: NcModal is teleported to <body>, so a scoped rule can't reach
+     its native close button. Hide it only on the card modal (the one containing
+     .sk-detail-vue) — we use our own ✕ that asks Save/Discard/Delete (Alain,
+     2026-07-18: two ✕ were showing). -->
+<style>
+.modal-container:has(.sk-detail-vue) .modal-container__close {
+	display: none;
 }
 </style>
