@@ -49,32 +49,53 @@
 				:placeholder="t('Titre de la carte')"
 				@keyup.enter="confirmAdd(column)"
 				@blur="cancelAdd">
-			<NcButton
-				v-else-if="!readOnly"
-				type="tertiary"
-				class="sk-vue-addcard"
-				@click="startAdd(column)">
-				{{ t('+ Carte') }}
-			</NcButton>
+			<div v-else-if="!readOnly" class="sk-vue-colfooter">
+				<NcButton
+					type="tertiary"
+					class="sk-vue-addcard"
+					@click="startAdd(column)">
+					{{ t('+ Carte') }}
+				</NcButton>
+				<NcActions
+					v-if="templates.length"
+					:aria-label="t('Nouvelle carte depuis un gabarit')"
+					:title="t('Nouvelle carte depuis un gabarit')">
+					<template #icon>
+						<span aria-hidden="true">📋</span>
+					</template>
+					<NcActionButton
+						v-for="tpl in templates"
+						:key="tpl.name"
+						@click="$emit('add-from-template', { column, template: tpl })">
+						<template #icon>
+							<span aria-hidden="true">📋</span>
+						</template>
+						{{ tpl.name }}
+					</NcActionButton>
+				</NcActions>
+			</div>
 		</section>
 	</div>
 </template>
 
 <script>
 import NcButton from '@nextcloud/vue/components/NcButton'
+import NcActions from '@nextcloud/vue/components/NcActions'
+import NcActionButton from '@nextcloud/vue/components/NcActionButton'
 
 export default {
 	name: 'BoardView',
 
-	components: { NcButton },
+	components: { NcButton, NcActions, NcActionButton },
 
 	props: {
 		board: { type: Object, required: true },
 		cardsByColumn: { type: Object, default: () => ({}) },
 		readOnly: { type: Boolean, default: false },
+		templates: { type: Array, default: () => [] },
 	},
 
-	emits: ['open', 'add-card', 'move-card'],
+	emits: ['open', 'add-card', 'move-card', 'add-from-template'],
 
 	data() {
 		return {
@@ -215,7 +236,13 @@ export default {
 	padding: 1px 6px;
 }
 
+.sk-vue-colfooter {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
 .sk-vue-addcard {
-	width: 100%;
+	flex: 1 1 auto;
 }
 </style>

@@ -62,9 +62,11 @@
 					:board="currentBoard"
 					:cards-by-column="cardsByColumn"
 					:read-only="readOnly"
+					:templates="templates"
 					@open="openCard"
 					@add-card="addCard"
-					@move-card="moveCard" />
+					@move-card="moveCard"
+					@add-from-template="addCardFromTemplate" />
 			</template>
 
 			<CardDetail
@@ -131,6 +133,7 @@ export default {
 			loading: true,
 			boardEditorOpen: false,
 			boardEditorTarget: null,
+			templates: [],
 		}
 	},
 
@@ -161,6 +164,7 @@ export default {
 
 	async mounted() {
 		await this.loadBoards()
+		this.loadTemplates()
 	},
 
 	methods: {
@@ -215,6 +219,39 @@ export default {
 				column,
 			})
 			await this.loadCards()
+		},
+
+		async loadTemplates() {
+			try {
+				const res = await axios.get(generateUrl('/apps/sovereign-kanban-md-persistence/api/v1/templates'))
+				this.templates = res.data.templates || []
+			} catch (e) {
+				this.templates = []
+			}
+		},
+
+		// Create a card from a template in a specific column (the button lives in
+		// each column footer — Alain, 2026-07-18: clearer than a single top-right
+		// menu, and it makes the target column explicit). Carries the template's
+		// body and procedures.
+		async addCardFromTemplate({ column, template }) {
+			// eslint-disable-next-line no-alert
+			const title = window.prompt(this.t('Titre de la carte'), template.name)
+			if (title === null) {
+				return
+			}
+			try {
+				await axios.post(this.url('/boards/' + encodeURIComponent(this.currentId) + '/cards'), {
+					title: title.trim() || template.name,
+					column,
+					description: template.body,
+					procedures: (template.meta && template.meta['procédures']) ? template.meta['procédures'] : [],
+				})
+				await this.loadCards()
+			} catch (e) {
+				// eslint-disable-next-line no-alert
+				window.alert(this.t('Erreur à la création de la carte depuis le gabarit.'))
+			}
 		},
 
 		async moveCard({ cardId, column }) {
@@ -304,6 +341,14 @@ export default {
 	width: 12px;
 	height: 12px;
 	border-radius: 50%;
+}
+
+.sk-vue-board-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding-right: 16px;
 }
 
 .sk-vue-board-title {
