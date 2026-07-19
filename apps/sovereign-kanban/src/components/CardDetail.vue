@@ -46,7 +46,12 @@
 					@click="completedAt = completedAt ? null : nowIso()">
 					{{ completedAt ? t('✓ Fait') : t('Marquer comme fait') }}
 				</NcButton>
-				<span class="sk-toolbar-spacer" />
+				<input
+					v-model="form.title"
+					class="sk-detail-title-input"
+					type="text"
+					:readonly="readOnly"
+					:placeholder="t('Titre')">
 				<NcButton
 					type="tertiary"
 					:aria-label="expanded ? t('Réduire l\'éditeur') : t('Agrandir l\'éditeur')"
@@ -60,13 +65,6 @@
 					✕
 				</NcButton>
 			</div>
-
-			<input
-				v-model="form.title"
-				class="sk-detail-title-input"
-				type="text"
-				:readonly="readOnly"
-				:placeholder="t('Titre')">
 
 			<p v-if="card.created_at || card.modified || completedAt || card.author_label" class="sk-detail-summary">
 				<span v-if="card.created_at">{{ t('Créé') }} {{ formatDate(card.created_at) }}</span>
@@ -339,6 +337,44 @@ export default {
 		activityReversed() {
 			return [...this.activity].reverse()
 		},
+
+		// Whether the editable fields differ from the card as loaded (Alain,
+		// 2026-07-19: the ✕ closes straight away when nothing changed, instead of
+		// asking). Colour/archive/relations save on their own, so they don't count.
+		// Description is compared trimmed — the rich editor can re-emit a trailing
+		// newline on mount, which is not a real edit.
+		isDirty() {
+			const c = this.card
+			const norm = (v) => (v === null || v === undefined) ? '' : String(v)
+			if (this.form.title.trim() !== norm(c.title).trim()) {
+				return true
+			}
+			if (norm(this.form.description).trim() !== norm(c.description).trim()) {
+				return true
+			}
+			if (norm(this.form.priority) !== norm(c.priority)) {
+				return true
+			}
+			if (norm(this.form.phase) !== (c.phase != null ? String(c.phase) : '')) {
+				return true
+			}
+			if (norm(this.fromInput(this.startInput)) !== norm(c.start_date)) {
+				return true
+			}
+			if (norm(this.fromInput(this.dueInput)) !== norm(c.due_date)) {
+				return true
+			}
+			if (norm(this.completedAt) !== norm(c.completed_at)) {
+				return true
+			}
+			if (JSON.stringify(this.assigneesSelected.map((a) => a.id)) !== JSON.stringify(c.assignees || [])) {
+				return true
+			}
+			if (JSON.stringify(this.selectedTags.map((t) => this.optLabel(t))) !== JSON.stringify(c.tags || [])) {
+				return true
+			}
+			return false
+		},
 	},
 
 	mounted() {
@@ -393,7 +429,9 @@ export default {
 		// Closing (✕) offers Save / Discard / Delete instead of dropping edits
 		// silently (Alain, 2026-07-18). Read-only has nothing to save → just close.
 		requestClose() {
-			if (this.readOnly) {
+			// Nothing to lose → close straight away (Alain, 2026-07-19). Only ask
+			// when there are unsaved edits.
+			if (this.readOnly || !this.isDirty) {
 				this.$emit('close')
 				return
 			}
@@ -693,10 +731,10 @@ export default {
 
 <style scoped>
 .sk-detail-vue {
-	padding: 20px 24px;
+	padding: 12px 20px 14px;
 	display: flex;
 	flex-direction: column;
-	gap: 10px;
+	gap: 7px;
 	min-width: 420px;
 }
 
@@ -785,14 +823,23 @@ export default {
 	font-weight: 700;
 }
 
+/* Constant height across tabs (Alain, 2026-07-19): the panel keeps the same
+   height whatever the active tab, and scrolls inside — no more jump. In plein
+   écran the panel flexes to fill the freed vertical space instead. */
 .sk-tab-panel {
 	display: flex;
 	flex-direction: column;
 	gap: 10px;
+	height: 54vh;
+	overflow-y: auto;
+	overflow-x: hidden;
+	padding-right: 2px;
 }
 
-.sk-toolbar-spacer {
-	flex: 1;
+.sk-detail-vue--expanded .sk-tab-panel {
+	height: auto;
+	flex: 1 1 auto;
+	min-height: 0;
 }
 
 /* The datetime-local picker draws its calendar indicator at the right edge; if
@@ -855,10 +902,13 @@ export default {
 	min-height: 140px;
 }
 
+/* Title shares the toolbar row with Marquer fait / Réduire / ✕ (Alain,
+   2026-07-19: save vertical space) — it takes the middle, flexing. */
 .sk-detail-title-input {
-	font-size: 1.2em;
+	flex: 1 1 auto;
+	min-width: 0;
+	font-size: 1.15em;
 	font-weight: 600;
-	width: 100%;
 }
 
 .sk-detail-summary {

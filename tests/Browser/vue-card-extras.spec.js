@@ -49,12 +49,23 @@ test.describe('comportements de carte (Vue)', () => {
 		await expect(prio).toHaveValue('3')
 	})
 
-	test('le ✕ propose Enregistrer / Revenir / Supprimer', async ({ page }) => {
+	test('le ✕ ferme directement si rien n\'a changé', async ({ page }) => {
+		await openCard(page)
+		// Unchanged card → ✕ closes without asking (Alain, 2026-07-19).
+		await page.locator('.sk-detail-toolbar').getByRole('button', { name: 'Fermer' }).click()
+		await expect(page.locator('.sk-closeconfirm')).toHaveCount(0)
+		await expect(page.locator('.sk-detail-vue')).toHaveCount(0)
+	})
+
+	test('le ✕ propose Enregistrer / Revenir / Supprimer quand modifié', async ({ page }) => {
 		await openCard(page)
 		const dialog = page.locator('.sk-closeconfirm')
 
 		// Only one ✕: the native modal close is hidden (Alain saw two).
 		await expect(page.locator('.modal-container__close')).toBeHidden()
+
+		// Make an edit so there is something to lose.
+		await page.locator('.sk-detail-title-input').fill('Carte extras modifiée')
 
 		// Click the modal's ✕ → the confirmation appears with three choices.
 		await page.locator('.sk-detail-toolbar').getByRole('button', { name: 'Fermer' }).click()
