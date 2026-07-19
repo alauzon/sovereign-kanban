@@ -19,13 +19,15 @@
 			v-for="column in board.columns"
 			:key="column"
 			class="sk-vue-column"
+			:class="{ 'sk-vue-column--droptarget': dragOverColumn === column }"
+			:draggable="!readOnly && renamingColumn !== column"
+			@dragstart="onColumnDragStart($event, column)"
+			@dragend="dragOverColumn = null"
+			@dragenter.prevent="dragOverColumn = column"
 			@dragover.prevent
 			@drop="onDrop($event, column)">
-			<header
-				class="sk-vue-column-head"
-				:draggable="!readOnly && renamingColumn !== column"
-				@dragstart="onColumnDragStart($event, column)">
-				<span v-if="!readOnly" class="sk-vue-col-grip" aria-hidden="true">⠿</span>
+			<header class="sk-vue-column-head">
+				<span v-if="!readOnly" class="sk-vue-col-grip" :title="t('Glisser la colonne pour la déplacer')" aria-hidden="true">⠿</span>
 				<input
 					v-if="renamingColumn === column"
 					ref="renameInput"
@@ -59,7 +61,7 @@
 				:key="card.id"
 				class="sk-vue-card"
 				:draggable="!readOnly"
-				@dragstart="onDragStart($event, card)"
+				@dragstart.stop="onDragStart($event, card)"
 				@click="$emit('open', card)">
 				<div class="sk-vue-card-title">{{ card.title }}</div>
 				<div v-if="card.excerpt" class="sk-vue-card-excerpt">{{ card.excerpt }}</div>
@@ -153,6 +155,7 @@ export default {
 			newListName: '',
 			renamingColumn: null,
 			renameValue: '',
+			dragOverColumn: null,
 		}
 	},
 
@@ -304,6 +307,11 @@ export default {
 	background: var(--color-background-hover);
 	border-radius: var(--border-radius-large, 12px);
 	padding: 8px;
+}
+
+.sk-vue-column--droptarget {
+	outline: 2px dashed var(--color-primary-element);
+	outline-offset: -2px;
 }
 
 .sk-vue-column-rename {
