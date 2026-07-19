@@ -16,7 +16,7 @@
   - step. Read-only disables every write control — Steve's bare-403, in Vue.
 -->
 <template>
-	<NcModal :size="expanded ? 'full' : 'normal'" @close="$emit('close')">
+	<NcModal :size="expanded ? 'full' : 'large'" @close="$emit('close')">
 		<div class="sk-detail-vue" :class="{ 'sk-detail-vue--expanded': expanded }">
 			<div class="sk-detail-toolbar">
 				<NcButton
@@ -39,14 +39,8 @@
 			</div>
 
 			<div class="sk-field-row">
-				<label class="sk-field">
-					<span>{{ t('Date de début') }}</span>
-					<input v-model="startInput" type="datetime-local" :disabled="readOnly">
-				</label>
-				<label class="sk-field">
-					<span>{{ t('Date de fin') }}</span>
-					<input v-model="dueInput" type="datetime-local" :disabled="readOnly">
-				</label>
+				<DateField v-model="startInput" class="sk-field" :label="t('Date de début')" :disabled="readOnly" />
+				<DateField v-model="dueInput" class="sk-field" :label="t('Date de fin')" :disabled="readOnly" />
 			</div>
 
 			<label class="sk-field">
@@ -56,17 +50,17 @@
 
 			<div class="sk-field-row">
 				<label class="sk-field">
-					<span>{{ t('Priorité') }}</span>
-					<select v-model="form.priority" :disabled="readOnly">
-						<option value="">{{ t('—') }}</option>
-						<option v-for="p in priorities" :key="p" :value="p">{{ p }}</option>
-					</select>
-				</label>
-				<label class="sk-field">
 					<span>{{ t('Phase') }}</span>
 					<select v-model="form.phase" :disabled="readOnly">
 						<option value="">{{ t('—') }}</option>
 						<option v-for="p in phases" :key="p" :value="p">{{ t('Phase') }} {{ p }}</option>
+					</select>
+				</label>
+				<label class="sk-field">
+					<span>{{ t('Priorité') }}</span>
+					<select v-model="form.priority" :disabled="readOnly">
+						<option value="">{{ t('—') }}</option>
+						<option v-for="p in priorities" :key="p" :value="p">{{ p }}</option>
 					</select>
 				</label>
 			</div>
@@ -147,13 +141,14 @@ import NcActionButton from '@nextcloud/vue/components/NcActionButton'
 import NcActionCaption from '@nextcloud/vue/components/NcActionCaption'
 import { loadTextEditor } from '../text-editor.js'
 import CommentsSection from './CommentsSection.vue'
+import DateField from './DateField.vue'
 
 const PROCEDURES = '/apps/sovereign-kanban-md-persistence/api/v1/procedures'
 
 export default {
 	name: 'CardDetail',
 
-	components: { NcModal, NcButton, NcActions, NcActionButton, NcActionCaption, CommentsSection },
+	components: { NcModal, NcButton, NcActions, NcActionButton, NcActionCaption, CommentsSection, DateField },
 
 	props: {
 		boardId: { type: String, required: true },

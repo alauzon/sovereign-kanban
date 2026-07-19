@@ -66,13 +66,17 @@ test.describe('layout de l\'éditeur de carte (Vue)', () => {
 
 	test('le champ date de fin remplit sa cellule (l\'indicateur ne couvre pas la valeur)', async ({ page }) => {
 		await openCardModal(page)
-		// The dates now share a row, so the field fills its own cell, not the whole
-		// modal. The bug (calendar indicator over the value) is a field narrower
-		// than its container — so compare to the cell, not the modal width.
-		const cell = page.locator('.sk-field', { hasText: 'Date de fin' })
-		const cellW = (await cell.boundingBox()).width
-		const fieldW = (await cell.locator('input').boundingBox()).width
-		expect(fieldW).toBeGreaterThanOrEqual(cellW * 0.9)
+		// Dates are optional now: add one, then the datetime input appears. The bug
+		// (calendar indicator over the value) is a field narrower than its cell —
+		// compare the input to its own cell, not the modal width.
+		await page.getByRole('button', { name: 'Date de fin' }).click()
+		const cell = page.locator('.sk-datefield', { hasText: 'Date de fin' })
+		// The input shares its row with a ✕ button; it must still flex to fill most
+		// of that row (the bug was the input keeping its narrow intrinsic width).
+		const row = cell.locator('.sk-datefield-input')
+		const rowW = (await row.boundingBox()).width
+		const fieldW = (await row.locator('input').boundingBox()).width
+		expect(fieldW).toBeGreaterThanOrEqual(rowW * 0.7)
 	})
 
 	test('la description prend la pleine largeur', async ({ page }) => {
