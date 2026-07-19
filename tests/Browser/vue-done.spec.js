@@ -39,7 +39,7 @@ test.describe('statut « fait » (Vue)', () => {
 		await page.getByPlaceholder('Titre de la carte').press('Enter')
 		await page.locator('.sk-vue-card', { hasText: CARD }).click()
 		await expect(page.locator('.sk-detail-vue')).toBeVisible()
-		await page.getByRole('button', { name: 'Marquer comme fait' }).click()
+		await page.locator('.sk-detail-vue').getByRole('button', { name: 'Marquer comme fait' }).click()
 		await expect(page.getByRole('button', { name: '✓ Fait' })).toBeVisible()
 		await page.getByRole('button', { name: 'Enregistrer' }).click()
 		await expect(page.locator('.sk-detail-vue')).toHaveCount(0)
