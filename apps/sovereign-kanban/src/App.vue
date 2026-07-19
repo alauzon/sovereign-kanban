@@ -86,7 +86,9 @@
 					@add-card="addCard"
 					@move-card="moveCard"
 					@add-from-template="addCardFromTemplate"
-					@add-column="addColumn" />
+					@add-column="addColumn"
+					@rename-column="renameColumn"
+					@remove-column="removeColumn" />
 			</template>
 
 			<CardDetail
@@ -323,6 +325,38 @@ export default {
 			} catch (e) {
 				// eslint-disable-next-line no-alert
 				window.alert(this.t('Impossible d\'ajouter la liste (nom déjà pris ?).'))
+			}
+		},
+
+		async renameColumn({ from, to }) {
+			try {
+				await axios.put(
+					this.url('/boards/' + encodeURIComponent(this.currentId) + '/columns/rename'),
+					{ from, to },
+				)
+				await this.loadBoards()
+				await this.loadCards()
+			} catch (e) {
+				// eslint-disable-next-line no-alert
+				window.alert(this.t('Impossible de renommer la liste (nom déjà pris ?).'))
+			}
+		},
+
+		async removeColumn(name) {
+			// eslint-disable-next-line no-alert
+			if (!window.confirm(this.t('Supprimer la liste « ') + name + this.t(' » et ses cartes ?'))) {
+				return
+			}
+			try {
+				await axios.delete(
+					this.url('/boards/' + encodeURIComponent(this.currentId) + '/columns'),
+					{ data: { name } },
+				)
+				await this.loadBoards()
+				await this.loadCards()
+			} catch (e) {
+				// eslint-disable-next-line no-alert
+				window.alert(this.t('Impossible de supprimer la liste.'))
 			}
 		},
 

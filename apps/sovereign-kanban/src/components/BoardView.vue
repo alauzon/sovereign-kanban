@@ -22,8 +22,32 @@
 			@dragover.prevent
 			@drop="onDrop($event, column)">
 			<header class="sk-vue-column-head">
-				<span class="sk-vue-column-name">{{ column }}</span>
+				<input
+					v-if="renamingColumn === column"
+					ref="renameInput"
+					v-model="renameValue"
+					class="sk-vue-column-rename"
+					type="text"
+					@keyup.enter="confirmRenameColumn(column)"
+					@blur="cancelRenameColumn">
+				<span v-else class="sk-vue-column-name">{{ column }}</span>
 				<span class="sk-vue-count">{{ (cardsByColumn[column] || []).length }}</span>
+				<span v-if="!readOnly" class="sk-vue-col-actions">
+					<NcButton
+						type="tertiary"
+						:aria-label="t('Renommer la liste')"
+						:title="t('Renommer la liste')"
+						@click="startRenameColumn(column)">
+						✎
+					</NcButton>
+					<NcButton
+						type="tertiary"
+						:aria-label="t('Supprimer la liste')"
+						:title="t('Supprimer la liste')"
+						@click="$emit('remove-column', column)">
+						✕
+					</NcButton>
+				</span>
 			</header>
 
 			<article
@@ -115,7 +139,7 @@ export default {
 		templates: { type: Array, default: () => [] },
 	},
 
-	emits: ['open', 'add-card', 'move-card', 'add-from-template', 'add-column'],
+	emits: ['open', 'add-card', 'move-card', 'add-from-template', 'add-column', 'rename-column', 'remove-column'],
 
 	data() {
 		return {
@@ -123,12 +147,38 @@ export default {
 			newTitle: '',
 			addingList: false,
 			newListName: '',
+			renamingColumn: null,
+			renameValue: '',
 		}
 	},
 
 	methods: {
 		t(s) {
 			return s
+		},
+
+		startRenameColumn(column) {
+			this.renamingColumn = column
+			this.renameValue = column
+			this.$nextTick(() => {
+				if (this.$refs.renameInput) {
+					this.$refs.renameInput.focus()
+				}
+			})
+		},
+
+		confirmRenameColumn(from) {
+			const to = this.renameValue.trim()
+			this.renamingColumn = null
+			this.renameValue = ''
+			if (to && to !== from) {
+				this.$emit('rename-column', { from, to })
+			}
+		},
+
+		cancelRenameColumn() {
+			this.renamingColumn = null
+			this.renameValue = ''
 		},
 
 		startAddList() {
@@ -238,8 +288,27 @@ export default {
 	padding: 8px;
 }
 
+.sk-vue-column-rename {
+	flex: 1 1 auto;
+	min-width: 0;
+	font-weight: 600;
+}
+
+.sk-vue-col-actions {
+	display: flex;
+	gap: 2px;
+}
+
+.sk-vue-col-actions :deep(.button-vue) {
+	min-height: 30px !important;
+	min-width: 30px !important;
+	height: 30px;
+}
+
 .sk-vue-column-head {
 	display: flex;
+	align-items: center;
+	gap: 6px;
 	justify-content: space-between;
 	padding: 4px 8px 8px;
 	font-weight: 600;
