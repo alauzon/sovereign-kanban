@@ -66,19 +66,23 @@
 			</div>
 
 			<label class="sk-field">
-				<span>{{ t('Étiquettes (séparées par des virgules)') }}</span>
-				<input v-model="tagsInput" type="text" :disabled="readOnly" list="sk-known-tags">
-				<datalist id="sk-known-tags">
-					<option v-for="tag in knownTags" :key="tag" :value="tag" />
-				</datalist>
-				<div v-if="tagSuggestions.length && !readOnly" class="sk-tag-suggestions">
-					<button
-						v-for="tag in tagSuggestions"
-						:key="tag"
-						type="button"
-						class="sk-tag-suggestion"
-						@click="addTag(tag)">+ {{ tag }}</button>
-				</div>
+				<span>{{ t('Étiquettes') }}</span>
+				<NcSelect
+					v-model="selectedTags"
+					:options="tagOptions"
+					:multiple="true"
+					:taggable="true"
+					:close-on-select="false"
+					:disabled="readOnly"
+					input-label=""
+					:placeholder="t('Sélectionner ou créer une étiquette')">
+					<template #option="option">
+						<span class="sk-tagchip" :style="chipStyle(optLabel(option))">{{ optLabel(option) }}</span>
+					</template>
+					<template #selected-option="option">
+						<span class="sk-tagchip" :style="chipStyle(optLabel(option))">{{ optLabel(option) }}</span>
+					</template>
+				</NcSelect>
 			</label>
 
 			<div class="sk-field sk-desc-field">
@@ -139,6 +143,7 @@ import NcButton from '@nextcloud/vue/components/NcButton'
 import NcActions from '@nextcloud/vue/components/NcActions'
 import NcActionButton from '@nextcloud/vue/components/NcActionButton'
 import NcActionCaption from '@nextcloud/vue/components/NcActionCaption'
+import NcSelect from '@nextcloud/vue/components/NcSelect'
 import { loadTextEditor } from '../text-editor.js'
 import CommentsSection from './CommentsSection.vue'
 import DateField from './DateField.vue'
@@ -148,7 +153,7 @@ const PROCEDURES = '/apps/sovereign-kanban-md-persistence/api/v1/procedures'
 export default {
 	name: 'CardDetail',
 
-	components: { NcModal, NcButton, NcActions, NcActionButton, NcActionCaption, CommentsSection, DateField },
+	components: { NcModal, NcButton, NcActions, NcActionButton, NcActionCaption, NcSelect, CommentsSection, DateField },
 
 	props: {
 		boardId: { type: String, required: true },
@@ -156,6 +161,8 @@ export default {
 		readOnly: { type: Boolean, default: false },
 		// Every tag already used on the board, for suggestion (Alain, 2026-07-18).
 		knownTags: { type: Array, default: () => [] },
+		// The board's tag palette ([{name, color}]) for the label dropdown.
+		palette: { type: Array, default: () => [] },
 	},
 
 	emits: ['saved', 'deleted', 'close'],
@@ -171,7 +178,7 @@ export default {
 			startInput: this.toInput(this.card.start_date),
 			dueInput: this.toInput(this.card.due_date),
 			assigneesInput: (this.card.assignees || []).join(', '),
-			tagsInput: (this.card.tags || []).join(', '),
+			selectedTags: [...(this.card.tags || [])],
 			priorities: ['1', '2', '3', '4', '5'],
 			phases: ['1', '2', '3', '4'],
 			saving: false,
@@ -184,10 +191,12 @@ export default {
 	},
 
 	computed: {
-		// Known tags not already typed in the field — the ones worth suggesting.
-		tagSuggestions() {
-			const current = new Set(this.splitList(this.tagsInput).map((t) => t.toLowerCase()))
-			return this.knownTags.filter((tag) => !current.has(String(tag).toLowerCase()))
+		// Options for the label dropdown: the board palette plus any tag already on
+		// the card that isn't in the palette (so it stays selectable/visible).
+		tagOptions() {
+			const names = new Set(this.palette.map((t) => t.name))
+			;(this.card.tags || []).forEach((t) => names.add(t))
+			return [...names]
 		},
 	},
 
@@ -266,11 +275,18 @@ export default {
 			this.mountEditor(this.form.description)
 		},
 
-		// Append a suggested tag to the comma-separated field.
-		addTag(tag) {
-			const list = this.splitList(this.tagsInput)
-			list.push(tag)
-			this.tagsInput = list.join(', ')
+		// NcSelect may hand a string option or an object; normalise to the label.
+		optLabel(option) {
+			return (option && option.label !== undefined) ? option.label : option
+		},
+
+		// Background colour for a tag chip, from the palette.
+		chipStyle(name) {
+			const found = this.palette.find((t) => t.name === name)
+			if (found && found.color) {
+				return { background: found.color, color: '#fff', borderColor: found.color }
+			}
+			return {}
 		},
 
 		// 'Y-m-d' → 'Y-m-dT00:00' (the picker needs a time); a full date-time is
@@ -312,7 +328,7 @@ export default {
 					due_date: this.fromInput(this.dueInput),
 					assignees: this.splitList(this.assigneesInput),
 					priority: this.form.priority,
-					tags: this.splitList(this.tagsInput),
+					tags: this.selectedTags.map((t) => this.optLabel(t)),
 					phase: this.form.phase,
 				})
 				this.$emit('saved')
@@ -426,24 +442,14 @@ export default {
 	width: 100%;
 }
 
-.sk-tag-suggestions {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 4px;
-	margin-top: 4px;
-}
-
-.sk-tag-suggestion {
-	font-size: 85%;
+.sk-tagchip {
+	display: inline-block;
+	font-size: 90%;
 	background: var(--color-background-dark);
 	border: 1px solid var(--color-border);
 	border-radius: 12px;
-	padding: 1px 10px;
-	cursor: pointer;
-}
-
-.sk-tag-suggestion:hover {
-	background: var(--color-background-hover);
+	padding: 0 10px;
+	line-height: 1.6;
 }
 
 .sk-readonly-banner {

@@ -75,6 +75,7 @@
 				:card="openedCard"
 				:read-only="readOnly"
 				:known-tags="knownTags"
+				:palette="(currentBoard && currentBoard.tags) || []"
 				@saved="onCardSaved"
 				@deleted="onCardDeleted"
 				@close="openedCard = null" />
