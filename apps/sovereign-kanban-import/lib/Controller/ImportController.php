@@ -43,21 +43,35 @@ final class ImportController extends Controller {
 
 		try {
 			$result = $this->importer->import($user->getUID());
+			$skipped = $result['skipped'] ?? [];
+			$errors = $result['errors'] ?? [];
 
-			$message = sprintf(
-				'%d tableau(x) importé(s), %d carte(s) au total',
-				$result['boards'],
-				$result['cards'],
-			);
-			if (!empty($result['errors'])) {
-				$message .= sprintf(' — %d ignoré(s)/erreur(s)', count($result['errors']));
+			// Build a message that never reads a benign re-import as a failure.
+			if ($result['boards'] === 0 && $skipped !== [] && $errors === []) {
+				$message = sprintf(
+					'Vos tableaux Deck sont déjà importés (%d) — rien de nouveau.',
+					count($skipped),
+				);
+			} else {
+				$parts = [];
+				if ($result['boards'] > 0) {
+					$parts[] = sprintf('%d tableau(x) importé(s) (%d carte(s))', $result['boards'], $result['cards']);
+				}
+				if ($skipped !== []) {
+					$parts[] = sprintf('%d déjà présent(s), ignoré(s)', count($skipped));
+				}
+				if ($errors !== []) {
+					$parts[] = sprintf('%d en erreur', count($errors));
+				}
+				$message = $parts === [] ? 'Aucun tableau Deck à importer.' : implode(' — ', $parts) . '.';
 			}
 
 			return new JSONResponse([
 				'success' => true,
 				'boards_imported' => $result['boards'],
 				'cards_imported' => $result['cards'],
-				'errors' => $result['errors'] ?? [],
+				'skipped' => $skipped,
+				'errors' => $errors,
 				'message' => $message,
 			]);
 		} catch (\Throwable $e) {

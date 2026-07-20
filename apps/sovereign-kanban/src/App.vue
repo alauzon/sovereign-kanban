@@ -123,7 +123,7 @@
 								:key="v"
 								:user="v"
 								:size="26"
-								:show-user-status="false" />
+								:hide-status="true" />
 						</span>
 						<NcButton
 							type="tertiary"
@@ -443,9 +443,18 @@ export default {
 	},
 
 	watch: {
-		// Restart the presence heartbeat whenever the open board changes.
+		// Restart the presence heartbeat whenever the open board changes, and
+		// remember the board so a refresh (F5) reopens the same one, not board[0]
+		// (Alain, 2026-07-19).
 		currentId(id) {
 			this.startPresence(id)
+			if (id) {
+				try {
+					window.localStorage.setItem('sk-last-board', id)
+				} catch (e) {
+					// localStorage unavailable (private mode): fall back to board[0].
+				}
+			}
 		},
 	},
 
@@ -557,7 +566,16 @@ export default {
 				const res = await axios.get(generateUrl(BOARDS))
 				this.boards = res.data.boards || []
 				if (!this.currentId && this.boards.length) {
-					await this.select(this.boards[0].id)
+					// Reopen the last-viewed board after a refresh; fall back to the
+					// first board if it is gone (deleted/archived) or never set.
+					let saved = null
+					try {
+						saved = window.localStorage.getItem('sk-last-board')
+					} catch (e) {
+						saved = null
+					}
+					const exists = saved && this.boards.some((b) => b.id === saved)
+					await this.select(exists ? saved : this.boards[0].id)
 				}
 			} catch (e) {
 				this.boards = []
@@ -957,9 +975,13 @@ export default {
 			this.importing = true
 			try {
 				const res = await axios.post(generateUrl('/apps/sovereign-kanban-import/api/v1/import'))
+				// Reload the board list and reset the button BEFORE the alert, so the
+				// imported boards are already visible behind it and « Import en cours… »
+				// does not linger while the (blocking) alert is open.
+				await this.loadBoards()
+				this.importing = false
 				// eslint-disable-next-line no-alert
 				window.alert(res.data.message || this.t('Import terminé.'))
-				await this.loadBoards()
 			} catch (e) {
 				const msg = (e.response && e.response.data && e.response.data.message) || this.t('Import impossible.')
 				// eslint-disable-next-line no-alert

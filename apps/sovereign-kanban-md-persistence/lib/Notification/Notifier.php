@@ -41,11 +41,21 @@ final class Notifier implements INotifier {
 			throw new UnknownNotificationException();
 		}
 
+		$params = $notification->getSubjectParameters();
+
+		if ($notification->getSubject() === 'announcement') {
+			// A one-off maintenance/announcement notice (Alain, 2026-07-19).
+			$notification
+				->setParsedSubject($params['subject'] ?? 'Annonce')
+				->setParsedMessage($params['message'] ?? '')
+				->setLink($this->url->linkToRouteAbsolute('sovereign-kanban.page.index'));
+			return $notification;
+		}
+
 		if ($notification->getSubject() !== 'card_due') {
 			throw new UnknownNotificationException();
 		}
 
-		$params = $notification->getSubjectParameters();
 		$title = $params['title'] ?? '';
 		$board = $params['board'] ?? '';
 

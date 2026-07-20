@@ -363,6 +363,29 @@ try {
 		isset($cards['Carte sans échéance']) && str_contains($cards['Carte sans échéance']['column'], 'En cours'),
 		$cards['Carte sans échéance']['column'] ?? '—',
 	);
+
+	// --- re-import: « déjà présent » n'est PAS une erreur ---------------------
+	// Alain, 2026-07-19 : re-cliquer « Importer » affichait « 3 ignoré(s)/
+	// erreur(s) » — le tableau déjà importé (BoardAlreadyExistsException) était
+	// rangé dans le MÊME tableau `errors` que les vraies pannes. Le ré-import
+	// doit compter ces tableaux comme `skipped`, jamais comme `errors`.
+	$again = null;
+	$againErr = '';
+	try {
+		$again = $importer->import($OWNER);
+	} catch (\Throwable $e) {
+		$againErr = get_class($e) . ': ' . str_replace("\n", ' ', $e->getMessage());
+	}
+	check(
+		'[17] ré-import: le tableau déjà là compte comme « ignoré »',
+		$again !== null && ($again['boards'] ?? -1) === 0 && in_array($MINE, $again['skipped'] ?? [], true),
+		$again !== null ? ('boards=' . ($again['boards'] ?? '?') . ' skipped=' . json_encode($again['skipped'] ?? [], JSON_UNESCAPED_UNICODE)) : $againErr,
+	);
+	check(
+		'[18] ré-import: aucune vraie erreur',
+		$again !== null && count($again['errors'] ?? []) === 0,
+		$again !== null ? ('errors=' . count($again['errors'] ?? [])) : $againErr,
+	);
 } finally {
 	// --- teardown: the fixture rows, then anything the import created --------
 	$removed = 0;

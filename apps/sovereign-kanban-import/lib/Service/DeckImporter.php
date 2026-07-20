@@ -57,7 +57,11 @@ final class DeckImporter {
 	 *
 	 * @param string $userId The user whose boards are imported and who receives them.
 	 *
-	 * @return array{boards: int, cards: int, errors: array<string>}
+	 * @return array{boards: int, cards: int, skipped: list<string>, errors: list<string>}
+	 *   `skipped` = titles of boards already present (re-import is idempotent, not
+	 *   an error). `errors` = boards that genuinely failed. Keeping the two apart
+	 *   is the whole point: folding "already exists" into `errors` made a second
+	 *   import read as "3 erreur(s)" to the user (Alain, 2026-07-19).
 	 */
 	public function import(string $userId): array {
 		if ($userId === '' || $this->userManager->get($userId) === null) {
@@ -69,6 +73,7 @@ final class DeckImporter {
 
 		$boardCount = 0;
 		$cardCount = 0;
+		$skipped = [];
 		$errors = [];
 
 		foreach ($this->ownedBoards($userId) as $deckBoard) {
@@ -76,13 +81,13 @@ final class DeckImporter {
 				$cardCount += $this->importBoard($deckBoard, $kanbanRoot, $boardRepo);
 				$boardCount++;
 			} catch (BoardAlreadyExistsException $e) {
-				$errors[] = sprintf('Board "%s" already exists, skipped.', $deckBoard['title']);
+				$skipped[] = (string) $deckBoard['title'];
 			} catch (\Throwable $e) {
-				$errors[] = sprintf('Board "%s": %s', $deckBoard['title'], $e->getMessage());
+				$errors[] = sprintf('Tableau « %s » : %s', $deckBoard['title'], $e->getMessage());
 			}
 		}
 
-		return ['boards' => $boardCount, 'cards' => $cardCount, 'errors' => $errors];
+		return ['boards' => $boardCount, 'cards' => $cardCount, 'skipped' => $skipped, 'errors' => $errors];
 	}
 
 	/**

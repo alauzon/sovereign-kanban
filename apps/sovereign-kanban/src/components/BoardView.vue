@@ -106,7 +106,7 @@
 						:key="a"
 						:user="a"
 						:size="24"
-						:show-user-status="false" />
+						:hide-status="true" />
 				</div>
 			</article>
 			</div>
