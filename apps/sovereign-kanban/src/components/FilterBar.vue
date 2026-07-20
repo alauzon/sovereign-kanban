@@ -29,6 +29,17 @@
 			<span v-if="!dim.options.length" class="sk-filter-empty">—</span>
 		</div>
 
+		<div class="sk-filter-group">
+			<span class="sk-filter-label">{{ t('Tri') }}</span>
+			<select
+				class="sk-filter-sort"
+				:value="sort"
+				@change="$emit('sort', $event.target.value)">
+				<option value="priority">{{ t('Priorité (1→5)') }}</option>
+				<option value="manual">{{ t('Ordre manuel') }}</option>
+			</select>
+		</div>
+
 		<div class="sk-filter-actions">
 			<NcButton type="tertiary" :disabled="!hasActive" @click="$emit('reset')">
 				{{ t('Remise à 0') }}
@@ -53,9 +64,12 @@ export default {
 		dimensions: { type: Array, default: () => [] },
 		// { tags: [], assignees: [], phases: [], priorities: [] }
 		selected: { type: Object, required: true },
+		// Card display order within a column: 'priority' (1→5, unset last) or
+		// 'manual' (file order). Default priority (Alain, 2026-07-20).
+		sort: { type: String, default: 'priority' },
 	},
 
-	emits: ['toggle', 'reset', 'close'],
+	emits: ['toggle', 'reset', 'close', 'sort'],
 
 	computed: {
 		hasActive() {
@@ -116,6 +130,15 @@ export default {
 
 .sk-filter-empty {
 	color: var(--color-text-maxcontrast);
+}
+
+.sk-filter-sort {
+	font-size: 85%;
+	background: var(--color-main-background);
+	border: 1px solid var(--color-border);
+	border-radius: 12px;
+	padding: 1px 8px;
+	cursor: pointer;
 }
 
 .sk-filter-actions {

@@ -186,6 +186,8 @@
 					v-if="filtersOpen"
 					:dimensions="filterDimensions"
 					:selected="filters"
+					:sort="sortBy"
+					@sort="setSort"
 					@toggle="toggleFilter"
 					@reset="resetFilters"
 					@close="filtersOpen = false" />
@@ -217,6 +219,7 @@
 
 				<CardDetail
 					v-if="openedCard"
+					:key="openedCard.id"
 					class="sk-card-dock"
 					:docked="wide"
 					:board-id="currentId"
@@ -359,6 +362,7 @@ export default {
 			viewers: [],
 			presenceTimer: null,
 			filters: { tags: [], assignees: [], phases: [], priorities: [], status: [] },
+			sortBy: (() => { try { return window.localStorage.getItem('sk-sort') || 'priority' } catch (e) { return 'priority' } })(),
 		}
 	},
 
@@ -439,6 +443,12 @@ export default {
 					}
 					return !hasFilters || this.matchesFilters(card, f)
 				})
+			}
+			if (this.sortBy === 'priority') {
+				const rank = (c) => { const n = parseInt(c.priority, 10); return Number.isFinite(n) ? n : 99 }
+				for (const col of Object.keys(out)) {
+					out[col] = out[col].slice().sort((a, b) => rank(a) - rank(b))
+				}
 			}
 			return out
 		},
@@ -1086,6 +1096,11 @@ export default {
 			this.saveFilters()
 		},
 
+		setSort(value) {
+			this.sortBy = value
+			try { window.localStorage.setItem('sk-sort', value) } catch (e) { /* private */ }
+		},
+		
 		resetFilters() {
 			this.filters = { tags: [], assignees: [], phases: [], priorities: [], status: [] }
 			this.saveFilters()
