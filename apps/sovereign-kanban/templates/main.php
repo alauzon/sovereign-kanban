@@ -24,7 +24,7 @@ if ($useVue) {
 }
 ?>
 <?php if ($useVue): ?>
-<div id="sk-vue"></div>
+<div id="sk-vue" data-import-available="<?php echo !empty($_['importAvailable']) ? '1' : '0'; ?>"></div>
 <?php else: ?>
 <div id="sk-app">
 	<header class="sk-header">

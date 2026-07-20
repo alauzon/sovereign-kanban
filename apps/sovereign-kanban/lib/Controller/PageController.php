@@ -7,18 +7,24 @@
 
 namespace OCA\SovereignKanban\Controller;
 
+use OCP\App\IAppManager;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\IRequest;
+use OCP\IUserSession;
 
 /**
  * Serves the Kanban board page.
  */
 final class PageController extends Controller {
 
-	public function __construct(IRequest $request) {
+	public function __construct(
+		IRequest $request,
+		private readonly IAppManager $appManager,
+		private readonly IUserSession $userSession,
+	) {
 		parent::__construct('sovereign-kanban', $request);
 	}
 
@@ -36,8 +42,18 @@ final class PageController extends Controller {
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
 	public function index(): TemplateResponse {
+		// Only offer « Importer depuis Deck » where it can actually work: BOTH the
+		// import module AND Deck itself must be enabled for this user (Alain,
+		// 2026-07-19). On SdP the import app is not installed, so the button would
+		// 404 « Import impossible » — hide it. Checking Deck too covers the case
+		// where Deck is disabled after the import app was enabled.
+		$user = $this->userSession->getUser();
+		$importAvailable = $this->appManager->isEnabledForUser('sovereign-kanban-import', $user)
+			&& $this->appManager->isEnabledForUser('deck', $user);
+
 		return new TemplateResponse('sovereign-kanban', 'main', [
 			'useVue' => $this->request->getParam('vue') !== '0',
+			'importAvailable' => $importAvailable,
 		]);
 	}
 }

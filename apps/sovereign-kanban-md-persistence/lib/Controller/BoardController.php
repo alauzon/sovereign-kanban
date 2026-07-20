@@ -210,6 +210,9 @@ final class BoardController extends Controller {
 		if ($name === '') {
 			return new DataResponse(['error' => 'name_required'], 400);
 		}
+		if (preg_match('#[/\\\\]#', $name) === 1) {
+			return new DataResponse(['error' => 'invalid_name', 'message' => 'Un nom de colonne ne peut pas contenir « / » ni « \\ ».'], 400);
+		}
 
 		$board = $repository->addColumn($boardId, $name);
 		if ($board === null) {
@@ -237,6 +240,9 @@ final class BoardController extends Controller {
 		$to = trim($to);
 		if ($to === '') {
 			return new DataResponse(['error' => 'name_required'], 400);
+		}
+		if (preg_match('#[/\\\\]#', $to) === 1) {
+			return new DataResponse(['error' => 'invalid_name', 'message' => 'Un nom de colonne ne peut pas contenir « / » ni « \\ ».'], 400);
 		}
 
 		$board = $repository->renameColumn($boardId, $from, $to);

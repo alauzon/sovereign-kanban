@@ -100,6 +100,8 @@ final class FileBoardRepository {
 			return null;
 		}
 
+		$this->assertSafeColumnName($name);
+
 		$updated = $board->addColumn($name);
 		$this->save($updated);
 
@@ -118,6 +120,7 @@ final class FileBoardRepository {
 		if ($board === null) {
 			return null;
 		}
+		$this->assertSafeColumnName($to);
 
 		$updated = $board->renameColumn($from, $to);
 		$this->save($updated);
@@ -168,6 +171,23 @@ final class FileBoardRepository {
 		$this->save($updated);
 
 		return $updated;
+	}
+
+	/**
+	 * Reject a column name that cannot be a folder segment.
+	 *
+	 * A column is stored as a directory, so a name containing a path separator
+	 * ('/' or '\') is impossible: it would nest or fail the move and — worse —
+	 * leave .board.yml renamed while the folder is not, orphaning its cards
+	 * (Alain, 2026-07-19: a card vanished on a rename to "Cas d'utilisation/besoin").
+	 * Validated up front so nothing is written on a bad name.
+	 *
+	 * @throws \InvalidArgumentException When the name holds a path separator.
+	 */
+	private function assertSafeColumnName(string $name): void {
+		if (preg_match('#[/\\\\]#', $name) === 1) {
+			throw new \InvalidArgumentException('Un nom de colonne ne peut pas contenir « / » ni « \ ».');
+		}
 	}
 
 	/**

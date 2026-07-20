@@ -92,6 +92,7 @@
 				<NcButton
 					type="tertiary"
 					wide
+					v-if="importAvailable"
 					class="sk-import-btn"
 					:aria-label="t('Importer depuis Deck')"
 					@click="importDeck">
@@ -350,6 +351,7 @@ export default {
 			showId: false,
 			helpOpen: false,
 			importing: false,
+			importAvailable: !!(document.getElementById('sk-vue') && document.getElementById('sk-vue').dataset.importAvailable === '1'),
 			wide: false,
 			trashOpen: false,
 			trashCards: [],
