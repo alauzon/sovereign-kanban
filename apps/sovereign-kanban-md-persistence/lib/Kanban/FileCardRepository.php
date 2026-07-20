@@ -30,7 +30,13 @@ final class FileCardRepository {
 	 * Save a card (creates {column}/{uuid}-{slug}/card.md).
 	 */
 	public function save(Card $card): void {
-		$slug = str_replace(' ', '-', $card->title);
+		// The folder slug must never carry a path separator. A '/' in the title
+		// became a real directory level: "comment / priority / relate" wrote
+		// card.md three folders deep, where listByColumn — which expects
+		// <cardFolder>/card.md — could not see it, so the card vanished from the
+		// board while its file sat on disk (Alain, 2026-07-20). Same class as the
+		// column-rename « / ». The TITLE keeps its '/'; only the folder is sanitized.
+		$slug = str_replace([' ', '/', '\\'], '-', $card->title);
 		$cardDir = $card->column . '/' . $card->id . '-' . $slug;
 		$this->storage->write($cardDir . '/card.md', $this->serialize($card));
 	}
