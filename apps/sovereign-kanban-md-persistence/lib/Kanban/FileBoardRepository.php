@@ -208,13 +208,17 @@ final class FileBoardRepository {
 	private function loadFromYml(string $content): Board {
 		$data = Yaml::parse($content);
 
+		if (!is_array($data) || empty($data['id'])) {
+			throw new \InvalidArgumentException('Board YAML must contain an "id" field');
+		}
+
 		return new Board(
-			id: $data['id'],
-			name: $data['name'],
-			color: $data['color'],
-			columns: $data['columns'] ?? [],
-			created_at: new DateTime($data['created_at']),
-			tags: $data['tags'] ?? [],
+			id: (string) $data['id'],
+			name: (string) ($data['name'] ?? 'Untitled'),
+			color: (string) ($data['color'] ?? '#0082c9'),
+			columns: (array) ($data['columns'] ?? []),
+			created_at: new DateTime($data['created_at'] ?? 'now'),
+			tags: (array) ($data['tags'] ?? []),
 			archived: (isset($data['archived']) && $data['archived'] !== '') ? (string) $data['archived'] : null,
 		);
 	}
