@@ -186,10 +186,36 @@ try {
 			$boardId = $pos[1] ?? fail('usage: done <boardId> <cardId>');
 			$cardArg = $pos[2] ?? fail('done: <cardId> requis');
 			$board = $boardRepo->find($boardId) ?? fail("no such board: $boardId");
-			// NB: end() takes its arg by reference and would mutate the readonly
-			// Board::$columns — use array_key_last instead.
+			// Prefer a column that MEANS done (Terminé/Fait/Livré/Done…); else the
+			// last NON-archive column; else the very last. Never land in Archivé by
+			// default (Alain, 2026-07-20). NB: array_key_last, not end(), because
+			// Board::$columns is readonly.
 			$cols = $board->columns;
-			$last = $cols === [] ? fail('le tableau n\'a aucune colonne') : $cols[array_key_last($cols)];
+			if ($cols === []) {
+				fail('le tableau n\'a aucune colonne');
+			}
+			$isDone = static fn (string $c): bool => in_array(
+				mb_strtolower(trim($c)),
+				['terminé', 'terminée', 'termine', 'fait', 'faite', 'livré', 'livree', 'done', 'complété', 'completed'],
+				true,
+			);
+			$isArchive = static fn (string $c): bool => str_starts_with(mb_strtolower(trim($c)), 'archiv');
+			$last = null;
+			foreach ($cols as $c) {
+				if ($isDone($c)) {
+					$last = $c;
+					break;
+				}
+			}
+			if ($last === null) {
+				foreach (array_reverse($cols) as $c) {
+					if (!$isArchive($c)) {
+						$last = $c;
+						break;
+					}
+				}
+			}
+			$last ??= $cols[array_key_last($cols)];
 			$repo = cardRepoFor($kanban, $boardId);
 			$card = findCard($repo, $cardArg);
 			$toFolder = $repo->resolveColumnFolder($last) ?? fail("colonne « $last » introuvable");
