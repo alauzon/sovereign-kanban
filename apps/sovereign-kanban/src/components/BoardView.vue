@@ -456,8 +456,18 @@ export default {
 			this.addingColumn = column
 			this.newTitle = ''
 			this.$nextTick(() => {
-				if (this.$refs.newInput) {
-					this.$refs.newInput.focus()
+				// ref="newInput" sits inside the column v-for, so $refs.newInput can be
+				// an array; grab the single rendered input, and fall back to a DOM query
+				// (Alain, 2026-07-20: the autofocus silently did nothing on « + Carte »).
+				let el = this.$refs.newInput
+				if (Array.isArray(el)) {
+					el = el[0]
+				}
+				if (!el && this.$el) {
+					el = this.$el.querySelector('.sk-vue-newcard')
+				}
+				if (el && el.focus) {
+					el.focus()
 				}
 			})
 		},
