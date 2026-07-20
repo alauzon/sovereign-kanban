@@ -101,6 +101,10 @@ final class BoardShareService {
 	 *
 	 * @return list<array{id: string, name: string, owner: string, permissions: int}>
 	 */
+	public function boardsSharedByMe(): array {
+		return $this->gateway->boardsSharedByMe();
+	}
+
 	public function receivedBoards(): array {
 		$position = [];
 		$out = [];

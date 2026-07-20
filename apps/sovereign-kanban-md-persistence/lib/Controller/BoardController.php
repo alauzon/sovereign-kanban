@@ -52,8 +52,16 @@ final class BoardController extends Controller {
 			return new DataResponse(['error' => 'not_logged_in'], 401);
 		}
 
+		// Boards I have shared OUT are flagged so the sidebar can file them under
+		// « Partagés par vous » rather than leaving them indistinguishable from
+		// private ones (Alain, 2026-07-20).
+		$sharedByMe = $this->shareService->boardsSharedByMe();
 		$boards = array_map(
-			static fn (Board $board): array => $board->toArray() + ['shared' => false, 'owner' => null],
+			static fn (Board $board): array => $board->toArray() + [
+				'shared' => false,
+				'owner' => null,
+				'shared_by_me' => in_array($board->id, $sharedByMe, true),
+			],
 			$repository->list(),
 		);
 		// Boards shared TO this user (Option B, spec §12), marked `shared` + `owner`.

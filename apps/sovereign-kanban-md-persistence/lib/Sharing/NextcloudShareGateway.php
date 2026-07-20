@@ -118,6 +118,13 @@ final class NextcloudShareGateway implements ShareGateway {
 
 		foreach (self::TYPE_TO_NC as $ncType) {
 			foreach ($this->shareManager->getSharedWith($uid, $ncType, null, 500) as $share) {
+				// A board I OWN, shared out to a group I belong to, comes straight
+				// back through getSharedWith. It is MINE, not « shared with me »:
+				// it was landing under « Partagés avec vous », duplicated with my
+				// own list (Alain, 2026-07-20). Ownership decides the category first.
+				if ($share->getShareOwner() === $uid) {
+					continue;
+				}
 				try {
 					$node = $share->getNode();
 				} catch (NotFoundException) {
@@ -144,6 +151,41 @@ final class NextcloudShareGateway implements ShareGateway {
 		}
 
 		return $out;
+	}
+
+	/**
+	 * Ids of the boards the current user has shared OUT, any channel.
+	 *
+	 * Lets the sidebar file them under « Partagés par vous » instead of leaving
+	 * them indistinguishable from private boards (Alain, 2026-07-20).
+	 *
+	 * @return list<string>
+	 */
+	public function boardsSharedByMe(): array {
+		$uid = $this->uid();
+		$ids = [];
+
+		foreach (self::TYPE_TO_NC as $ncType) {
+			foreach ($this->shareManager->getSharesBy($uid, $ncType, null, false, 500) as $share) {
+				try {
+					$node = $share->getNode();
+				} catch (NotFoundException) {
+					// Stale share whose target is gone — never fatal for a listing.
+					continue;
+				}
+				if (!$node instanceof Folder || !$node->nodeExists('.board.yml')) {
+					continue;
+				}
+				$file = $node->get('.board.yml');
+				$data = $file instanceof File ? (Yaml::parse($file->getContent()) ?? []) : [];
+				$id = (string) ($data['id'] ?? $node->getName());
+				if (!in_array($id, $ids, true)) {
+					$ids[] = $id;
+				}
+			}
+		}
+
+		return $ids;
 	}
 
 	/**

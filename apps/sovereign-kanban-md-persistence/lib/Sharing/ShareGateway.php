@@ -58,4 +58,11 @@ interface ShareGateway {
 	 * @return list<array{id: string, name: string, columns: list<string>, owner: string, permissions: int}>
 	 */
 	public function receivedBoards(): array;
+
+	/**
+	 * Ids of the boards the current user has shared OUT (any channel).
+	 *
+	 * @return list<string>
+	 */
+	public function boardsSharedByMe(): array;
 }

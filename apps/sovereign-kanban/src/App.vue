@@ -72,6 +72,66 @@
 					</NcAppNavigationItem>
 				</NcAppNavigationItem>
 
+				<!-- Partagés par vous (mes tableaux, que je partage) -->
+
+				<NcAppNavigationCaption v-if="sharedByMeBoards.length" :name="t('Partagés par vous')" />
+
+				<NcAppNavigationItem
+
+					v-for="board in sharedByMeBoards"
+
+					:key="board.id"
+
+					:name="board.name"
+
+					:active="board.id === currentId"
+
+					@click="select(board.id)">
+
+					<template #icon>
+
+						<span class="sk-nav-dot" :style="{ background: board.color || '#888' }" />
+
+					</template>
+
+					<template #counter>
+
+						<span :title="t('Vous partagez ce tableau')">📤</span>
+
+					</template>
+
+					<template #actions>
+
+						<NcActionButton :aria-label="t('Éditer le tableau')" @click="openBoardEdit(board)">
+
+							<template #icon><span aria-hidden="true">✎</span></template>
+
+							{{ t('Éditer') }}
+
+						</NcActionButton>
+
+						<NcActionButton :aria-label="t('Archiver le tableau')" @click="archiveBoard(board)">
+
+							<template #icon><span aria-hidden="true">📦</span></template>
+
+							{{ t('Archiver') }}
+
+						</NcActionButton>
+
+						<NcActionButton :aria-label="t('Supprimer le tableau')" @click="deleteBoard(board)">
+
+							<template #icon><span aria-hidden="true">🗑</span></template>
+
+							{{ t('Supprimer') }}
+
+						</NcActionButton>
+
+					</template>
+
+				</NcAppNavigationItem>
+
+				
+
 				<!-- Partagés avec vous -->
 				<NcAppNavigationCaption v-if="sharedBoards.length" :name="t('Partagés avec vous')" />
 				<NcAppNavigationItem
@@ -375,7 +435,14 @@ export default {
 		// Sidebar sections (Alain, 2026-07-19): active owned / archived owned /
 		// shared with me.
 		myBoards() {
-			return this.boards.filter((b) => !b.shared && !b.archived)
+			return this.boards.filter((b) => !b.shared && !b.archived && !b.shared_by_me)
+		},
+
+		// Boards I own AND share out — « Partagés par vous ». They used to sit with
+		// my private boards, and a group share to a group I belong to ALSO made them
+		// appear under « Partagés avec vous » (Alain, 2026-07-20).
+		sharedByMeBoards() {
+			return this.boards.filter((b) => !b.shared && !b.archived && b.shared_by_me)
 		},
 
 		archivedBoards() {
