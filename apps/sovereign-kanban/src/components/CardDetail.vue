@@ -150,7 +150,44 @@
 				</label>
 			</div>
 
+			<div class="sk-field" v-if="!readOnly || form.linkedBoard">
+
+				<span>{{ t('Tableau lié') }}</span>
+
+				<div v-if="form.linkedBoard" class="sk-linkedboard">
+
+					<button type="button" class="sk-openboard-btn" @click="openLinkedBoard">
+
+						{{ linkedBoardName || form.linkedBoard }} &rarr;
+
+					</button>
+
+					<NcButton v-if="!readOnly" type="tertiary" :aria-label="t('Délier le tableau')" :title="t('Délier le tableau')" @click="form.linkedBoard = ''">✕</NcButton>
+
+				</div>
+
+				<div v-else-if="!readOnly" class="sk-linkedboard">
+
+					<select v-model="form.linkedBoard" :disabled="creatingBoard">
+
+						<option value="">{{ t('— choisir un tableau —') }}</option>
+
+						<option v-for="b in linkableBoards" :key="b.id" :value="b.id">{{ b.name }}</option>
+
+					</select>
+
+					<NcButton type="secondary" :disabled="creatingBoard" @click="createLinkedBoard">
+
+						{{ creatingBoard ? t('Création…') : t('Créer le tableau du projet') }}
+
+					</NcButton>
+
+				</div>
+
+			</div>
+
 			<label class="sk-field">
+
 				<span>{{ t('Étiquettes') }}</span>
 				<NcSelect
 					v-model="selectedTags"
@@ -282,6 +319,7 @@ export default {
 	props: {
 		docked: { type: Boolean, default: false },
 		boardId: { type: String, required: true },
+		boards: { type: Array, default: () => [] },
 		card: { type: Object, required: true },
 		readOnly: { type: Boolean, default: false },
 		// Every tag already used on the board, for suggestion (Alain, 2026-07-18).
@@ -301,6 +339,7 @@ export default {
 				description: this.card.description || '',
 				priority: this.card.priority || '',
 				phase: this.card.phase != null ? String(this.card.phase) : '',
+				linkedBoard: this.card.linked_board || '',
 			},
 			startInput: this.toInput(this.card.start_date),
 			dueInput: this.toInput(this.card.due_date),
@@ -311,6 +350,7 @@ export default {
 			priorities: ['1', '2', '3', '4', '5'],
 			phases: ['1', '2', '3', '4'],
 			saving: false,
+			creatingBoard: false,
 			error: '',
 			expanded: false,
 			procedures: [],
@@ -348,6 +388,16 @@ export default {
 		// asking). Colour/archive/relations save on their own, so they don't count.
 		// Description is compared trimmed — the rich editor can re-emit a trailing
 		// newline on mount, which is not a real edit.
+		linkedBoardName() {
+			const b = (this.boards || []).find((x) => x.id === this.form.linkedBoard)
+			return b ? b.name : ''
+		},
+
+		// Boards this card can link to — anything but its own board.
+		linkableBoards() {
+			return (this.boards || []).filter((b) => b.id !== this.boardId)
+		},
+
 		isDirty() {
 			const c = this.card
 			const norm = (v) => (v === null || v === undefined) ? '' : String(v)
@@ -361,6 +411,9 @@ export default {
 				return true
 			}
 			if (norm(this.form.phase) !== (c.phase != null ? String(c.phase) : '')) {
+				return true
+			}
+			if ((this.form.linkedBoard || '') !== (c.linked_board || '')) {
 				return true
 			}
 			if (norm(this.fromInput(this.startInput)) !== norm(c.start_date)) {
@@ -460,6 +513,47 @@ export default {
 		discardAndClose() {
 			this.skipSave = true
 			this.$emit('close')
+		},
+
+		// « Ouvrir → » : navigate to the linked board via the URL hash, closing the
+		// editor (its unsaved edits auto-save on unmount). Alain, 2026-07-20.
+		openLinkedBoard() {
+			if (!this.form.linkedBoard) {
+				return
+			}
+			window.location.hash = '#' + encodeURIComponent(this.form.linkedBoard)
+			this.$emit('close')
+		},
+
+		// « Créer le tableau du projet » : create a board named after the card, link it,
+		// and save. If the name already exists (409) link to the existing one.
+		async createLinkedBoard() {
+			if (this.readOnly || this.creatingBoard) {
+				return
+			}
+			const name = (this.form.title || this.card.title || '').trim()
+			if (!name) {
+				this.error = this.t('Donnez d\'abord un titre à la carte.')
+				return
+			}
+			this.creatingBoard = true
+			try {
+				const res = await axios.post(generateUrl('/apps/sovereign-kanban-md-persistence/api/v1/boards'), { name })
+				this.form.linkedBoard = res.data.board.id
+				await this.save()
+				this.$emit('refresh')
+			} catch (e) {
+				const code = e.response && e.response.data && e.response.data.error
+				if (code === 'board_exists' && e.response.data.id) {
+					this.form.linkedBoard = e.response.data.id
+					await this.save()
+					this.$emit('refresh')
+				} else {
+					this.error = this.t('Impossible de créer le tableau.')
+				}
+			} finally {
+				this.creatingBoard = false
+			}
 		},
 
 		async loadProcedures() {
@@ -716,6 +810,7 @@ export default {
 					priority: this.form.priority,
 					tags: this.selectedTags.map((t) => this.optLabel(t)),
 					phase: this.form.phase,
+					linked_board: this.form.linkedBoard,
 					completed_at: this.completedAt === null ? '' : this.completedAt,
 				})
 				this.$emit('saved')
@@ -1045,4 +1140,21 @@ export default {
 .modal-container:has(.sk-detail-vue) .modal-container__close {
 	display: none;
 }
+.sk-linkedboard {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.sk-openboard-btn {
+	font-weight: 600;
+	background: var(--color-primary-element-light);
+	color: var(--color-primary-element-light-text);
+	border: none;
+	border-radius: var(--border-radius);
+	padding: 4px 12px;
+	cursor: pointer;
+}
+
 </style>

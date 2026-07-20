@@ -53,6 +53,7 @@ final class Card {
 		// reciprocal is stored on the other card; only the id is kept here, never
 		// the title — a rename must not go stale.
 		public readonly array $relations = [],
+		public readonly ?string $linked_board = null,
 		public readonly array $extra = [],
 	) {
 	}
@@ -67,7 +68,7 @@ final class Card {
 	private const KNOWN_KEYS = [
 		'id', 'title', 'column', 'created_at', 'assignees', 'due_date',
 		'start_date', 'procedures', 'priority', 'tags', 'phase', 'completed_at',
-		'author', 'color', 'archived', 'relations',
+		'author', 'color', 'archived', 'relations', 'linked_board',
 		// Legacy French spellings: read, never written. Files created before
 		// 2026-07-15 carry them; they migrate silently on the next app write.
 		'procédures', 'priorité', 'étiquettes',
@@ -123,6 +124,7 @@ final class Card {
 			color: $this->color,
 			archived: $this->archived,
 			relations: $this->relations,
+			linked_board: $this->linked_board,
 			extra: $this->extra,
 		);
 	}
@@ -154,6 +156,7 @@ final class Card {
 			color: $this->color,
 			archived: $this->archived,
 			relations: array_values($relations),
+			linked_board: $this->linked_board,
 			extra: $this->extra,
 		);
 	}
@@ -197,6 +200,7 @@ final class Card {
 			color: (isset($frontmatter['color']) && $frontmatter['color'] !== '') ? (string) $frontmatter['color'] : null,
 			archived: (isset($frontmatter['archived']) && $frontmatter['archived'] !== '') ? (string) $frontmatter['archived'] : null,
 			relations: self::normalizeRelations($frontmatter['relations'] ?? []),
+			linked_board: (isset($frontmatter["linked_board"]) && $frontmatter["linked_board"] !== "") ? (string) $frontmatter["linked_board"] : null,
 			extra: array_diff_key($frontmatter, array_flip(self::KNOWN_KEYS)),
 		);
 	}
@@ -325,6 +329,7 @@ final class Card {
 			'color' => $this->color,
 			'archived' => $this->archived,
 			'relations' => $this->relations,
+			'linked_board' => $this->linked_board,
 			'checklist' => $this->checklist(),
 			'excerpt' => $this->excerpt(),
 		];
@@ -436,6 +441,13 @@ final class Card {
 
 		if ($this->archived !== null) {
 			$frontmatter['archived'] = $this->archived;
+		}
+
+
+		if ($this->linked_board !== null) {
+
+			$frontmatter['linked_board'] = $this->linked_board;
+
 		}
 
 		if (!empty($this->relations)) {

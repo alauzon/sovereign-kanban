@@ -223,6 +223,7 @@
 					class="sk-card-dock"
 					:docked="wide"
 					:board-id="currentId"
+					:boards="boards"
 					:card="openedCard"
 					:read-only="readOnly"
 					:known-tags="knownTags"
@@ -461,6 +462,13 @@ export default {
 		currentId(id) {
 			this.startPresence(id)
 			if (id) {
+				// Reflect the open board in the URL (#<board>) so it is shareable and
+				// survives a refresh; the « Ouvrir → » button of a carte-tableau just
+				// sets this hash (Alain, 2026-07-20).
+				const hash = '#' + encodeURIComponent(id)
+				if (window.location.hash !== hash) {
+					window.location.hash = hash
+				}
 				try {
 					window.localStorage.setItem('sk-last-board', id)
 				} catch (e) {
@@ -475,6 +483,7 @@ export default {
 		this.updateWide()
 		window.addEventListener('keydown', this.onKeydown)
 		window.addEventListener('resize', this.updateWide)
+		window.addEventListener('hashchange', this.onHashChange)
 		await this.loadBoards()
 		this.loadTemplates()
 	},
@@ -482,6 +491,7 @@ export default {
 	beforeUnmount() {
 		window.removeEventListener('keydown', this.onKeydown)
 		window.removeEventListener('resize', this.updateWide)
+		window.removeEventListener('hashchange', this.onHashChange)
 		this.stopPresence()
 	},
 
@@ -578,21 +588,39 @@ export default {
 				const res = await axios.get(generateUrl(BOARDS))
 				this.boards = res.data.boards || []
 				if (!this.currentId && this.boards.length) {
-					// Reopen the last-viewed board after a refresh; fall back to the
-					// first board if it is gone (deleted/archived) or never set.
+					// Prefer the board named in the URL (#<board>), then the last-viewed
+					// (localStorage), then the first board (Alain, 2026-07-20).
+					const has = (id) => id && this.boards.some((b) => b.id === id)
+					const fromHash = this.boardIdFromHash()
 					let saved = null
 					try {
 						saved = window.localStorage.getItem('sk-last-board')
 					} catch (e) {
 						saved = null
 					}
-					const exists = saved && this.boards.some((b) => b.id === saved)
-					await this.select(exists ? saved : this.boards[0].id)
+					await this.select(has(fromHash) ? fromHash : (has(saved) ? saved : this.boards[0].id))
 				}
 			} catch (e) {
 				this.boards = []
 			} finally {
 				this.loading = false
+			}
+		},
+
+		boardIdFromHash() {
+			try {
+				return decodeURIComponent((window.location.hash || '').replace(/^#/, ''))
+			} catch (e) {
+				return ''
+			}
+		},
+
+		// Follow the URL hash to a board — the « Ouvrir → » button of a carte-tableau
+		// navigates by just setting window.location.hash (Alain, 2026-07-20).
+		onHashChange() {
+			const id = this.boardIdFromHash()
+			if (id && id !== this.currentId && this.boards.some((b) => b.id === id)) {
+				this.select(id)
 			}
 		},
 

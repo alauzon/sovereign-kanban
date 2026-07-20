@@ -160,6 +160,7 @@ final class CardController extends Controller {
 		?string $completed_at = null,
 		?string $color = null,
 		?string $archived = null,
+		?string $linked_board = null,
 	): DataResponse {
 		if (!$this->validCardId($cardId)) {
 			return new DataResponse(['error' => 'unavailable'], 400);
@@ -255,6 +256,13 @@ final class CardController extends Controller {
 			$newArchived = ($archived === '') ? null : $archived;
 		}
 
+		// linked_board: null = leave, '' = unlink (clear), else set the board id
+		// this « carte-tableau » opens (Alain, 2026-07-20).
+		$newLinkedBoard = $card->linked_board;
+		if ($linked_board !== null) {
+			$newLinkedBoard = ($linked_board === '') ? null : $linked_board;
+		}
+
 		$newTitle = ($title !== null && trim($title) !== '') ? trim($title) : $card->title;
 
 		$updated = new Card(
@@ -285,6 +293,7 @@ final class CardController extends Controller {
 			// every edit from the browser used to delete the frontmatter keys
 			// the user had added, while the format spec claimed rule 5 held.
 			// If you add a field to Card, add it here too.
+			linked_board: $newLinkedBoard,
 			extra: $card->extra,
 		);
 		$repository->update($updated);
