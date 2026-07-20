@@ -25,7 +25,7 @@
 						<NcButton type="primary" :disabled="saving" @click="saveAndClose">
 							{{ t('Enregistrer') }}
 						</NcButton>
-						<NcButton @click="$emit('close')">
+						<NcButton @click="discardAndClose">
 							{{ t('Annuler') }}
 						</NcButton>
 						<NcButton type="error" @click="remove">
@@ -317,6 +317,9 @@ export default {
 			editorMounted: false,
 			editorInstance: null,
 			confirmClose: false,
+			// Set true when the user explicitly discards/deletes, so beforeUnmount's
+			// auto-save does not resurrect the abandoned edits (Alain, 2026-07-20).
+			skipSave: false,
 			completedAt: this.card.completed_at || null,
 			tab: 'details',
 			activity: [],
@@ -387,6 +390,13 @@ export default {
 	},
 
 	beforeUnmount() {
+		// Auto-save on switching cards (Alain, 2026-07-20). :key remounts us when
+		// the open card changes, so persist the leaving card's edits here — unless
+		// the user explicitly discarded/deleted (skipSave). Fire-and-forget: the PUT
+		// outlives this component.
+		if (!this.readOnly && this.isDirty && !this.skipSave) {
+			this.save()
+		}
 		this.destroyEditor()
 		clearTimeout(this.assigneeTimer)
 	},
@@ -442,6 +452,14 @@ export default {
 
 		async saveAndClose() {
 			await this.save()
+			this.skipSave = true
+		},
+
+		// « Annuler » in the close dialog: close WITHOUT saving. Mark skipSave so the
+		// beforeUnmount auto-save does not bring the discarded edits back.
+		discardAndClose() {
+			this.skipSave = true
+			this.$emit('close')
 		},
 
 		async loadProcedures() {
