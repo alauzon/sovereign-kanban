@@ -17,6 +17,11 @@
  *   add   <boardId> <column> <title> [--desc "..."] [--due "YYYY-MM-DD[ HH:MM]"] [--priority high|medium|low]
  *   move  <boardId> <cardId> <toColumn>
  *   done  <boardId> <cardId>                # move to the board's last column
+ *   comment  <boardId> <cardId> [texte]        # liste, ou ajoute un commentaire
+ *   priority <boardId> <cardId> <1-5|clear>    # 1 = urgent … 5 = bas
+ *   phase    <boardId> <cardId> <1-4|clear>
+ *   relate   <boardId> <cardId> <cibleId> <type>   # child|parent|depends|required|related
+ *   tag      <boardId> <cardId> add|rm <étiquette>
  *
  * <cardId> may be the full UUID or its 6-char short prefix (as shown by `cards`).
  * Exit: 0 ok · 1 usage/not-found · 2 no such user · 70 crash.
@@ -27,6 +32,7 @@
 
 use OCA\SovereignKanbanMdPersistence\Kanban\Board;
 use OCA\SovereignKanbanMdPersistence\Kanban\Card;
+use OCA\SovereignKanbanMdPersistence\Kanban\Comment;
 use OCA\SovereignKanbanMdPersistence\Kanban\FileBoardRepository;
 use OCA\SovereignKanbanMdPersistence\Kanban\FileCardRepository;
 use OCA\SovereignKanbanMdPersistence\Storage\NextcloudStorage;
@@ -101,6 +107,35 @@ function findCard(FileCardRepository $repo, string $idOrPrefix): Card {
 		}
 	}
 	fail("card not found: $idOrPrefix", 1);
+}
+
+/**
+ * Copy a Card with a few fields overridden — the value object is immutable and has
+ * no generic wither, and rebuilding it by hand field-by-field is how a field gets
+ * silently dropped. array_key_exists so a null (clear) is honoured.
+ */
+function rebuild(Card $c, array $o): Card {
+	return new Card(
+		id: $c->id,
+		title: $o['title'] ?? $c->title,
+		column: $o['column'] ?? $c->column,
+		description: $o['description'] ?? $c->description,
+		created_at: $c->created_at,
+		assignees: $o['assignees'] ?? $c->assignees,
+		due_date: $c->due_date,
+		procedures: $c->procedures,
+		priority: array_key_exists('priority', $o) ? $o['priority'] : $c->priority,
+		tags: $o['tags'] ?? $c->tags,
+		phase: array_key_exists('phase', $o) ? $o['phase'] : $c->phase,
+		start_date: $c->start_date,
+		completed_at: $c->completed_at,
+		author: $c->author,
+		color: $c->color,
+		archived: $c->archived,
+		relations: $c->relations,
+		linked_board: array_key_exists('linked_board', $o) ? $o['linked_board'] : $c->linked_board,
+		extra: $c->extra,
+	);
 }
 
 try {
@@ -223,6 +258,92 @@ try {
 				$repo->moveCard($card->id, $card->column, $toFolder);
 			}
 			out([['id' => substr($card->id, 0, 6), 'done_in' => $last, 'title' => $card->title]], $opts['json']);
+			break;
+		}
+
+		case 'comment': {
+			$boardId = $pos[1] ?? fail('usage: comment <boardId> <cardId> [texte]');
+			$cardArg = $pos[2] ?? fail('comment: <cardId> requis');
+			$repo = cardRepoFor($kanban, $boardId);
+			$card = findCard($repo, $cardArg);
+			if (!isset($pos[3])) {
+				$rows = [];
+				foreach ($repo->listComments($card->id) as $cm) {
+					$rows[] = ['date' => $cm->created_at->format('Y-m-d H:i'), 'author' => $cm->author, 'body' => str_replace("\n", ' ', $cm->body)];
+				}
+				out($rows, $opts['json']);
+				break;
+			}
+			$repo->addComment($card->id, Comment::create($uid, $pos[3]));
+			out([['id' => substr($card->id, 0, 6), 'commented' => $card->title]], $opts['json']);
+			break;
+		}
+
+		case 'priority': {
+			$boardId = $pos[1] ?? fail('usage: priority <boardId> <cardId> <1-5|clear>');
+			$cardArg = $pos[2] ?? fail('priority: <cardId> requis');
+			$value = $pos[3] ?? fail('priority: 1-5 ou « clear »');
+			$p = ($value === 'clear' || $value === '') ? null : $value;
+			if ($p !== null && !in_array($p, ['1', '2', '3', '4', '5'], true)) {
+				fail('priority: 1 (urgent) à 5 (bas), ou « clear »');
+			}
+			$repo = cardRepoFor($kanban, $boardId);
+			$card = findCard($repo, $cardArg);
+			$repo->update(rebuild($card, ['priority' => $p]));
+			out([['id' => substr($card->id, 0, 6), 'priority' => $p ?? '—', 'title' => $card->title]], $opts['json']);
+			break;
+		}
+
+		case 'phase': {
+			$boardId = $pos[1] ?? fail('usage: phase <boardId> <cardId> <1-4|clear>');
+			$cardArg = $pos[2] ?? fail('phase: <cardId> requis');
+			$value = $pos[3] ?? fail('phase: 1-4 ou « clear »');
+			$ph = ($value === 'clear' || $value === '') ? null : (int) $value;
+			if ($ph !== null && ($ph < 1 || $ph > 4)) {
+				fail('phase: 1 à 4, ou « clear »');
+			}
+			$repo = cardRepoFor($kanban, $boardId);
+			$card = findCard($repo, $cardArg);
+			$repo->update(rebuild($card, ['phase' => $ph]));
+			out([['id' => substr($card->id, 0, 6), 'phase' => $ph ?? '—', 'title' => $card->title]], $opts['json']);
+			break;
+		}
+
+		case 'relate': {
+			$boardId = $pos[1] ?? fail('usage: relate <boardId> <cardId> <cibleId> <type>');
+			$cardArg = $pos[2] ?? fail('relate: <cardId> requis');
+			$targetArg = $pos[3] ?? fail('relate: <cibleId> requis');
+			$type = $pos[4] ?? 'related';
+			if (!array_key_exists($type, Card::RELATION_RECIPROCAL)) {
+				fail('relate: type parmi ' . implode(', ', array_keys(Card::RELATION_RECIPROCAL)));
+			}
+			$repo = cardRepoFor($kanban, $boardId);
+			$card = findCard($repo, $cardArg);
+			$target = findCard($repo, $targetArg);
+			$ok = $repo->addRelation($card->id, $target->id, $type);
+			out([['id' => substr($card->id, 0, 6), 'type' => $type, 'cible' => substr($target->id, 0, 6), 'ok' => $ok ? 'oui' : 'non']], $opts['json']);
+			break;
+		}
+
+		case 'tag': {
+			$boardId = $pos[1] ?? fail('usage: tag <boardId> <cardId> add|rm <étiquette>');
+			$cardArg = $pos[2] ?? fail('tag: <cardId> requis');
+			$action = $pos[3] ?? fail('tag: « add » ou « rm » requis');
+			$tag = $pos[4] ?? fail('tag: <étiquette> requise');
+			$repo = cardRepoFor($kanban, $boardId);
+			$card = findCard($repo, $cardArg);
+			$tags = $card->tags;
+			if ($action === 'add') {
+				if (!in_array($tag, $tags, true)) {
+					$tags[] = $tag;
+				}
+			} elseif ($action === 'rm') {
+				$tags = array_filter($tags, static fn ($t) => $t !== $tag);
+			} else {
+				fail('tag: action « add » ou « rm »');
+			}
+			$repo->update(rebuild($card, ['tags' => array_values($tags)]));
+			out([['id' => substr($card->id, 0, 6), 'tags' => array_values($tags), 'title' => $card->title]], $opts['json']);
 			break;
 		}
 
