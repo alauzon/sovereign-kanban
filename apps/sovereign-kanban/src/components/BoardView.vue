@@ -97,6 +97,7 @@
 				</div>
 				<div v-if="showId" class="sk-vue-card-id">#{{ shortId(card.id) }}</div>
 				<div v-if="card.excerpt" class="sk-vue-card-excerpt">{{ card.excerpt }}</div>
+				<div v-if="cardMeta(card).length || (card.assignees || []).length" class="sk-vue-card-foot">
 				<div v-if="cardMeta(card).length" class="sk-vue-card-meta">
 					<span v-for="(m, i) in cardMeta(card)" :key="i" class="sk-vue-chip">{{ m }}</span>
 				</div>
@@ -107,6 +108,7 @@
 						:user="a"
 						:size="24"
 						:hide-status="true" />
+				</div>
 				</div>
 			</article>
 			</div>
@@ -827,8 +829,15 @@ export default {
 	margin-top: 2px;
 }
 
-.sk-vue-card-meta {
+.sk-vue-card-foot {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 8px;
 	margin-top: 6px;
+}
+
+.sk-vue-card-meta {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 4px;
@@ -838,7 +847,6 @@ export default {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 2px;
-	margin-top: 6px;
 }
 
 .sk-vue-chip {
