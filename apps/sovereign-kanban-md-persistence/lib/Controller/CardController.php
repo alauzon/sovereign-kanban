@@ -114,7 +114,9 @@ final class CardController extends Controller {
 			return new DataResponse(['error' => 'title_required'], 400);
 		}
 
-		$folder = $repository->resolveColumnFolder($column);
+		// A column declared in .board.yml but with no folder yet is still a real
+		// column — materialize it rather than refusing the card (Steve, 2026-07-20).
+		$folder = $repository->resolveOrCreateColumnFolder($column);
 		if ($folder === null) {
 			return new DataResponse(['error' => 'invalid_column'], 400);
 		}
@@ -382,7 +384,7 @@ final class CardController extends Controller {
 		if ($repository instanceof DataResponse) {
 			return $repository;
 		}
-		$folder = $repository->resolveColumnFolder($column ?? '');
+		$folder = $repository->resolveOrCreateColumnFolder($column ?? '');
 		if ($folder === null) {
 			$folder = $repository->firstColumnFolder();
 		}
@@ -434,7 +436,7 @@ final class CardController extends Controller {
 			return new DataResponse(['error' => 'card_not_found'], 404);
 		}
 
-		$targetFolder = $repository->resolveColumnFolder($toColumn);
+		$targetFolder = $repository->resolveOrCreateColumnFolder($toColumn);
 		if ($targetFolder === null) {
 			return new DataResponse(['error' => 'invalid_column'], 400);
 		}
@@ -537,6 +539,47 @@ final class CardController extends Controller {
 		}
 
 		return new DataResponse(['deleted' => true]);
+	}
+
+	/**
+	 * The whole board's journal: every card's events folded into one feed.
+	 *
+	 * Steve, 2026-07-20, classes this phase 1 — Deck shows what happened on the
+	 * board, not only on one card. The material already exists (one activity.jsonl
+	 * per card); nothing read them together.
+	 *
+	 * Newest first, unlike the per-card journal: a board feed is scanned from the
+	 * top for what just happened. Each event names its card, so a line stands on
+	 * its own out of the card's context.
+	 *
+	 * Cost note: this reads one file per card on every open. Fine at the scale we
+	 * run (tens of cards); measure before optimizing, do not pre-index.
+	 *
+	 * @param int $limit Newest events to return, capped at 1000.
+	 */
+	#[NoAdminRequired]
+	#[NoCSRFRequired]
+	public function boardActivity(string $boardId, int $limit = 200): DataResponse {
+		$repository = $this->repository($boardId);
+		if ($repository === null) {
+			return new DataResponse(['error' => 'unavailable'], 400);
+		}
+
+		$events = [];
+		foreach ($repository->listByColumn() as $cards) {
+			foreach ($cards as $card) {
+				foreach ($repository->listActivity($card->id) as $event) {
+					$event['card'] = $card->id;
+					$event['card_title'] = $card->title;
+					$event['actor_label'] = $this->displayName($event['actor'] ?? null);
+					$events[] = $event;
+				}
+			}
+		}
+
+		usort($events, static fn (array $a, array $b): int => strcmp((string) $b['ts'], (string) $a['ts']));
+
+		return new DataResponse(['activity' => array_slice($events, 0, max(1, min($limit, 1000)))]);
 	}
 
 	/**
@@ -752,6 +795,11 @@ final class CardController extends Controller {
 			// Relations gain their target's title/done state when a repository is on
 			// hand to resolve them; otherwise the raw {type, card} list is returned.
 			'relations' => $repository !== null ? $repository->resolveRelations($card) : array_values($card->relations),
+			// Omitting a field here is not just a blank field in the editor: the
+			// editor echoes back what it read, and update() reads '' as « clear ».
+			// linked_board was missing, so editing a linked card's title silently
+			// unlinked it (Alain, 2026-07-20).
+			'linked_board' => $card->linked_board,
 			'checklist' => $card->checklist(),
 		];
 	}

@@ -77,7 +77,7 @@ final class BoardShareService {
 	/**
 	 * List a board's shares — owner-only.
 	 *
-	 * @return list<array{id: string, type: string, with: string, permissions: int}>
+	 * @return list<array{id: string, type: string, with: string, label: string, permissions: int}>
 	 *
 	 * @throws NotBoardOwnerException If the current user does not own the board.
 	 */

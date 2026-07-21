@@ -11,6 +11,7 @@
 namespace OCA\SovereignKanbanMdPersistence\Kanban;
 
 use OCA\SovereignKanbanMdPersistence\Storage\Storage;
+use Symfony\Component\Yaml\Yaml;
 
 /**
  * Repository for cards, scoped to one board's Storage.
@@ -74,6 +75,44 @@ final class FileCardRepository {
 		}
 
 		return null;
+	}
+
+	/**
+	 * The folder of a column, materializing it when .board.yml declares the column
+	 * but no folder exists yet.
+	 *
+	 * The Deck import only creates folders for stacks that hold cards, so a board
+	 * can carry columns that exist on paper and nowhere on disk. resolveColumnFolder
+	 * walks the disk, so it answered null and card creation failed with 400
+	 * invalid_column — which the UI showed as nothing happening at all (Steve,
+	 * 2026-07-20: « Terminé » and « Archivé » on his board; « En file » and « En
+	 * cours » on Alain's 3090 board).
+	 *
+	 * A declared column is a real column. The folder takes the position .board.yml
+	 * gives it, so materializing it late does not reshuffle the board.
+	 *
+	 * @return string|null The column folder, or null when the column is declared
+	 *   nowhere either.
+	 */
+	public function resolveOrCreateColumnFolder(string $cleanName): ?string {
+		$folder = $this->resolveColumnFolder($cleanName);
+		if ($folder !== null) {
+			return $folder;
+		}
+		if (!$this->storage->exists('.board.yml')) {
+			return null;
+		}
+
+		$declared = array_values((array) ((Yaml::parse($this->storage->read('.board.yml')) ?? [])['columns'] ?? []));
+		$position = array_search($cleanName, $declared, true);
+		if ($position === false) {
+			return null;
+		}
+
+		$folder = sprintf('%02d-%s', $position + 1, $cleanName);
+		$this->storage->makeDir($folder);
+
+		return $folder;
 	}
 
 	/**

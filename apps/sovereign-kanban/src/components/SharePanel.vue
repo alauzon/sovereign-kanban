@@ -16,7 +16,7 @@
 			<p v-if="loading" class="sk-field-hint">{{ t('Chargement…') }}</p>
 			<p v-else-if="!shares.length" class="sk-field-hint">{{ t('Pas encore partagé.') }}</p>
 			<div v-for="s in shares" :key="s.id" class="sk-share-row">
-				<span>{{ kindLabel(s.type) }} · {{ s.with }} · {{ s.permissions > 1 ? t('collaboration') : t('lecture') }}</span>
+				<span>{{ kindLabel(s.type) }} · {{ s.label || s.with }} · {{ s.permissions > 1 ? t('collaboration') : t('lecture') }}</span>
 				<NcButton type="error" :aria-label="t('Révoquer')" :disabled="busy" @click="revoke(s)">
 					✕
 				</NcButton>

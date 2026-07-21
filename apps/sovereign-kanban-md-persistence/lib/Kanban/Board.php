@@ -34,6 +34,11 @@ final class Board {
 		// ISO instant when the board was archived, or null while active (Alain,
 		// 2026-07-19). Archived boards move to the sidebar's « Tableaux archivés ».
 		public readonly ?string $archived = null,
+		// Optimistic-concurrency token, bumped on every save (Nisha, 2026-07-21).
+		// A stale write — one carrying an older rev — is refused rather than
+		// silently overwriting a concurrent change (e0442c). NOT the mtime: its
+		// ~1 s granularity collides within the same second.
+		public readonly int $rev = 0,
 	) {
 	}
 
@@ -62,6 +67,7 @@ final class Board {
 			created_at: $this->created_at,
 			tags: $this->tags,
 			archived: $this->archived,
+			rev: $this->rev,
 		);
 	}
 
@@ -77,6 +83,7 @@ final class Board {
 			created_at: $this->created_at,
 			tags: $this->tags,
 			archived: $this->archived,
+			rev: $this->rev,
 		);
 	}
 
@@ -93,6 +100,7 @@ final class Board {
 			'columns' => array_values($this->columns),
 			'tags' => array_values($this->tags),
 			'archived' => $this->archived,
+			'rev' => $this->rev,
 		];
 	}
 
@@ -133,6 +141,7 @@ final class Board {
 			created_at: $this->created_at,
 			tags: $this->tags,
 			archived: $this->archived,
+			rev: $this->rev,
 		);
 	}
 
@@ -155,6 +164,7 @@ final class Board {
 			created_at: $this->created_at,
 			tags: array_values($tags),
 			archived: $this->archived,
+			rev: $this->rev,
 		);
 	}
 
@@ -170,6 +180,24 @@ final class Board {
 			created_at: $this->created_at,
 			tags: $this->tags,
 			archived: $archived,
+			rev: $this->rev,
+		);
+	}
+
+	/**
+	 * Return a copy at a given revision. Set only by the repository on save;
+	 * every other wither carries the current rev through unchanged.
+	 */
+	public function withRev(int $rev): self {
+		return new self(
+			id: $this->id,
+			name: $this->name,
+			color: $this->color,
+			columns: $this->columns,
+			created_at: $this->created_at,
+			tags: $this->tags,
+			archived: $this->archived,
+			rev: $rev,
 		);
 	}
 
@@ -184,6 +212,7 @@ final class Board {
 			'columns' => array_values($this->columns),
 			'tags' => array_values($this->tags),
 			'created_at' => $this->created_at->format('Y-m-d\TH:i:s\Z'),
+			'rev' => $this->rev,
 		];
 		if ($this->archived !== null) {
 			$data['archived'] = $this->archived;

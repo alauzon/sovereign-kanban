@@ -40,7 +40,7 @@ interface ShareGateway {
 	/**
 	 * List the shares currently on a board.
 	 *
-	 * @return list<array{id: string, type: string, with: string, permissions: int}>
+	 * @return list<array{id: string, type: string, with: string, label: string, permissions: int}>
 	 */
 	public function listShares(string $boardId): array;
 

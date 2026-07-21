@@ -201,6 +201,7 @@ try {
 				author: $uid,
 			);
 			$repo->save($card);
+			$repo->appendActivity($card->id, 'created', $uid, ['title' => $title]);
 			out([['id' => substr($card->id, 0, 6), 'full' => $card->id, 'column' => preg_replace('/^\d+-/', '', $folder), 'title' => $title]], $opts['json']);
 			break;
 		}
@@ -213,6 +214,10 @@ try {
 			$card = findCard($repo, $cardArg);
 			$toFolder = $repo->resolveColumnFolder($toClean) ?? fail("colonne cible introuvable: $toClean");
 			$repo->moveCard($card->id, $card->column, $toFolder);
+			$repo->appendActivity($card->id, 'moved', $uid, [
+				'from' => preg_replace('/^\d+-/', '', $card->column),
+				'to' => $toClean,
+			]);
 			out([['id' => substr($card->id, 0, 6), 'moved_to' => $toClean, 'title' => $card->title]], $opts['json']);
 			break;
 		}
@@ -256,6 +261,10 @@ try {
 			$toFolder = $repo->resolveColumnFolder($last) ?? fail("colonne « $last » introuvable");
 			if ($card->column !== $toFolder) {
 				$repo->moveCard($card->id, $card->column, $toFolder);
+				$repo->appendActivity($card->id, 'moved', $uid, [
+					'from' => preg_replace('/^\d+-/', '', $card->column),
+					'to' => $last,
+				]);
 			}
 			out([['id' => substr($card->id, 0, 6), 'done_in' => $last, 'title' => $card->title]], $opts['json']);
 			break;
@@ -275,6 +284,7 @@ try {
 				break;
 			}
 			$repo->addComment($card->id, Comment::create($uid, $pos[3]));
+			$repo->appendActivity($card->id, 'commented', $uid);
 			out([['id' => substr($card->id, 0, 6), 'commented' => $card->title]], $opts['json']);
 			break;
 		}
@@ -290,6 +300,7 @@ try {
 			$repo = cardRepoFor($kanban, $boardId);
 			$card = findCard($repo, $cardArg);
 			$repo->update(rebuild($card, ['priority' => $p]));
+			$repo->appendActivity($card->id, 'updated', $uid, ['fields' => ['priority']]);
 			out([['id' => substr($card->id, 0, 6), 'priority' => $p ?? '—', 'title' => $card->title]], $opts['json']);
 			break;
 		}
@@ -305,6 +316,7 @@ try {
 			$repo = cardRepoFor($kanban, $boardId);
 			$card = findCard($repo, $cardArg);
 			$repo->update(rebuild($card, ['phase' => $ph]));
+			$repo->appendActivity($card->id, 'updated', $uid, ['fields' => ['phase']]);
 			out([['id' => substr($card->id, 0, 6), 'phase' => $ph ?? '—', 'title' => $card->title]], $opts['json']);
 			break;
 		}
@@ -321,6 +333,11 @@ try {
 			$card = findCard($repo, $cardArg);
 			$target = findCard($repo, $targetArg);
 			$ok = $repo->addRelation($card->id, $target->id, $type);
+			if ($ok) {
+				// The reciprocal lands on the other card, so both journals record it.
+				$repo->appendActivity($card->id, 'linked', $uid, ['type' => $type, 'card' => $target->id]);
+				$repo->appendActivity($target->id, 'linked', $uid, ['type' => Card::RELATION_RECIPROCAL[$type], 'card' => $card->id]);
+			}
 			out([['id' => substr($card->id, 0, 6), 'type' => $type, 'cible' => substr($target->id, 0, 6), 'ok' => $ok ? 'oui' : 'non']], $opts['json']);
 			break;
 		}
@@ -343,6 +360,7 @@ try {
 				fail('tag: action « add » ou « rm »');
 			}
 			$repo->update(rebuild($card, ['tags' => array_values($tags)]));
+			$repo->appendActivity($card->id, 'updated', $uid, ['fields' => ['tags']]);
 			out([['id' => substr($card->id, 0, 6), 'tags' => array_values($tags), 'title' => $card->title]], $opts['json']);
 			break;
 		}

@@ -50,10 +50,25 @@ final class FileBoardRepository {
 	}
 
 	/**
-	 * Persist board config changes (rename, recolor) — .board.yml only.
+	 * Persist board config changes (rename, recolor, columns, palette) — .board.yml
+	 * only — and bump the revision.
+	 *
+	 * When $expectedRev is given, the write is refused with a BoardConflictException
+	 * unless it matches the revision currently on disk: someone wrote in between and
+	 * this write would erase their change (Nisha's analysis of e0442c). Passing null
+	 * keeps the old unconditional behaviour for callers not yet wired for it.
+	 *
+	 * The rev written is always disk+1, computed here from disk — never trusted from
+	 * the incoming object, which may be stale.
+	 *
+	 * @throws BoardConflictException If $expectedRev does not match disk.
 	 */
-	public function save(Board $board): void {
-		$this->storage->write($board->id . '/.board.yml', $board->toYaml());
+	public function save(Board $board, ?int $expectedRev = null): void {
+		$diskRev = $this->find($board->id)?->rev ?? 0;
+		if ($expectedRev !== null && $expectedRev !== $diskRev) {
+			throw new BoardConflictException($board->id, $expectedRev, $diskRev);
+		}
+		$this->storage->write($board->id . '/.board.yml', $board->withRev($diskRev + 1)->toYaml());
 	}
 
 	/**
@@ -94,7 +109,7 @@ final class FileBoardRepository {
 	/**
 	 * Add a column: append to .board.yml and create its folder.
 	 */
-	public function addColumn(string $boardId, string $name): ?Board {
+	public function addColumn(string $boardId, string $name, ?int $expectedRev = null): ?Board {
 		$board = $this->find($boardId);
 		if ($board === null) {
 			return null;
@@ -103,7 +118,7 @@ final class FileBoardRepository {
 		$this->assertSafeColumnName($name);
 
 		$updated = $board->addColumn($name);
-		$this->save($updated);
+		$this->save($updated, $expectedRev);
 
 		$index = count($this->storage->childDirectories($boardId)) + 1;
 		$this->storage->makeDir(sprintf('%s/%02d-%s', $boardId, $index, $name));
@@ -115,7 +130,7 @@ final class FileBoardRepository {
 	 * Rename a column in .board.yml, rename its folder, and resync the
 	 * card.md frontmatter of the cards it holds.
 	 */
-	public function renameColumn(string $boardId, string $from, string $to): ?Board {
+	public function renameColumn(string $boardId, string $from, string $to, ?int $expectedRev = null): ?Board {
 		$board = $this->find($boardId);
 		if ($board === null) {
 			return null;
@@ -123,7 +138,7 @@ final class FileBoardRepository {
 		$this->assertSafeColumnName($to);
 
 		$updated = $board->renameColumn($from, $to);
-		$this->save($updated);
+		$this->save($updated, $expectedRev);
 
 		$fromFolder = $this->columnFolder($boardId, $from);
 		if ($fromFolder !== null) {
@@ -141,14 +156,14 @@ final class FileBoardRepository {
 	/**
 	 * Remove a column from .board.yml and delete its folder (and cards).
 	 */
-	public function removeColumn(string $boardId, string $name): ?Board {
+	public function removeColumn(string $boardId, string $name, ?int $expectedRev = null): ?Board {
 		$board = $this->find($boardId);
 		if ($board === null) {
 			return null;
 		}
 
 		$updated = $board->removeColumn($name);
-		$this->save($updated);
+		$this->save($updated, $expectedRev);
 
 		$folder = $this->columnFolder($boardId, $name);
 		if ($folder !== null) {
@@ -161,14 +176,14 @@ final class FileBoardRepository {
 	/**
 	 * Reorder columns (display order lives in .board.yml — config only).
 	 */
-	public function reorderColumns(string $boardId, array $orderedNames): ?Board {
+	public function reorderColumns(string $boardId, array $orderedNames, ?int $expectedRev = null): ?Board {
 		$board = $this->find($boardId);
 		if ($board === null) {
 			return null;
 		}
 
 		$updated = $board->withColumns($orderedNames);
-		$this->save($updated);
+		$this->save($updated, $expectedRev);
 
 		return $updated;
 	}
@@ -240,6 +255,7 @@ final class FileBoardRepository {
 			created_at: new DateTime($data['created_at'] ?? 'now'),
 			tags: (array) ($data['tags'] ?? []),
 			archived: (isset($data['archived']) && $data['archived'] !== '') ? (string) $data['archived'] : null,
+			rev: (int) ($data['rev'] ?? 0),
 		);
 	}
 }

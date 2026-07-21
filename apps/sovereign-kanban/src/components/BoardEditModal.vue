@@ -34,25 +34,7 @@
 				{{ t('Les listes se gèrent directement sur le tableau (＋ Liste, glisser pour réordonner, ✎ / ✕ sur chaque liste).') }}
 			</p>
 
-			<section v-if="!isCreate" class="sk-field">
-				<span>{{ t('Palette d\'étiquettes') }}</span>
-				<div
-					v-for="(row, i) in palette"
-					:key="i"
-					class="sk-palette-row">
-					<input v-model="row.color" type="color">
-					<input v-model="row.name" type="text" :placeholder="t('nom de l\'étiquette')">
-					<NcButton type="error" :aria-label="t('Retirer de la palette')" @click="palette.splice(i, 1)">
-						✕
-					</NcButton>
-				</div>
-				<NcButton @click="palette.push({ name: '', color: '#0082c9' })">
-					{{ t('+ Étiquette') }}
-				</NcButton>
-			</section>
-
 			<!-- Sharing: owner only (a board shared *with* me can't be reshared). -->
-			<SharePanel v-if="!isCreate && !board.shared" :board-id="board.id" />
 
 			<p v-if="error" class="sk-boardedit-error">{{ error }}</p>
 
@@ -80,14 +62,13 @@ import axios from '@nextcloud/axios'
 import { generateUrl } from '@nextcloud/router'
 import NcModal from '@nextcloud/vue/components/NcModal'
 import NcButton from '@nextcloud/vue/components/NcButton'
-import SharePanel from './SharePanel.vue'
 
 const BASE = '/apps/sovereign-kanban-md-persistence/api/v1/boards'
 
 export default {
 	name: 'BoardEditModal',
 
-	components: { NcModal, NcButton, SharePanel },
+	components: { NcModal, NcButton },
 
 	props: {
 		// null → create; a board object → edit.
@@ -139,19 +120,30 @@ export default {
 			try {
 				const payload = { name, color: this.color }
 				if (!this.isCreate) {
-					payload.tags = this.palette.filter((t) => t.name.trim()).map((t) => ({
-						name: t.name.trim(),
-						color: t.color,
-					}))
+					// The palette is edited in the board panel now; send it back
+					// untouched so saving a rename never drops a label.
+					payload.tags = this.board && this.board.tags ? this.board.tags : []
+					// The rev we read, so a stale save is refused instead of erasing a
+					// concurrent change (Nisha, e0442c).
+					payload.baseRev = this.board ? this.board.rev : null
 				}
 				const res = this.isCreate
 					? await axios.post(generateUrl(BASE), payload)
 					: await axios.put(this.boardUrl(), payload)
 				this.$emit('saved', res.data && res.data.board ? res.data.board.id : null)
 			} catch (e) {
-				this.error = (e.response && e.response.status === 409)
-					? this.t('Un tableau porte déjà ce nom.')
-					: this.t('Erreur à l\'enregistrement.')
+				const status = e.response && e.response.status
+				const code = e.response && e.response.data && e.response.data.error
+				if (status === 409 && code === 'conflict') {
+					// Someone changed the board while this editor was open. Refresh the
+					// list and tell the user to reopen from the current state.
+					this.error = this.t('Le tableau a été modifié entre-temps. Ferme et rouvre l\'éditeur pour repartir de l\'état à jour.')
+					this.$emit('refresh')
+				} else if (status === 409) {
+					this.error = this.t('Un tableau porte déjà ce nom.')
+				} else {
+					this.error = this.t('Erreur à l\'enregistrement.')
+				}
 			} finally {
 				this.saving = false
 			}

@@ -173,7 +173,7 @@
 				:name="t('Sovereign Kanban')"
 				:description="t('Choisissez un tableau dans la navigation.')" />
 			<template v-else>
-				<div class="sk-workarea" :class="{ 'sk-workarea--split': openedCard && wide }">
+				<div class="sk-workarea" :class="{ 'sk-workarea--split': (openedCard || boardPanelOpen) && wide }">
 				<div class="sk-vue-board">
 				<div class="sk-vue-board-header">
 					<h2 class="sk-vue-board-title">{{ currentBoard.name }}</h2>
@@ -208,10 +208,12 @@
 								:class="{ 'sk-toolbtn--on': presentOpen || compact || showCovers }"
 								:aria-label="t('Présentation')"
 								:title="t('Options de présentation')"
-								@click="presentOpen = !presentOpen">
+								@click="togglePresent">
 								<span aria-hidden="true">🖼</span> {{ t('Présentation') }}
 							</NcButton>
-							<div v-if="presentOpen" class="sk-present-menu">
+							<Teleport to="body">
+							<div v-if="presentOpen" class="sk-present-backdrop" @click="presentOpen = false" />
+							<div v-if="presentOpen" class="sk-present-menu" :style="presentStyle">
 								<label class="sk-present-opt">
 									<input type="checkbox" :checked="compact" @change="setPresent('compact', $event.target.checked)">
 									{{ t('Affichage compact') }}
@@ -225,14 +227,8 @@
 									{{ t('Afficher l\'identifiant') }}
 								</label>
 							</div>
+							</Teleport>
 						</div>
-						<NcButton
-							type="tertiary"
-							:aria-label="t('Corbeille')"
-							:title="t('Corbeille')"
-							@click="openTrash">
-							<span aria-hidden="true">🗑</span> {{ t('Corbeille') }}
-						</NcButton>
 						<NcButton
 							type="tertiary"
 							:aria-label="t('Raccourcis clavier')"
@@ -241,6 +237,15 @@
 							<span aria-hidden="true">⌨</span>
 						</NcButton>
 					</div>
+					<NcButton
+						class="sk-panel-toggle"
+						type="tertiary"
+						:class="{ 'sk-toolbtn--on': boardPanelOpen }"
+						:aria-label="t('Détails du tableau')"
+						:title="t('Détails du tableau (partage, étiquettes, corbeille, activité)')"
+						@click="toggleBoardPanel">
+						<span aria-hidden="true">▤</span> {{ t('Détails') }}
+					</NcButton>
 				</div>
 				<FilterBar
 					v-if="filtersOpen"
@@ -277,6 +282,17 @@
 					@archive-column="archiveColumn" />
 				</div>
 
+				<BoardPanel
+					v-if="boardPanelOpen && currentBoard"
+					class="sk-card-dock"
+					:board-id="currentId"
+					:board="currentBoard"
+					:board-name="currentBoard.name"
+					:can-share="!currentBoard.shared"
+					:docked="wide"
+					@refresh="loadCards"
+					@close="boardPanelOpen = false" />
+
 				<CardDetail
 					v-if="openedCard"
 					:key="openedCard.id"
@@ -305,28 +321,6 @@
 				@close="boardEditorOpen = false" />
 		</NcAppContent>
 
-		<!-- Corbeille (Alain, 2026-07-19). -->
-		<Teleport to="body">
-			<div v-if="trashOpen" class="sk-help-overlay" @click.self="trashOpen = false">
-				<div class="sk-help-card sk-trash-card" role="dialog" aria-modal="true">
-					<h2 class="sk-help-title">{{ t('Corbeille') }}</h2>
-					<p v-if="trashLoading" class="sk-help-note">{{ t('Chargement…') }}</p>
-					<p v-else-if="!trashCards.length" class="sk-help-note">{{ t('La corbeille est vide.') }}</p>
-					<ul v-else class="sk-trash-list">
-						<li v-for="c in trashCards" :key="c.id" class="sk-trash-item">
-							<span class="sk-trash-title">{{ c.title || t('(sans titre)') }}</span>
-							<span class="sk-trash-acts">
-								<NcButton type="tertiary" :aria-label="t('Restaurer')" @click="restoreTrashCard(c)">↩ {{ t('Restaurer') }}</NcButton>
-								<NcButton type="tertiary" :aria-label="t('Supprimer définitivement')" @click="purgeTrashCard(c)">🗑</NcButton>
-							</span>
-						</li>
-					</ul>
-					<div class="sk-help-actions">
-						<NcButton type="primary" @click="trashOpen = false">{{ t('Fermer') }}</NcButton>
-					</div>
-				</div>
-			</div>
-		</Teleport>
 
 		<!-- Keyboard-shortcut help (Alain, 2026-07-19: press ?). -->
 		<Teleport to="body">
@@ -368,6 +362,7 @@ import NcActionButton from '@nextcloud/vue/components/NcActionButton'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcAvatar from '@nextcloud/vue/components/NcAvatar'
 import BoardView from './components/BoardView.vue'
+import BoardPanel from './components/BoardPanel.vue'
 import CardDetail from './components/CardDetail.vue'
 import BoardEditModal from './components/BoardEditModal.vue'
 import FilterBar from './components/FilterBar.vue'
@@ -391,6 +386,7 @@ export default {
 		NcButton,
 		NcAvatar,
 		BoardView,
+		BoardPanel,
 		CardDetail,
 		BoardEditModal,
 		FilterBar,
@@ -402,6 +398,11 @@ export default {
 			currentId: null,
 			cardsByColumn: {},
 			openedCard: null,
+			// The board's own side panel. It shares the right-hand dock with
+			// CardDetail, so the two are mutually exclusive (Steve, 2026-07-20).
+			boardPanelOpen: false,
+			// Where to draw the Présentation menu once teleported to body.
+			presentStyle: {},
 			loading: true,
 			boardEditorOpen: false,
 			boardEditorTarget: null,
@@ -417,9 +418,6 @@ export default {
 			importing: false,
 			importAvailable: !!(document.getElementById('sk-vue') && document.getElementById('sk-vue').dataset.importAvailable === '1'),
 			wide: false,
-			trashOpen: false,
-			trashCards: [],
-			trashLoading: false,
 			viewers: [],
 			presenceTimer: null,
 			filters: { tags: [], assignees: [], phases: [], priorities: [], status: [] },
@@ -743,17 +741,37 @@ export default {
 
 		// Add a list/column inline from the board (Alain, 2026-07-18). The columns
 		// live in .board.yml, so reload the board list too, then the cards.
+		// The rev the client last read, sent with every structural write so the
+		// server can refuse a stale one (Nisha, e0442c). null = un-versioned.
+		boardRev() {
+			return this.currentBoard ? this.currentBoard.rev : null
+		},
+
+		// A structural write came back 409: someone else changed the board first.
+		// Reload to the current state and tell the user to redo the gesture, rather
+		// than silently keep their stale view (which was the whole bug).
+		async onBoardWriteError(e, fallbackMessage) {
+			if (e && e.response && e.response.status === 409) {
+				await this.loadBoards()
+				await this.loadCards()
+				// eslint-disable-next-line no-alert
+				window.alert(this.t('Le tableau a été modifié par quelqu\'un d\'autre. Il a été rechargé — refais ton geste.'))
+				return
+			}
+			// eslint-disable-next-line no-alert
+			window.alert(fallbackMessage)
+		},
+
 		async addColumn(name) {
 			try {
 				await axios.post(
 					this.url('/boards/' + encodeURIComponent(this.currentId) + '/columns'),
-					{ name },
+					{ name, baseRev: this.boardRev() },
 				)
 				await this.loadBoards()
 				await this.loadCards()
 			} catch (e) {
-				// eslint-disable-next-line no-alert
-				window.alert(this.t('Impossible d\'ajouter la liste (nom déjà pris ?).'))
+				await this.onBoardWriteError(e, this.t('Impossible d\'ajouter la liste (nom déjà pris ?).'))
 			}
 		},
 
@@ -761,13 +779,12 @@ export default {
 			try {
 				await axios.put(
 					this.url('/boards/' + encodeURIComponent(this.currentId) + '/columns/rename'),
-					{ from, to },
+					{ from, to, baseRev: this.boardRev() },
 				)
 				await this.loadBoards()
 				await this.loadCards()
 			} catch (e) {
-				// eslint-disable-next-line no-alert
-				window.alert(this.t('Impossible de renommer la liste (nom déjà pris ?).'))
+				await this.onBoardWriteError(e, this.t('Impossible de renommer la liste (nom déjà pris ?).'))
 			}
 		},
 
@@ -784,13 +801,12 @@ export default {
 			try {
 				await axios.put(
 					this.url('/boards/' + encodeURIComponent(this.currentId) + '/columns/reorder'),
-					{ columns: cols },
+					{ columns: cols, baseRev: this.boardRev() },
 				)
 				await this.loadBoards()
 				await this.loadCards()
 			} catch (e) {
-				// eslint-disable-next-line no-alert
-				window.alert(this.t('Impossible de réordonner les listes.'))
+				await this.onBoardWriteError(e, this.t('Impossible de réordonner les listes.'))
 			}
 		},
 
@@ -802,13 +818,12 @@ export default {
 			try {
 				await axios.delete(
 					this.url('/boards/' + encodeURIComponent(this.currentId) + '/columns'),
-					{ data: { name } },
+					{ data: { name, baseRev: this.boardRev() } },
 				)
 				await this.loadBoards()
 				await this.loadCards()
 			} catch (e) {
-				// eslint-disable-next-line no-alert
-				window.alert(this.t('Impossible de supprimer la liste.'))
+				await this.onBoardWriteError(e, this.t('Impossible de supprimer la liste.'))
 			}
 		},
 
@@ -924,45 +939,6 @@ export default {
 			}
 		},
 
-		// Corbeille (Alain, 2026-07-19): open + list, restore, purge.
-		async openTrash() {
-			this.trashOpen = true
-			this.trashLoading = true
-			try {
-				const res = await axios.get(this.url('/boards/' + encodeURIComponent(this.currentId) + '/trash'))
-				this.trashCards = res.data.trash || []
-			} catch (e) {
-				this.trashCards = []
-			} finally {
-				this.trashLoading = false
-			}
-		},
-
-		async restoreTrashCard(card) {
-			try {
-				const res = await axios.post(this.url('/boards/' + encodeURIComponent(this.currentId) + '/trash/' + encodeURIComponent(card.id) + '/restore'))
-				this.trashCards = res.data.trash || []
-				await this.loadCards()
-			} catch (e) {
-				// eslint-disable-next-line no-alert
-				window.alert(this.t('Restauration impossible.'))
-			}
-		},
-
-		async purgeTrashCard(card) {
-			// eslint-disable-next-line no-alert
-			if (!window.confirm(this.t('Supprimer définitivement « ') + card.title + ' » ? Cette action est irréversible.')) {
-				return
-			}
-			try {
-				const res = await axios.delete(this.url('/boards/' + encodeURIComponent(this.currentId) + '/trash/' + encodeURIComponent(card.id)))
-				this.trashCards = res.data.trash || []
-			} catch (e) {
-				// eslint-disable-next-line no-alert
-				window.alert(this.t('Suppression impossible.'))
-			}
-		},
-
 		async loadTemplates() {
 			try {
 				const res = await axios.get(generateUrl('/apps/sovereign-kanban-md-persistence/api/v1/templates'))
@@ -1030,6 +1006,9 @@ export default {
 		},
 
 		async openCard(card) {
+			// One panel at a time on the right — two stacked panels is the overlap
+			// bug (8f173f) made worse.
+			this.boardPanelOpen = false
 			// Fetch the full card (the list carries an excerpt, not the body). The
 			// list item already carries created_at (the detail endpoint doesn't), so
 			// merge it in for the card's summary line — no backend round-trip.
@@ -1037,6 +1016,29 @@ export default {
 				this.url('/boards/' + encodeURIComponent(this.currentId) + '/cards/' + encodeURIComponent(card.id)),
 			)
 			this.openedCard = { created_at: card.created_at, ...res.data.card }
+		},
+
+		// Teleported to body and positioned from the button, like BoardView's column
+		// ⋯ menu. Kept inside the board it sat in the board's stacking context and
+		// the columns painted over it (Alain, 2026-07-20).
+		togglePresent(ev) {
+			if (this.presentOpen) {
+				this.presentOpen = false
+				return
+			}
+			const rect = ev.currentTarget.getBoundingClientRect()
+			this.presentStyle = {
+				top: (rect.bottom + 4) + 'px',
+				left: Math.max(8, rect.right - 240) + 'px',
+			}
+			this.presentOpen = true
+		},
+
+		toggleBoardPanel() {
+			this.boardPanelOpen = !this.boardPanelOpen
+			if (this.boardPanelOpen) {
+				this.openedCard = null
+			}
 		},
 
 		async onCardSaved() {
@@ -1256,9 +1258,19 @@ export default {
 .sk-workarea > .sk-vue-board {
 	flex: 1 1 0;
 	min-width: 0;
+	/* The toolbar used to spill out of the board and paint OVER the card panel —
+	   Steve's « le menu du tableau embarque par-dessus la carte » (2026-07-20).
+	   The header no longer overflows (nowrap + scroll), but the stacking order
+	   makes it impossible: the board sits below, the panel above. */
+	position: relative;
+	z-index: 1;
 }
 
 .sk-workarea--split > .sk-card-dock {
+	/* Above the board, always: whatever the board paints outside its box stays
+	   behind the panel rather than across it (8f173f). */
+	position: relative;
+	z-index: 2;
 	flex: 0 0 46%;
 	min-width: 380px;
 	max-width: 680px;
@@ -1282,6 +1294,7 @@ export default {
 	gap: 8px;
 	padding-right: 16px;
 	flex: 0 0 auto;
+	flex-wrap: nowrap;
 }
 
 .sk-vue-board-title {
@@ -1290,6 +1303,12 @@ export default {
 	   the toggle hid the first letter of the title). */
 	padding: 12px 24px 0 52px;
 	margin: 0;
+	/* Shrinks and truncates so the toolbar never gets squeezed onto its own line. */
+	flex: 0 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .sk-vue-toolbar {
@@ -1297,6 +1316,20 @@ export default {
 	align-items: center;
 	gap: 4px;
 	padding-top: 8px;
+	/* The header is one row, always. Adding a button used to push the whole bar
+	   into a vertical stack that shoved the board down (Alain, 2026-07-20) — so
+	   the toolbar keeps its line and scrolls sideways rather than wrapping, and
+	   the title gives up its width before the buttons do. */
+	flex: 1 1 auto;
+	flex-wrap: nowrap;
+	justify-content: flex-end;
+	min-width: 0;
+	overflow-x: auto;
+}
+
+.sk-panel-toggle {
+	flex: 0 0 auto;
+	margin-top: 8px;
 }
 
 /* Presence avatars (who else is on this board). */
@@ -1319,11 +1352,15 @@ export default {
 	position: relative;
 }
 
+.sk-present-backdrop {
+	position: fixed;
+	inset: 0;
+	z-index: 10000;
+}
+
 .sk-present-menu {
-	position: absolute;
-	top: calc(100% + 4px);
-	right: 0;
-	z-index: 50;
+	position: fixed;
+	z-index: 10001;
 	min-width: 220px;
 	background: var(--color-main-background);
 	border: 1px solid var(--color-border);

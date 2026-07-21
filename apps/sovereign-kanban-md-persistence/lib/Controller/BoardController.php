@@ -8,6 +8,7 @@
 namespace OCA\SovereignKanbanMdPersistence\Controller;
 
 use OCA\SovereignKanbanMdPersistence\Kanban\Board;
+use OCA\SovereignKanbanMdPersistence\Kanban\BoardConflictException;
 use OCA\SovereignKanbanMdPersistence\Kanban\FileBoardRepository;
 use OCA\SovereignKanbanMdPersistence\Sharing\BoardShareService;
 use OCA\SovereignKanbanMdPersistence\Sharing\ReceivedBoardLocator;
@@ -123,7 +124,7 @@ final class BoardController extends Controller {
 	 *   or null to leave the palette unchanged.
 	 */
 	#[NoAdminRequired]
-	public function update(string $boardId, ?string $name = null, ?string $color = null, ?array $tags = null, ?string $archived = null): DataResponse {
+	public function update(string $boardId, ?string $name = null, ?string $color = null, ?array $tags = null, ?string $archived = null, ?int $baseRev = null): DataResponse {
 		$repository = $this->repository();
 		if ($repository === null) {
 			return new DataResponse(['error' => 'not_logged_in'], 401);
@@ -157,7 +158,11 @@ final class BoardController extends Controller {
 		if ($archived !== null) {
 			$board = $board->withArchived($archived === '' ? null : $archived);
 		}
-		$repository->save($board);
+		try {
+			$repository->save($board, $baseRev);
+		} catch (BoardConflictException $e) {
+			return $this->conflict($e);
+		}
 
 		return new DataResponse(['board' => $board->toArray()]);
 	}
@@ -209,7 +214,7 @@ final class BoardController extends Controller {
 	 * Add a column to a board.
 	 */
 	#[NoAdminRequired]
-	public function addColumn(string $boardId, string $name): DataResponse {
+	public function addColumn(string $boardId, string $name, ?int $baseRev = null): DataResponse {
 		$repository = $this->repository();
 		if ($repository === null || !preg_match('/^[a-z0-9-]+$/', $boardId)) {
 			return new DataResponse(['error' => 'unavailable'], 400);
@@ -222,13 +227,17 @@ final class BoardController extends Controller {
 			return new DataResponse(['error' => 'invalid_name', 'message' => 'Un nom de colonne ne peut pas contenir « / » ni « \\ ».'], 400);
 		}
 
-		$board = $repository->addColumn($boardId, $name);
-		if ($board === null) {
-			$repository = $this->receivedRepositoryOrError($boardId);
-			if ($repository instanceof DataResponse) {
-				return $repository;
+		try {
+			$board = $repository->addColumn($boardId, $name, $baseRev);
+			if ($board === null) {
+				$repository = $this->receivedRepositoryOrError($boardId);
+				if ($repository instanceof DataResponse) {
+					return $repository;
+				}
+				$board = $repository->addColumn($boardId, $name, $baseRev);
 			}
-			$board = $repository->addColumn($boardId, $name);
+		} catch (BoardConflictException $e) {
+			return $this->conflict($e);
 		}
 
 		return $board === null
@@ -240,7 +249,7 @@ final class BoardController extends Controller {
 	 * Rename a column.
 	 */
 	#[NoAdminRequired]
-	public function renameColumn(string $boardId, string $from, string $to): DataResponse {
+	public function renameColumn(string $boardId, string $from, string $to, ?int $baseRev = null): DataResponse {
 		$repository = $this->repository();
 		if ($repository === null || !preg_match('/^[a-z0-9-]+$/', $boardId)) {
 			return new DataResponse(['error' => 'unavailable'], 400);
@@ -253,13 +262,17 @@ final class BoardController extends Controller {
 			return new DataResponse(['error' => 'invalid_name', 'message' => 'Un nom de colonne ne peut pas contenir « / » ni « \\ ».'], 400);
 		}
 
-		$board = $repository->renameColumn($boardId, $from, $to);
-		if ($board === null) {
-			$repository = $this->receivedRepositoryOrError($boardId);
-			if ($repository instanceof DataResponse) {
-				return $repository;
+		try {
+			$board = $repository->renameColumn($boardId, $from, $to, $baseRev);
+			if ($board === null) {
+				$repository = $this->receivedRepositoryOrError($boardId);
+				if ($repository instanceof DataResponse) {
+					return $repository;
+				}
+				$board = $repository->renameColumn($boardId, $from, $to, $baseRev);
 			}
-			$board = $repository->renameColumn($boardId, $from, $to);
+		} catch (BoardConflictException $e) {
+			return $this->conflict($e);
 		}
 
 		return $board === null
@@ -271,19 +284,23 @@ final class BoardController extends Controller {
 	 * Remove a column (and its cards).
 	 */
 	#[NoAdminRequired]
-	public function removeColumn(string $boardId, string $name): DataResponse {
+	public function removeColumn(string $boardId, string $name, ?int $baseRev = null): DataResponse {
 		$repository = $this->repository();
 		if ($repository === null || !preg_match('/^[a-z0-9-]+$/', $boardId)) {
 			return new DataResponse(['error' => 'unavailable'], 400);
 		}
 
-		$board = $repository->removeColumn($boardId, $name);
-		if ($board === null) {
-			$repository = $this->receivedRepositoryOrError($boardId);
-			if ($repository instanceof DataResponse) {
-				return $repository;
+		try {
+			$board = $repository->removeColumn($boardId, $name, $baseRev);
+			if ($board === null) {
+				$repository = $this->receivedRepositoryOrError($boardId);
+				if ($repository instanceof DataResponse) {
+					return $repository;
+				}
+				$board = $repository->removeColumn($boardId, $name, $baseRev);
 			}
-			$board = $repository->removeColumn($boardId, $name);
+		} catch (BoardConflictException $e) {
+			return $this->conflict($e);
 		}
 
 		return $board === null
@@ -297,24 +314,40 @@ final class BoardController extends Controller {
 	 * @param string[] $columns The full ordered list of column names.
 	 */
 	#[NoAdminRequired]
-	public function reorderColumns(string $boardId, array $columns): DataResponse {
+	public function reorderColumns(string $boardId, array $columns, ?int $baseRev = null): DataResponse {
 		$repository = $this->repository();
 		if ($repository === null || !preg_match('/^[a-z0-9-]+$/', $boardId)) {
 			return new DataResponse(['error' => 'unavailable'], 400);
 		}
 
-		$board = $repository->reorderColumns($boardId, $columns);
-		if ($board === null) {
-			$repository = $this->receivedRepositoryOrError($boardId);
-			if ($repository instanceof DataResponse) {
-				return $repository;
+		try {
+			$board = $repository->reorderColumns($boardId, $columns, $baseRev);
+			if ($board === null) {
+				$repository = $this->receivedRepositoryOrError($boardId);
+				if ($repository instanceof DataResponse) {
+					return $repository;
+				}
+				$board = $repository->reorderColumns($boardId, $columns, $baseRev);
 			}
-			$board = $repository->reorderColumns($boardId, $columns);
+		} catch (BoardConflictException $e) {
+			return $this->conflict($e);
 		}
 
 		return $board === null
 			? new DataResponse(['error' => 'board_not_found'], 404)
 			: new DataResponse(['board' => $board->toArray()]);
+	}
+
+	/**
+	 * A concurrent-write conflict as HTTP 409, carrying the current disk rev so the
+	 * client can reload to it and replay its gesture (Nisha, e0442c). 409 = the
+	 * request was valid but the resource moved under it.
+	 */
+	private function conflict(BoardConflictException $e): DataResponse {
+		return new DataResponse(
+			['error' => 'conflict', 'rev' => $e->actualRev, 'message' => 'Le tableau a été modifié entre-temps.'],
+			409,
+		);
 	}
 
 	/**

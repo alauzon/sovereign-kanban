@@ -92,6 +92,12 @@ final class NextcloudShareGateway implements ShareGateway {
 					'id' => $share->getFullId(),
 					'type' => $name,
 					'with' => (string) $share->getSharedWith(),
+					// A circle's id is its address, not its name: the panel read
+					// « équipe · RZSycf3F2ywXIz9b9c9asbSPqkD6Dxr » where Steve expected
+					// « NéoVillage » (2026-07-20). Nextcloud already resolves it —
+					// getSharedWithDisplayName gives the team, group or account name,
+					// so ask for it instead of showing the raw handle.
+					'label' => (string) ($share->getSharedWithDisplayName() ?: $share->getSharedWith()),
 					'permissions' => (int) $share->getPermissions(),
 				];
 			}
@@ -144,6 +150,12 @@ final class NextcloudShareGateway implements ShareGateway {
 					'color' => (string) ($data['color'] ?? '#0082c9'),
 					'columns' => array_values((array) ($data['columns'] ?? [])),
 					'tags' => array_values((array) ($data['tags'] ?? [])),
+					// Without rev, a shared board reaches the invitee's client with no
+					// base revision, so their structural writes carry no baseRev and
+					// the concurrency guard never fires for them — exactly the field a
+					// hand-written serializer forgets (Nisha, e0442c). 0 for boards
+					// written before rev existed.
+					'rev' => (int) ($data['rev'] ?? 0),
 					'owner' => (string) $share->getSharedBy(),
 					'permissions' => (int) $share->getPermissions(),
 				];
