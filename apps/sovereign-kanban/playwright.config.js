@@ -1,4 +1,20 @@
 import { defineConfig, devices } from '@playwright/test'
+import { readFileSync } from 'node:fs'
+
+// Load e2e/.env into process.env (gitignored; holds the test credential). No
+// dependency, and nothing is printed — the password never leaves this process.
+try {
+	for (const line of readFileSync(new URL('./e2e/.env', import.meta.url), 'utf8').split('\n')) {
+		const m = line.match(/^\s*([A-Z_]+)\s*=\s*(.*)\s*$/)
+		if (m && process.env[m[1]] === undefined) {
+			process.env[m[1]] = m[2]
+		}
+	}
+} catch {
+	// no .env — env vars may still be set in the shell
+}
+
+
 
 // e2e against a REAL Nextcloud instance (the rich Text editor + @mention menu
 // only exist in a real browser — Vitest can't see them). No local webserver:
