@@ -76,27 +76,34 @@ final class MentionService {
 		string $authorUid,
 		array $accessibleUids,
 	): array {
-		$tokens = $this->extractMentions($text);
-		if ($tokens === []) {
+		if (!str_contains($text, '@')) {
 			return [];
 		}
 
-		// Lower-cased lookup: uid → uid, and display name → uid.
-		$byKey = [];
-		foreach ($accessibleUids as $uid => $displayName) {
-			$byKey[mb_strtolower((string) $uid)] = (string) $uid;
-			if ($displayName !== '') {
-				$byKey[mb_strtolower((string) $displayName)] = (string) $uid;
-			}
-		}
-
+		// Match each accessible member by « @uid » OR « @Display Name » — searching
+		// per member (not tokenizing) is what lets a name WITH SPACES like
+		// « @Alain Lauzon » be caught (Alain, 2026-07-22). Longest needle first so
+		// « @Alain Lauzon » wins over a bare « @Alain ». Bounded by start/space on
+		// the left and end/space/punctuation on the right, so « bob@x.org » is inert.
 		$notified = [];
-		foreach ($tokens as $token) {
-			$uid = $byKey[mb_strtolower($token)] ?? null;
-			if ($uid === null || $uid === $authorUid || in_array($uid, $notified, true)) {
+		foreach ($accessibleUids as $uid => $displayName) {
+			$uid = (string) $uid;
+			if ($uid === $authorUid || in_array($uid, $notified, true)) {
 				continue;
 			}
-			if ($this->userManager->get($uid) === null) {
+			$needles = array_unique(array_filter([(string) $displayName, $uid]));
+			usort($needles, static fn (string $a, string $b): int => mb_strlen($b) - mb_strlen($a));
+			$hit = false;
+			foreach ($needles as $needle) {
+				// Two accepted forms: @"Alain Lauzon" (quoted, façon Talk — the safe
+				// one for names with spaces) and bare @Alain Lauzon (Alain, 2026-07-22).
+				$q = preg_quote($needle, '/');
+				if (preg_match('/(?<=^|\s)@(?:"' . $q . '"|' . $q . '(?=$|\s|[.,;:!?]))/u', $text) === 1) {
+					$hit = true;
+					break;
+				}
+			}
+			if (!$hit || $this->userManager->get($uid) === null) {
 				continue;
 			}
 			$notification = $this->notificationManager->createNotification();

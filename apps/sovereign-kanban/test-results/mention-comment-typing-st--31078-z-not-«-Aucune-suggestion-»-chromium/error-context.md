@@ -1,0 +1,1145 @@
+# Instructions
+
+- Following Playwright test failed.
+- Explain why, be concise, respect Playwright best practices.
+- Provide a snippet of code with the fix, if possible.
+
+# Test info
+
+- Name: mention-comment.spec.js >> typing @st in a card comment suggests StevLauz, not « Aucune suggestion »
+- Location: e2e/mention-comment.spec.js:13:1
+
+# Error details
+
+```
+Test timeout of 30000ms exceeded.
+```
+
+```
+Error: locator.click: Test timeout of 30000ms exceeded.
+Call log:
+  - waiting for locator('[contenteditable="true"], textarea').last()
+    - locator resolved to <textarea rows="6" data-v-77e91bae="" class="sk-desc-fallback" placeholder="Description (Markdown)…"></textarea>
+  - attempting click action
+    2 × waiting for element to be visible, enabled and stable
+      - element is not visible
+    - retrying click action
+    - waiting 20ms
+    2 × waiting for element to be visible, enabled and stable
+      - element is not visible
+    - retrying click action
+      - waiting 100ms
+    44 × waiting for element to be visible, enabled and stable
+       - element is not visible
+     - retrying click action
+       - waiting 500ms
+
+```
+
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]: Aide à la navigation du clavier
+    - generic [ref=e5]:
+      - link "Passer à l'app navigation" [ref=e6] [cursor=pointer]:
+        - /url: "#app-navigation-vue"
+        - generic [ref=e8]: Passer à l'app navigation
+      - link "Passer au contenu principal" [ref=e9] [cursor=pointer]:
+        - /url: "#app-content-vue"
+        - generic [ref=e11]: Passer au contenu principal
+    - img [ref=e12]:
+      - img [ref=e14]
+  - banner [ref=e35]:
+    - generic [ref=e36]:
+      - link "Aller à Tableau de bord" [ref=e37] [cursor=pointer]:
+        - /url: /
+      - navigation "Applications" [ref=e39]:
+        - button "Ouvrir le menu des applications" [ref=e41] [cursor=pointer]:
+          - img [ref=e44]:
+            - img [ref=e45]
+        - button "Ouvrir le menu des applications, actuellement dans Sovereign Kanban" [ref=e47] [cursor=pointer]:
+          - generic [ref=e48]:
+            - img [ref=e50]
+            - generic [ref=e52]: Sovereign Kanban
+    - generic [ref=e53]:
+      - generic:
+        - search:
+          - button "Rechercher des applications, des fichiers, des étiquettes, des messages …" [ref=e54] [cursor=pointer]:
+            - img [ref=e55]:
+              - img [ref=e56]
+            - generic [ref=e58]: Rechercher des applications, des fichiers, des étiquettes, des messages …
+      - generic "Notifications" [ref=e60]:
+        - button "Notifications" [ref=e61] [cursor=pointer]:
+          - img [ref=e65]
+      - button "Rechercher des contacts" [ref=e69] [cursor=pointer]:
+        - img [ref=e72]:
+          - img [ref=e73]
+      - navigation "Menu des paramètres" [ref=e75]:
+        - button "Menu des paramètres" [ref=e76] [cursor=pointer]:
+          - img [ref=e80]:
+            - img [ref=e81]
+        - generic [ref=e83]: Avatar de Alain Lauzon — Online
+  - generic [ref=e84]:
+    - heading "Entre Tablées" [level=1] [ref=e85]
+    - generic [ref=e86]:
+      - generic [ref=e87]:
+        - navigation [ref=e88]:
+          - button "Nouveau tableau" [ref=e91] [cursor=pointer]:
+            - generic [ref=e92]:
+              - generic [ref=e94]: +
+              - generic [ref=e95]: Nouveau tableau
+          - list [ref=e96]:
+            - listitem [ref=e97]:
+              - link "Coordination des projets" [ref=e99] [cursor=pointer]:
+                - /url: "#"
+                - generic [ref=e102]: Coordination des projets
+            - listitem [ref=e104]:
+              - link "Steve et Alain" [ref=e106] [cursor=pointer]:
+                - /url: "#"
+                - generic [ref=e109]: Steve et Alain
+            - listitem [ref=e111]:
+              - link "3090 - Transcription" [ref=e113] [cursor=pointer]:
+                - /url: "#"
+                - generic [ref=e116]: 3090 - Transcription
+            - listitem [ref=e118]:
+              - link "zzz Card Concurrent" [ref=e120] [cursor=pointer]:
+                - /url: "#"
+                - generic [ref=e123]: zzz Card Concurrent
+            - listitem [ref=e125]:
+              - generic [ref=e126]: Partagés par vous
+            - listitem [ref=e127]:
+              - generic [ref=e128]:
+                - link "Bienvenue" [ref=e129] [cursor=pointer]:
+                  - /url: "#"
+                  - generic [ref=e132]: Bienvenue
+                - generic "Vous partagez ce tableau" [ref=e135]: 📤
+            - listitem [ref=e136]:
+              - generic [ref=e137]: Partagés avec vous
+            - listitem [ref=e138]:
+              - generic [ref=e139]:
+                - link "Développement Kanban souverain" [ref=e140] [cursor=pointer]:
+                  - /url: "#"
+                  - generic [ref=e143]: Développement Kanban souverain
+                - generic "Partagé avec vous — StevLauz" [ref=e146]: 👥
+            - listitem [ref=e147]:
+              - generic [ref=e148]:
+                - link "1-NéoVillage" [ref=e149] [cursor=pointer]:
+                  - /url: "#"
+                  - generic [ref=e152]: 1-NéoVillage
+                - generic "Partagé avec vous — StevLauz" [ref=e155]: 👥
+            - listitem [ref=e156]:
+              - generic [ref=e157]:
+                - link "Développement technique" [ref=e158] [cursor=pointer]:
+                  - /url: "#"
+                  - generic [ref=e161]: Développement technique
+                - generic "Partagé avec vous — StevLauz" [ref=e164]: 👥
+          - button "Importer depuis Deck" [ref=e165] [cursor=pointer]:
+            - generic [ref=e166]:
+              - generic [ref=e168]: ⬇
+              - generic [ref=e169]: Importer depuis Deck
+        - button "Fermer la navigation" [expanded] [ref=e171] [cursor=pointer]:
+          - img [ref=e174]:
+            - img [ref=e175]
+      - main [ref=e177]:
+        - generic [ref=e178]:
+          - generic [ref=e179]:
+            - generic [ref=e180]:
+              - heading "Développement Kanban souverain" [level=2] [ref=e181]
+              - generic [ref=e182]:
+                - generic "Présent·es sur ce tableau" [ref=e183]
+                - button "Filtres" [ref=e185] [cursor=pointer]:
+                  - generic [ref=e187]: ⧩ Filtres
+                - button "Afficher les archivées" [ref=e188] [cursor=pointer]:
+                  - generic [ref=e190]: 📦 Archivées
+                - button "Présentation" [ref=e192] [cursor=pointer]:
+                  - generic [ref=e194]: 🖼 Présentation
+                - button "Raccourcis clavier" [ref=e195] [cursor=pointer]:
+                  - generic [ref=e197]: ⌨
+              - button "Détails du tableau" [ref=e198] [cursor=pointer]:
+                - generic [ref=e200]: ▤ Détails
+            - generic [ref=e201]:
+              - generic [ref=e202]:
+                - generic [ref=e203]:
+                  - generic [ref=e204]: ⠿
+                  - generic "Cliquer pour renommer la liste" [ref=e205]: Idées
+                  - generic [ref=e206]: "2"
+                  - button "Menu de la liste" [ref=e208] [cursor=pointer]:
+                    - generic [ref=e210]: ⋯
+                - generic [ref=e211]:
+                  - article [ref=e212] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e214]: ⋯
+                    - generic [ref=e215]: Créer une conversation Talk intégré à une carte
+                  - article [ref=e216] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e218]: ⋯
+                    - generic [ref=e219]: Permettre l'enregistrement vocal dans la section discussion
+                - generic [ref=e220]:
+                  - button "+ Carte" [ref=e221] [cursor=pointer]:
+                    - generic [ref=e223]: + Carte
+                  - generic "Nouvelle carte depuis un gabarit" [ref=e224]:
+                    - button "Nouvelle carte depuis un gabarit" [ref=e226] [cursor=pointer]:
+                      - generic [ref=e229]: 📋
+              - generic [ref=e230]:
+                - generic [ref=e231]:
+                  - generic [ref=e232]: ⠿
+                  - generic "Cliquer pour renommer la liste" [ref=e233]: Sur la table
+                  - generic [ref=e234]: "2"
+                  - button "Menu de la liste" [ref=e236] [cursor=pointer]:
+                    - generic [ref=e238]: ⋯
+                - generic [ref=e239]:
+                  - article [ref=e240] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e242]: ⋯
+                    - generic [ref=e243]: Analyser les features de Mattermost par IA
+                    - generic [ref=e246]: 🔼 3
+                  - article [ref=e247] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e249]: ⋯
+                    - generic [ref=e250]: Discuter des différentes situations d'utilisation de l'outil et différents aménagement des tableaux
+                    - generic [ref=e251]: "- Kanban - Calendrier - Tâches - Recettes - Blog - Forum - Gestion des contacts - Documentation d'informations - Gestion de classe"
+                    - generic [ref=e254]: ☑ 0/9
+                - generic [ref=e255]:
+                  - button "+ Carte" [ref=e256] [cursor=pointer]:
+                    - generic [ref=e258]: + Carte
+                  - generic "Nouvelle carte depuis un gabarit" [ref=e259]:
+                    - button "Nouvelle carte depuis un gabarit" [ref=e261] [cursor=pointer]:
+                      - generic [ref=e264]: 📋
+              - generic [ref=e265]:
+                - generic [ref=e266]:
+                  - generic [ref=e267]: ⠿
+                  - generic "Cliquer pour renommer la liste" [ref=e268]: À faire
+                  - generic [ref=e269]: "46"
+                  - button "Menu de la liste" [ref=e271] [cursor=pointer]:
+                    - generic [ref=e273]: ⋯
+                - generic [ref=e274]:
+                  - article [ref=e275] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e277]: ⋯
+                    - generic [ref=e278]: Partage de tableau entre usagers
+                    - generic [ref=e279]: "- Partage de tableau entre usagers (ACL Nextcloud, équipe Nextcloud) - Partager à l’aide d’un lien externe pour les tableau publics -"
+                    - generic [ref=e280]:
+                      - generic [ref=e281]:
+                        - generic [ref=e282]: ☑ 0/3
+                        - generic [ref=e283]: 🔺 1
+                      - generic [ref=e284]:
+                        - button "Avatar de Alain" [ref=e286]:
+                          - img [ref=e289]:
+                            - img [ref=e290]
+                        - button "Avatar de Steve" [ref=e293]:
+                          - img [ref=e296]:
+                            - img [ref=e297]
+                        - button "Avatar de Priorité" [ref=e300]:
+                          - img [ref=e303]:
+                            - img [ref=e304]
+                  - article [ref=e306] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e308]: ⋯
+                    - generic [ref=e309]: Réordonner une carte dans sa liste par glisser-déposer
+                    - generic [ref=e310]: "Steve, 2026-07-20. Déplacer une carte d'une colonne à l'autre finit par fonctionner (avec des ratés : « je clique sur une carte, je voudrai…"
+                    - generic [ref=e312]:
+                      - generic [ref=e313]: 💬 5
+                      - generic [ref=e314]: 🏷 bug
+                      - generic [ref=e315]: 🏷 steve
+                      - generic [ref=e316]: 🏷 à valider
+                      - generic [ref=e317]: 🔺 1
+                  - article [ref=e318] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e320]: ⋯
+                    - generic [ref=e321]: Cliquer une carte liée dans les relations l'ouvre dans le volet
+                    - generic [ref=e322]: "Alain, 2026-07-20 : « cliquer sur une carte dans les relations ouvre cette carte dans le panneau de droite ». Aujourd'hui la section Relati…"
+                    - generic [ref=e324]:
+                      - generic [ref=e325]: 🏷 feature
+                      - generic [ref=e326]: 🔺 1
+                  - article [ref=e327] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e329]: ⋯
+                    - generic [ref=e330]: Le tableau affiché dérive tout seul vers un autre (ET)
+                    - generic [ref=e331]: "Alain, 2026-07-20 21 h 02, sur ET (cloud.entretablees.ca), captures à l'appui. Reproduction exacte : 1. Clic sur « Développement technique …"
+                    - generic [ref=e333]:
+                      - generic [ref=e334]: 💬 3
+                      - generic [ref=e335]: 🔺 1
+                  - article [ref=e336] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e338]: ⋯
+                    - generic [ref=e339]: Ajouter onglet ou volet pièces jointe à une carte
+                    - generic [ref=e340]: Permettre de créer de nouveau document directement depuis une carte
+                    - generic [ref=e341]:
+                      - generic [ref=e343]: ⏫ 2
+                      - button "Avatar de Steve" [ref=e346]:
+                        - img [ref=e349]:
+                          - img [ref=e350]
+                  - article [ref=e352] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e354]: ⋯
+                    - generic [ref=e355]: Gestion des notifications
+                    - generic [ref=e358]: ⏫ 2
+                  - article [ref=e359] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e361]: ⋯
+                    - generic [ref=e362]: Erreur de partage à la première tentative vers une équipe
+                    - generic [ref=e363]: "Steve, 2026-07-20. Premier partage du tableau à l'équipe NéoVillage : « erreur de partage ». Il refait le même geste avec une PERSONNE (Yon…"
+                    - generic [ref=e365]:
+                      - generic [ref=e366]: 🏷 bug
+                      - generic [ref=e367]: 🏷 steve
+                      - generic [ref=e368]: ⏫ 2
+                  - article [ref=e369] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e371]: ⋯
+                    - generic [ref=e372]: Bouton Plein écran absent sur poste de travail
+                    - generic [ref=e373]: Steve, 2026-07-20. Sur son portable Windows, la carte ouverte n'a pas de bouton « Plein écran » ; sur sa tablette, il l'a. Le bouton semble…
+                    - generic [ref=e375]:
+                      - generic [ref=e376]: 🏷 bug
+                      - generic [ref=e377]: 🏷 steve
+                      - generic [ref=e378]: ⏫ 2
+                  - article [ref=e379] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e381]: ⋯
+                    - generic [ref=e382]: Sélecteur de partage au layout Nextcloud (avatar, nom, courriel)
+                    - generic [ref=e383]: Steve, 2026-07-20 — captures 3 et 4. Le sélecteur de Deck suggère des comptes AVANT même qu'on tape, et chaque entrée montre la photo de pr…
+                    - generic [ref=e385]:
+                      - generic [ref=e386]: 💬 2
+                      - generic [ref=e387]: 🏷 feature
+                      - generic [ref=e388]: 🏷 steve
+                      - generic [ref=e389]: 🏷 à valider
+                      - generic [ref=e390]: ⏫ 2
+                  - article [ref=e391] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e393]: ⋯
+                    - generic [ref=e394]: Enregistrement au fil de la frappe dans la carte
+                    - generic [ref=e395]: Steve, 2026-07-20. Deck enregistre à mesure qu'on écrit ; SK impose un bouton Enregistrer et un dialogue à la fermeture. Son argument centr…
+                    - generic [ref=e397]:
+                      - generic [ref=e398]: 🏷 feature
+                      - generic [ref=e399]: 🏷 steve
+                      - generic [ref=e400]: ⏫ 2
+                  - article [ref=e401] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e403]: ⋯
+                    - generic [ref=e404]: Lien de partage public pour les personnes hors Nextcloud
+                    - generic [ref=e405]: Steve, 2026-07-20. Il veut pouvoir donner un lien à quelqu'un qui n'a pas de compte Nextcloud, en lecture seule ou en collaboration. Verbat…
+                    - generic [ref=e407]:
+                      - generic [ref=e408]: 🏷 feature
+                      - generic [ref=e409]: 🏷 steve
+                      - generic [ref=e410]: ⏫ 2
+                  - article [ref=e411] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e413]: ⋯
+                    - generic [ref=e414]: "Raccourcis clavier : N ouvre une fenêtre au lieu de créer une carte"
+                    - generic [ref=e415]: "Steve, 2026-07-20. Le panneau de raccourcis (icône clavier de la barre du tableau) annonce « N : nouvelle carte » — en pratique N ouvre une…"
+                    - generic [ref=e417]:
+                      - generic [ref=e418]: 🏷 bug
+                      - generic [ref=e419]: 🏷 steve
+                      - generic [ref=e420]: ⏫ 2
+                  - article [ref=e421] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e423]: ⋯
+                    - generic [ref=e424]: "Lenteur : création de carte ~3 s et rechargement complet du tableau"
+                    - generic [ref=e425]: "Steve, 2026-07-20. Trois symptômes de la même cause probable (on recharge tout le tableau après chaque écriture) : - créer une carte prend …"
+                    - generic [ref=e427]:
+                      - generic [ref=e428]: 🏷 bug
+                      - generic [ref=e429]: 🏷 steve
+                      - generic [ref=e430]: ⏫ 2
+                  - article [ref=e431] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e433]: ⋯
+                    - generic [ref=e434]: Bouton + Liste accessible en haut du tableau
+                    - generic [ref=e435]: Steve, 2026-07-20. Pour ajouter une liste, il faut faire défiler jusqu'au bout du tableau. Deck a le bouton en haut à droite, près de la ph…
+                    - generic [ref=e437]:
+                      - generic [ref=e438]: 🏷 feature
+                      - generic [ref=e439]: 🏷 steve
+                      - generic [ref=e440]: ⏫ 2
+                  - article [ref=e441] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e443]: ⋯
+                    - generic [ref=e444]: Ouvrir la carte en plein écran par défaut
+                    - generic [ref=e445]: Steve, 2026-07-20. Le volet de droite lui coûte la vue sur le reste du tableau et se fait recouvrir par la barre du tableau. Il préfère le …
+                    - generic [ref=e447]:
+                      - generic [ref=e448]: 🏷 feature
+                      - generic [ref=e449]: 🏷 steve
+                      - generic [ref=e450]: ⏫ 2
+                  - article [ref=e451] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e453]: ⋯
+                    - generic [ref=e454]: Liste des tests à effectuer pour la prochaine passe de Steve
+                    - generic [ref=e455]: Steve, 2026-07-20, fin de séance. Il a renommé une colonne « Test à effectuer » sur son tableau « Développement Kanban souverain » (ET) et …
+                    - generic [ref=e457]:
+                      - generic [ref=e458]: 🏷 steve
+                      - generic [ref=e459]: 🏷 attend-steve
+                      - generic [ref=e460]: ⏫ 2
+                  - article [ref=e461] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e463]: ⋯
+                    - generic [ref=e464]: Lien profond vers une carte (URL partageable)
+                    - generic [ref=e465]: "Alain, 2026-07-20 : il voulait relancer Steve sur une carte précise et il n'y a aucun moyen de la référencer. Le routage par hash ne porte …"
+                    - generic [ref=e467]:
+                      - generic [ref=e468]: 💬 1
+                      - generic [ref=e469]: 🏷 feature
+                      - generic [ref=e470]: ⏫ 2
+                  - article [ref=e471] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e473]: ⋯
+                    - generic [ref=e474]: Ressources liées déquipe dans longlet Partage (via related_resources)
+                    - generic [ref=e475]: "Extrait de 7cecd0 (onglet Partage). Ce que Steve détaillait le plus (capture 4) : quand un tableau est partagé à une équipe/cercle, montrer…"
+                    - generic [ref=e477]:
+                      - generic [ref=e478]: 🏷 feature
+                      - generic [ref=e479]: 🏷 steve
+                      - generic [ref=e480]: ⏫ 2
+                  - article [ref=e481] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e483]: ⋯
+                    - generic [ref=e484]: Importer aussi les tableaux Deck archivés
+                    - generic [ref=e485]: Steve, 2026-07-20. L'import Deck a bien repris ses tableaux actifs, mais pas ceux qu'il avait archivés — et il aimerait pouvoir les récupér…
+                    - generic [ref=e487]:
+                      - generic [ref=e488]: 🏷 feature
+                      - generic [ref=e489]: 🏷 steve
+                      - generic [ref=e490]: 🔼 3
+                  - article [ref=e491] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e493]: ⋯
+                    - generic [ref=e494]: Voir une pièce jointe au clic au lieu de la télécharger
+                    - generic [ref=e495]: "Alain, 2026-07-20 : « Lors du clic sur une pièce jointe je voudrais la voir, pas la downloader. » Aujourd'hui le clic frappe GET /attachmen…"
+                    - generic [ref=e497]:
+                      - generic [ref=e498]: 🏷 feature
+                      - generic [ref=e499]: 🔼 3
+                  - article [ref=e500] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e502]: ⋯
+                    - generic [ref=e503]: Glisser un tableau dans une liste pour en faire une carte-tableau
+                    - generic [ref=e504]: "Alain, 2026-07-20 : « Serait-il possible de faire un glisser-déposer d'un tableau vers une liste et d'y ajouter ce tableau en tant que cart…"
+                    - generic [ref=e507]: 🔼 3
+                  - article [ref=e508] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e510]: ⋯
+                    - generic [ref=e511]: Une création de carte qui échoue doit le dire
+                    - generic [ref=e512]: "Repéré en corrigeant de4a48 (2026-07-20). addCard() dans App.vue poste et ne gère aucune erreur : si l'API refuse, il ne se passe rien à l'…"
+                    - generic [ref=e515]: 🔼 3
+                  - article [ref=e516] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e518]: ⋯
+                    - generic [ref=e519]: Désambiguïser un tableau reçu par son propriétaire (filet de sécurité)
+                    - generic [ref=e520]: "Option A du diagnostic de 9bf15c, documentée sur décision d'Alain (2026-07-20) : on fait B (identifiant propre), et A reste en filet à fair…"
+                    - generic [ref=e523]: 🔼 3
+                  - article [ref=e524] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e526]: ⋯
+                    - generic [ref=e527]: Vrai fix accès store de 217 (IP .217 refusée)
+                    - generic [ref=e528]: "38.29.212.217 est rejetée par apps.nextcloud.com → MAJ d'apps de 217 impossibles sans proxy. À froid : soit délister / nouvelle IP (impacte…"
+                    - generic [ref=e531]: 🔽 4
+                  - article [ref=e534] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e536]: ⋯
+                    - generic [ref=e537]: Regrouper les tableaux par catégorie dans le menu de gauche
+                    - generic [ref=e538]: Steve, 2026-07-20 (il le classe lui-même en phase 2). Il a 17 tableaux — il les compte un à un dans l'audio — et la liste plate du menu de …
+                    - generic [ref=e540]:
+                      - generic [ref=e541]: 🏷 feature
+                      - generic [ref=e542]: 🏷 steve
+                      - generic [ref=e543]: 🔽 4
+                  - article [ref=e544] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e546]: ⋯
+                    - generic [ref=e547]: Réordonner les tableaux par glisser-déposer dans le menu de gauche
+                    - generic [ref=e548]: "Steve, 2026-07-20 (phase 2). Pouvoir remonter ses tableaux importants en haut de la liste. Verbatim : « Ce que je souhaiterais aussi, c'est…"
+                    - generic [ref=e550]:
+                      - generic [ref=e551]: 🏷 feature
+                      - generic [ref=e552]: 🏷 steve
+                      - generic [ref=e553]: 🔽 4
+                  - article [ref=e554] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e556]: ⋯
+                    - generic [ref=e557]: "Vues supplémentaires : Gantt et Calendrier"
+                    - generic [ref=e558]: "Steve, 2026-07-20 (phase 2). Deck offre un choix de vue dans son menu ⋯ ; il veut au moins Kanban, Gantt et Calendrier dans SK. Verbatim : …"
+                    - generic [ref=e560]:
+                      - generic [ref=e561]: 🏷 feature
+                      - generic [ref=e562]: 🏷 steve
+                      - generic [ref=e563]: 🔽 4
+                  - article [ref=e564] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e566]: ⋯
+                    - generic [ref=e567]: Images de couverture de carte
+                    - generic [ref=e568]: Steve, 2026-07-20 (phase 2). Le menu Présentation propose déjà « Afficher les images de couverture », mais rien ne s'affiche — il n'y a pas…
+                    - generic [ref=e570]:
+                      - generic [ref=e571]: 🏷 feature
+                      - generic [ref=e572]: 🏷 steve
+                      - generic [ref=e573]: 🔽 4
+                  - article [ref=e574] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e576]: ⋯
+                    - generic [ref=e577]: Prendre l'étiquette en cours de saisie même sans Entrée
+                    - generic [ref=e578]: "Alain, 2026-07-21. Fausse alerte transformée en vraie amélioration : ce n'était pas un bug d'enregistrement, c'est que taper le nom d'une é…"
+                    - generic [ref=e580]:
+                      - generic [ref=e581]: 🏷 feature
+                      - generic [ref=e582]: 🔽 4
+                  - article [ref=e583] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e585]: ⋯
+                    - generic [ref=e586]: Annonce « nouvelle interface » aux 84 comptes ET
+                    - generic [ref=e587]: EN ATTENTE du « envoie » d'Alain. Script announce-et.php prêt sur CT204, rendu validé, envoi via le Notifier SK (subject « announcement »).…
+                    - generic [ref=e589]:
+                      - generic [ref=e590]: 💬 1
+                      - generic [ref=e591]: ⏬ 5
+                  - article [ref=e594] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e596]: ⋯
+                    - generic [ref=e597]: Réactiver fulltextsearch* sur 217 (NC 34)
+                    - generic [ref=e598]: fulltextsearch + files fulltextsearch + fulltextsearch elasticsearch désactivées au saut NC 34 (pas de version 34 au store). Réactiver via …
+                    - generic [ref=e600]:
+                      - generic [ref=e601]: 💬 1
+                      - generic [ref=e602]: ⏬ 5
+                  - article [ref=e603] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e605]: ⋯
+                    - generic [ref=e606]: Lier l'assignation d'une carte aux utilisateurs
+                    - generic [ref=e608]:
+                      - button "Avatar de Alain" [ref=e610]:
+                        - img [ref=e613]:
+                          - img [ref=e614]
+                      - button "Avatar de Steve" [ref=e617]:
+                        - img [ref=e620]:
+                          - img [ref=e621]
+                  - article [ref=e623] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e625]: ⋯
+                    - generic [ref=e626]: Étiquette d'une carte
+                    - generic [ref=e627]: "- Palette par couleurs - Possibilité de créer une nouvelle étiquette directement dans le champs étiquette - Gestion des étiquettes depuis l…"
+                    - generic [ref=e628]:
+                      - generic [ref=e630]: ☑ 0/3
+                      - generic [ref=e631]:
+                        - button "Avatar de Alain" [ref=e633]:
+                          - img [ref=e636]:
+                            - img [ref=e637]
+                        - button "Avatar de Steve" [ref=e640]:
+                          - img [ref=e643]:
+                            - img [ref=e644]
+                        - button "Avatar de Priorité" [ref=e647]:
+                          - img [ref=e650]:
+                            - img [ref=e651]
+                  - article [ref=e653] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e655]: ⋯
+                    - generic [ref=e656]: Historique d'une carte
+                    - generic [ref=e657]: "- Qui a fait quoi et quand - Permettre de revenir à une version précédente d’une carte -"
+                    - generic [ref=e658]:
+                      - generic [ref=e660]: ☑ 0/3
+                      - generic [ref=e661]:
+                        - button "Avatar de Alain" [ref=e663]:
+                          - img [ref=e666]:
+                            - img [ref=e667]
+                        - button "Avatar de Steve" [ref=e670]:
+                          - img [ref=e673]:
+                            - img [ref=e674]
+                  - article [ref=e676] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e678]: ⋯
+                    - generic [ref=e679]: Lien « ouvrir dans Fichiers »
+                    - generic [ref=e680]: "- Lien « ouvrir dans Fichiers » depuis une carte (vers son dossier réel)"
+                    - generic [ref=e681]:
+                      - generic [ref=e683]: ☑ 0/1
+                      - button "Avatar de Alain" [ref=e686]:
+                        - img [ref=e689]:
+                          - img [ref=e690]
+                  - article [ref=e692] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e694]: ⋯
+                    - generic [ref=e695]: Importer et exporter depuis Deck
+                    - button "Avatar de Alain" [ref=e699]:
+                      - img [ref=e702]:
+                        - img [ref=e703]
+                  - article [ref=e705] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e707]: ⋯
+                    - generic [ref=e708]: Éditer les .md directement dans Fichiers (vérifier l'app Text)
+                    - button "Avatar de Alain" [ref=e712]:
+                      - img [ref=e715]:
+                        - img [ref=e716]
+                  - article [ref=e718] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e720]: ⋯
+                    - generic [ref=e721]: Gabarits de tableau
+                    - generic [ref=e722]: (colonnes + tags + procédures d'un coup)
+                    - button "Avatar de Alain" [ref=e726]:
+                      - img [ref=e729]:
+                        - img [ref=e730]
+                  - article [ref=e732] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e734]: ⋯
+                    - generic [ref=e735]: Mettre les commentaires/discussions dans un onglet ou un volet de la carte
+                    - button "Avatar de Steve" [ref=e739]:
+                      - img [ref=e742]:
+                        - img [ref=e743]
+                  - article [ref=e745] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e747]: ⋯
+                    - generic [ref=e748]: Enregistrement instantanée de la carte
+                    - generic [ref=e749]: "- Enregistrement instantanée de la carte et modification visible immédiatement par tous les utilisateurs"
+                    - generic [ref=e750]:
+                      - generic [ref=e752]: ☑ 0/1
+                      - button "Avatar de Steve" [ref=e755]:
+                        - img [ref=e758]:
+                          - img [ref=e759]
+                  - article [ref=e761] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e763]: ⋯
+                    - generic [ref=e764]: Réduire l'éditeur texte des discussion (chat) d'une cartes
+                    - button "Avatar de Steve" [ref=e768]:
+                      - img [ref=e771]:
+                        - img [ref=e772]
+                  - article [ref=e774] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e776]: ⋯
+                    - generic [ref=e777]: Archiver les cartes
+                    - generic [ref=e778]: Archiver les cartes plutôt que d’avoir une colonne Archives
+                    - button "Avatar de Steve" [ref=e782]:
+                      - img [ref=e785]:
+                        - img [ref=e786]
+                  - article [ref=e788] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e790]: ⋯
+                    - generic [ref=e791]: Distinguer volet commentaire (note) et onglet Discussion (chat)
+                    - generic [ref=e792]: "- Ne pas mettre de menu texte riche dans discussion - Permettre l’enregistrement de message vocal dans discussion - Insérer des images dans…"
+                    - generic [ref=e795]: ☑ 0/4
+                  - article [ref=e796] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e798]: ⋯
+                    - generic [ref=e799]: Ajouter une carte à partir de Talk
+                  - article [ref=e800] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e802]: ⋯
+                    - generic [ref=e803]: Application mobile
+                    - generic [ref=e804]: "- Appli web responsive (Phase 1) L’outils doit être facilement utilisable depuis un appareil mobile. (Priorité 1) - Android/F-Droid (Phase …"
+                    - generic [ref=e807]: ☑ 0/3
+                  - article [ref=e808] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e810]: ⋯
+                    - generic [ref=e811]: Permettre la création d'un lien personnalisé pour une carte ou un tableau ou une vue
+                - generic [ref=e812]:
+                  - button "+ Carte" [ref=e813] [cursor=pointer]:
+                    - generic [ref=e815]: + Carte
+                  - generic "Nouvelle carte depuis un gabarit" [ref=e816]:
+                    - button "Nouvelle carte depuis un gabarit" [ref=e818] [cursor=pointer]:
+                      - generic [ref=e821]: 📋
+              - generic [ref=e822]:
+                - generic [ref=e823]:
+                  - generic [ref=e824]: ⠿
+                  - generic "Cliquer pour renommer la liste" [ref=e825]: En cours
+                  - generic [ref=e826]: "10"
+                  - button "Menu de la liste" [ref=e828] [cursor=pointer]:
+                    - generic [ref=e830]: ⋯
+                - generic [ref=e831]:
+                  - article [ref=e832] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e834]: ⋯
+                    - generic [ref=e835]: Le menu du tableau passe par-dessus la carte ouverte
+                    - generic [ref=e836]: Steve, 2026-07-20 — captures 5 et 6. Quand une carte est ouverte dans le volet de droite, la barre du tableau (Filtres · Archivées · Présen…
+                    - generic [ref=e838]:
+                      - generic [ref=e839]: 💬 3
+                      - generic [ref=e840]: 🏷 bug
+                      - generic [ref=e841]: 🏷 steve
+                      - generic [ref=e842]: 🏷 à valider
+                      - generic [ref=e843]: 🔺 1
+                  - article [ref=e844] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e846]: ⋯
+                    - generic [ref=e847]: "Volet de droite du tableau : Partage, Étiquettes, Éléments supprimés, Activité"
+                    - generic [ref=e848]: Steve, 2026-07-20 — captures 3 et 4 (le volet de Deck, en référence). Deck a un volet à droite du TABLEAU (pas de la carte) avec quatre ong…
+                    - generic [ref=e850]:
+                      - generic [ref=e851]: 💬 3
+                      - generic [ref=e852]: 🏷 feature
+                      - generic [ref=e853]: 🏷 steve
+                      - generic [ref=e854]: 🔺 1
+                  - article [ref=e855] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e857]: ⋯
+                    - generic [ref=e858]: "Volet du tableau : onglet Partage"
+                    - generic [ref=e859]: "Sous-carte de 5b259e. Déplacer SharePanel.vue de la fenêtre « Éditer le tableau » vers l'onglet Partage du volet. Steve a dû chercher : le …"
+                    - generic [ref=e861]:
+                      - generic [ref=e862]: 💬 3
+                      - generic [ref=e863]: 🏷 à valider
+                      - generic [ref=e864]: 🔺 1
+                  - article [ref=e865] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e867]: ⋯
+                    - generic [ref=e868]: Mentions @usager qui notifient (commentaires et au-delà)
+                    - generic [ref=e869]: "Alain, 2026-07-22. Pouvoir taguer un membre ayant accès au tableau avec @SonNom (ex. @StevLauz) dans un commentaire de carte : il reçoit un…"
+                    - generic [ref=e871]:
+                      - generic [ref=e872]: 💬 1
+                      - generic [ref=e873]: 🏷 feature
+                      - generic [ref=e874]: 🏷 test-vert
+                      - generic [ref=e875]: 🔺 1
+                  - article [ref=e876] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e878]: ⋯
+                    - generic [ref=e879]: Une écriture concurrente sur un tableau en écrase une autre
+                    - generic [ref=e880]: Constaté en vrai le 2026-07-20 vers 22 h 30, sur ce tableau, entre Alain et Claude. Ce qui s'est passé. Claude ajoute la colonne « En cours…
+                    - generic [ref=e882]:
+                      - generic [ref=e883]: 💬 7
+                      - generic [ref=e884]: 🏷 bug
+                      - generic [ref=e885]: 🏷 test-vert
+                      - generic [ref=e886]: ⏫ 2
+                  - article [ref=e887] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e889]: ⋯
+                    - generic [ref=e890]: Garde de concurrence sur les champs dune carte
+                    - generic [ref=e891]: "Alain, 2026-07-21, reproduit en direct : deux fenêtres sur la carte « Créer une conversation Talk intégré à une carte », « Allo » tapé dans…"
+                    - generic [ref=e893]:
+                      - generic [ref=e894]: 💬 2
+                      - generic [ref=e895]: 🏷 test-vert
+                      - generic [ref=e896]: ⏫ 2
+                  - article [ref=e897] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e899]: ⋯
+                    - generic [ref=e900]: Infra de test front (Vitest) — composants Vue testés
+                    - generic [ref=e901]: "Mise en place à la demande dAlain (2026-07-21) pour arrêter de tout valider à la main. En place : Vitest 2 + @vue/test-utils 2 + jsdom + @v…"
+                    - generic [ref=e903]:
+                      - generic [ref=e904]: 🏷 feature
+                      - generic [ref=e905]: 🏷 test-vert
+                      - generic [ref=e906]: ⏫ 2
+                  - article [ref=e907] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e909]: ⋯
+                    - generic [ref=e910]: Harnais e2e Playwright — tests navigateur réel
+                    - generic [ref=e911]: "Mis en place pour tester ce que Vitest ne peut pas voir (Alain, 2026-07-22) : léditeur Text de Nextcloud et son menu @mention, montés dynam…"
+                    - generic [ref=e913]:
+                      - generic [ref=e914]: 🏷 feature
+                      - generic [ref=e915]: ⏫ 2
+                  - article [ref=e916] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e918]: ⋯
+                    - generic [ref=e919]: « Supprimer la carte » grisé dans le menu ⋯ alors qu'il fonctionne
+                    - generic [ref=e920]: Steve, 2026-07-20. Dans le menu ⋯ d'une tuile, l'entrée « Supprimer la carte » s'affiche plus sombre / grisée que les autres, ce qui la fai…
+                    - generic [ref=e922]:
+                      - generic [ref=e923]: 💬 2
+                      - generic [ref=e924]: 🏷 bug
+                      - generic [ref=e925]: 🏷 steve
+                      - generic [ref=e926]: 🏷 à valider
+                      - generic [ref=e927]: 🔼 3
+                  - article [ref=e928] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e930]: ⋯
+                    - generic [ref=e931]: Test
+                    - generic [ref=e934]: 💬 1
+                - generic [ref=e935]:
+                  - button "+ Carte" [ref=e936] [cursor=pointer]:
+                    - generic [ref=e938]: + Carte
+                  - generic "Nouvelle carte depuis un gabarit" [ref=e939]:
+                    - button "Nouvelle carte depuis un gabarit" [ref=e941] [cursor=pointer]:
+                      - generic [ref=e944]: 📋
+              - generic [ref=e945]:
+                - generic [ref=e946]:
+                  - generic [ref=e947]: ⠿
+                  - generic "Cliquer pour renommer la liste" [ref=e948]: Ergonomie&expérience
+                  - generic [ref=e949]: "10"
+                  - button "Menu de la liste" [ref=e951] [cursor=pointer]:
+                    - generic [ref=e953]: ⋯
+                - generic [ref=e954]:
+                  - article [ref=e955] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e957]: ⋯
+                    - generic [ref=e958]: Version Web mobile doit être optimisé
+                    - generic [ref=e959]: La présentation de la page depuis un appareil mobile (cellulaire) est difficilement utilisable. Les boutons du haut et les menu prennent le…
+                    - generic [ref=e962]: 🔺 1
+                  - article [ref=e963] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e965]: ⋯
+                    - generic [ref=e966]: Option déplacement d'une carte
+                    - generic [ref=e967]: Défiler le tableau lors du déplacement d'une carte vers une autre colonne plus loin Permettre le déplacement d'une carte un sélectionnant l…
+                    - generic [ref=e970]: ⏫ 2
+                  - article [ref=e971] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e973]: ⋯
+                    - generic [ref=e974]: Permettre le glissement de haut en bas d'une carte
+                    - button "Avatar de Steve" [ref=e978]:
+                      - img [ref=e981]:
+                        - img [ref=e982]
+                  - article [ref=e984] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e986]: ⋯
+                    - generic [ref=e987]: Réglage du nombre de lignes
+                    - generic [ref=e988]: Réglage du nombre de lignes de l'aperçu sur la tuile
+                    - button "Avatar de Alain" [ref=e992]:
+                      - img [ref=e995]:
+                        - img [ref=e996]
+                  - article [ref=e998] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1000]: ⋯
+                    - generic [ref=e1001]: Possibilité de déplacer les colonnes par glissement
+                    - button "Avatar de Steve" [ref=e1005]:
+                      - img [ref=e1008]:
+                        - img [ref=e1009]
+                  - article [ref=e1011] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1013]: ⋯
+                    - generic [ref=e1014]: Ajouter un menu ... à chaque cartes pour action rapide
+                    - generic [ref=e1016]:
+                      - button "Avatar de Steve" [ref=e1018]:
+                        - img [ref=e1021]:
+                          - img [ref=e1022]
+                      - button "Avatar de menu" [ref=e1025]:
+                        - img [ref=e1028]:
+                          - img [ref=e1029]
+                  - article [ref=e1031] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1033]: ⋯
+                    - generic [ref=e1034]: Permettre le glissement hiérarchique entre tableau et entre catégorie de tableaux
+                  - article [ref=e1035] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1037]: ⋯
+                    - generic [ref=e1038]: Ajouter un menu rapide «...» par carte, par colonne, par tableau, par équipe
+                    - button "Avatar de menu" [ref=e1042]:
+                      - img [ref=e1045]:
+                        - img [ref=e1046]
+                  - article [ref=e1048] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1050]: ⋯
+                    - generic [ref=e1051]: Toujours afficher le bouton d'enregistrement
+                    - generic [ref=e1052]: Ou enregistrement en continue
+                  - article [ref=e1053] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1055]: ⋯
+                    - generic [ref=e1056]: créer des catégories de tableaux avec menu déroulant
+                - generic [ref=e1057]:
+                  - button "+ Carte" [ref=e1058] [cursor=pointer]:
+                    - generic [ref=e1060]: + Carte
+                  - generic "Nouvelle carte depuis un gabarit" [ref=e1061]:
+                    - button "Nouvelle carte depuis un gabarit" [ref=e1063] [cursor=pointer]:
+                      - generic [ref=e1066]: 📋
+              - generic [ref=e1067]:
+                - generic [ref=e1068]:
+                  - generic [ref=e1069]: ⠿
+                  - generic "Cliquer pour renommer la liste" [ref=e1070]: À développer
+                  - generic [ref=e1071]: "25"
+                  - button "Menu de la liste" [ref=e1073] [cursor=pointer]:
+                    - generic [ref=e1075]: ⋯
+                - generic [ref=e1076]:
+                  - article [ref=e1077] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1079]: ⋯
+                    - generic [ref=e1080]: Joindre les cartes avec date dans app calendrier
+                    - button "Avatar de pièces jointe" [ref=e1084]:
+                      - img [ref=e1087]:
+                        - img [ref=e1088]
+                  - article [ref=e1090] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1092]: ⋯
+                    - generic [ref=e1093]: Éditer des documents directement depuis une carte
+                    - button "Avatar de pièces jointe" [ref=e1097]:
+                      - img [ref=e1100]:
+                        - img [ref=e1101]
+                  - article [ref=e1103] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1105]: ⋯
+                    - generic [ref=e1106]: Faire d'une carte un événement et d'un événement une carte
+                  - article [ref=e1107] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1109]: ⋯
+                    - generic [ref=e1110]: Ajouter des cartes à un événement
+                  - article [ref=e1111] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1113]: ⋯
+                    - generic [ref=e1114]: Présenter différent formats d'affichage d'une carte
+                    - generic [ref=e1115]: "- Événement - Tâche - Recette - Procédure - Présentation - Fiche de contact"
+                    - generic [ref=e1118]: ☑ 0/6
+                  - article [ref=e1119] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1121]: ⋯
+                    - generic [ref=e1122]: Permettre de personnaliser les volet (champs) dans l'onglet principale de la carte
+                    - generic [ref=e1123]: Clarifier ensemble la structure ou l'aménagement d'une carte - Volets - Onglets - Hiérarchie des champs - Menu - Sous-menu - Réduire la vis…
+                    - generic [ref=e1125]:
+                      - generic [ref=e1126]: ☑ 0/6
+                      - generic [ref=e1127]: 🏷 À clarifier
+                  - article [ref=e1128] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1130]: ⋯
+                    - generic [ref=e1131]: Ajouter un onglet d'édition de documents (.docx .xlsx .md .pdf .pptx .jpg à même une carte
+                    - button "Avatar de pièces jointe" [ref=e1135]:
+                      - img [ref=e1138]:
+                        - img [ref=e1139]
+                  - article [ref=e1141] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1143]: ⋯
+                    - generic [ref=e1144]: Faire une fiche de contact à partir d'une carte
+                  - article [ref=e1145] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1147]: ⋯
+                    - generic [ref=e1148]: Développer une vue par ordre d'échéance des cartes
+                  - article [ref=e1149] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1151]: ⋯
+                    - generic [ref=e1152]: Ajouter des pièces jointes depuis appareil photo
+                    - generic [ref=e1153]: "- Ajouter des pièce jointe depuis appareil photo - Option numériser des document avec recadrage automatisé"
+                    - generic [ref=e1156]: ☑ 0/2
+                  - article [ref=e1157] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1159]: ⋯
+                    - generic [ref=e1160]: Possibilité de créer des sous-carte dans une carte
+                  - article [ref=e1161] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1163]: ⋯
+                    - generic [ref=e1164]: Définir l'état de la tâche
+                  - article [ref=e1165] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1167]: ⋯
+                    - generic [ref=e1168]: Liste de contrôle indépendant de la description
+                  - article [ref=e1169] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1171]: ⋯
+                    - generic [ref=e1172]: Possibilité d'extraire un élément de la liste de contrôle pour en faire un nouvelle tâche
+                  - article [ref=e1173] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1175]: ⋯
+                    - generic [ref=e1176]: Option répéter une tâche périodiquement
+                  - article [ref=e1177] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1179]: ⋯
+                    - generic [ref=e1180]: bouton modifier la carte lors de la création d'une carte
+                    - generic [ref=e1181]: Afin de faciliter le partage de screenshot
+                  - article [ref=e1182] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1184]: ⋯
+                    - generic [ref=e1185]: Plusieurs option d'affichage des tableaux
+                    - generic [ref=e1186]: Modifier les champs faisant office de colonne Vue grille, tableau, calendrier, graphique (Voir planificateur Teams)
+                  - article [ref=e1187] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1189]: ⋯
+                    - generic [ref=e1190]: Intégrer des éléments d'un formulaire dans une carte
+                    - generic [ref=e1191]: Voir les éléments de l’application formulaire Voir si on ne pourrait pas remplacer l’application formulaire
+                  - article [ref=e1192] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1194]: ⋯
+                    - generic [ref=e1195]: Intégrer les recettes NC dans une carte Deck
+                  - article [ref=e1196] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1198]: ⋯
+                    - generic [ref=e1199]: Permettre une présentation avec image dans une carte Deck (Nextcloud office .doc .pptx .xlsx .odg .md)
+                  - article [ref=e1200] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1202]: ⋯
+                    - generic [ref=e1203]: Ajouter note manuscrite dans carte
+                  - article [ref=e1204] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1206]: ⋯
+                    - generic [ref=e1207]: Permettre l'enregistrement de vidéo à même une carte à des fins de publication
+                  - article [ref=e1208] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1210]: ⋯
+                    - generic [ref=e1211]: Aménager la présentation de tableau sous forme de forum-blog
+                  - article [ref=e1212] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1214]: ⋯
+                    - generic [ref=e1215]: possibilité de créer un sous tableau dans une carte
+                    - generic [ref=e1216]: Faire d'une carte un nouveau tableau Possibilité de créer plusieurs fichiers MD dans une carte, possibilité de les aménager sous forme de t…
+                  - article [ref=e1217] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1219]: ⋯
+                    - generic [ref=e1220]: faire d'une carte un nouveau tableau
+                - generic [ref=e1221]:
+                  - button "+ Carte" [ref=e1222] [cursor=pointer]:
+                    - generic [ref=e1224]: + Carte
+                  - generic "Nouvelle carte depuis un gabarit" [ref=e1225]:
+                    - button "Nouvelle carte depuis un gabarit" [ref=e1227] [cursor=pointer]:
+                      - generic [ref=e1230]: 📋
+              - generic [ref=e1231]:
+                - generic [ref=e1232]:
+                  - generic [ref=e1233]: ⠿
+                  - generic "Cliquer pour renommer la liste" [ref=e1234]: Bug
+                  - generic [ref=e1235]: "2"
+                  - button "Menu de la liste" [ref=e1237] [cursor=pointer]:
+                    - generic [ref=e1239]: ⋯
+                - generic [ref=e1240]:
+                  - article [ref=e1241] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1243]: ⋯
+                    - generic [ref=e1244]: Mode pleine écran disfonctionnel
+                    - generic [ref=e1245]: Pleine écran décaller depuis navigateur Chrome sur Windows 11
+                  - article [ref=e1246] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1248]: ⋯
+                    - generic [ref=e1249]: S'assurer que que le changement de nom d'un tableau suive le nom du répertoire
+                - generic [ref=e1250]:
+                  - button "+ Carte" [ref=e1251] [cursor=pointer]:
+                    - generic [ref=e1253]: + Carte
+                  - generic "Nouvelle carte depuis un gabarit" [ref=e1254]:
+                    - button "Nouvelle carte depuis un gabarit" [ref=e1256] [cursor=pointer]:
+                      - generic [ref=e1259]: 📋
+              - generic [ref=e1260]:
+                - generic [ref=e1261]:
+                  - generic [ref=e1262]: ⠿
+                  - generic "Cliquer pour renommer la liste" [ref=e1263]: Terminé
+                  - generic [ref=e1264]: "14"
+                  - button "Menu de la liste" [ref=e1266] [cursor=pointer]:
+                    - generic [ref=e1268]: ⋯
+                - generic [ref=e1269]:
+                  - article [ref=e1270] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1272]: ⋯
+                    - generic [ref=e1273]: Le nom de l'équipe partagée s'affiche comme un identifiant brut
+                    - generic [ref=e1274]: "Steve, 2026-07-20 — captures 1 et 2. En partageant le tableau « 1-NéoVillage » à son équipe (cercle) NéoVillage : - dans le sélecteur, la s…"
+                    - generic [ref=e1276]:
+                      - generic [ref=e1277]: 💬 2
+                      - generic [ref=e1278]: 🏷 bug
+                      - generic [ref=e1279]: 🏷 steve
+                      - generic [ref=e1280]: 🏷 test-vert
+                      - generic [ref=e1281]: 🔺 1
+                  - article [ref=e1282] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1284]: ⋯
+                    - generic [ref=e1285]: "Volet du tableau : la coquille et ses onglets"
+                    - generic [ref=e1286]: "Sous-carte de 5b259e. Le volet lui-même : un panneau à droite du TABLEAU (pas de la carte), ouvert par un bouton de la barre, avec quatre o…"
+                    - generic [ref=e1288]:
+                      - generic [ref=e1289]: 💬 6
+                      - generic [ref=e1290]: 🏷 feature
+                      - generic [ref=e1291]: 🔺 1
+                  - article [ref=e1292] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1294]: ⋯
+                    - generic [ref=e1295]: Aucune priorité par défaut sur une nouvelle carte
+                    - generic [ref=e1296]: "Steve, 2026-07-20. Toute carte créée arrive avec la priorité 3 posée d'office. Il veut le champ vide. Verbatim : « Par défaut, ils ont mis …"
+                    - generic [ref=e1298]:
+                      - generic [ref=e1299]: 💬 1
+                      - generic [ref=e1300]: 🏷 bug
+                      - generic [ref=e1301]: 🏷 steve
+                      - generic [ref=e1302]: 🏷 feature
+                      - generic [ref=e1303]: 🏷 à valider
+                      - generic [ref=e1304]: ⏫ 2
+                  - article [ref=e1305] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1307]: ⋯
+                    - generic [ref=e1308]: Retirer le bouton Supprimer de la carte ouverte
+                    - generic [ref=e1309]: "Steve, 2026-07-20. Deux endroits l'inquiètent : le gros bouton « Supprimer » au bas de la carte ouverte, et l'option « supprimer » dans le …"
+                    - generic [ref=e1311]:
+                      - generic [ref=e1312]: 💬 1
+                      - generic [ref=e1313]: 🏷 feature
+                      - generic [ref=e1314]: 🏷 steve
+                      - generic [ref=e1315]: 🏷 test-vert
+                      - generic [ref=e1316]: 🏷 à valider
+                      - generic [ref=e1317]: ⏫ 2
+                  - article [ref=e1318] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1320]: ⋯
+                    - generic [ref=e1321]: Tri par priorité dans les filtres (défaut 1→5)
+                    - generic [ref=e1322]: "Alain 2026-07-20 : ordre d'affichage dans le panneau Filtres, par défaut priorité ascendante (1→5 ; sans-priorité en dernier). Contrôle « T…"
+                    - generic [ref=e1325]: ⏫ 2
+                  - article [ref=e1326] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1328]: ⋯
+                    - generic [ref=e1329]: "sk_kanban.php : commandes comment / priority / relate / phase"
+                    - generic [ref=e1330]: "Pour tenir le board au diapason de la conversation (règle Alain 2026-07-20) le helper doit : lire+ajouter des commentaires, poser priorité …"
+                    - generic [ref=e1333]: ⏫ 2
+                  - article [ref=e1334] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1336]: ⋯
+                    - generic [ref=e1337]: Le helper sk_kanban.php n'alimente pas le journal d'activité
+                    - generic [ref=e1338]: "Alain, 2026-07-20, en regardant l'onglet Activité de a4e8b0 : « Il me semble qu'il manque des activités dans cette carte car nous avons mis…"
+                    - generic [ref=e1340]:
+                      - generic [ref=e1341]: 💬 1
+                      - generic [ref=e1342]: 🏷 bug
+                      - generic [ref=e1343]: 🏷 test-vert
+                      - generic [ref=e1344]: 🏷 à valider
+                      - generic [ref=e1345]: ⏫ 2
+                  - article [ref=e1346] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1348]: ⋯
+                    - generic [ref=e1349]: "Volet du tableau : onglet Étiquettes"
+                    - generic [ref=e1350]: Sous-carte de 5b259e. La palette d'étiquettes du tableau, consultable et modifiable depuis le volet — créer, renommer, recolorer, supprimer…
+                    - generic [ref=e1352]:
+                      - generic [ref=e1353]: 💬 2
+                      - generic [ref=e1354]: 🏷 feature
+                      - generic [ref=e1355]: ⏫ 2
+                  - article [ref=e1356] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1358]: ⋯
+                    - generic [ref=e1359]: "Volet du tableau : onglet Éléments supprimés"
+                    - generic [ref=e1360]: Sous-carte de 5b259e. Les cartes supprimées du tableau, restaurables. La fonction EXISTE déjà — bouton « Corbeille » de la barre — il s'agi…
+                    - generic [ref=e1362]:
+                      - generic [ref=e1363]: 💬 3
+                      - generic [ref=e1364]: 🏷 feature
+                      - generic [ref=e1365]: ⏫ 2
+                  - article [ref=e1366] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1368]: ⋯
+                    - generic [ref=e1369]: "Volet du tableau : onglet Activité"
+                    - generic [ref=e1370]: "Sous-carte de 5b259e. Le journal du TABLEAU : tout ce qui s'y est passé, cartes confondues. Steve : « la section activités, les logs, ça va…"
+                    - generic [ref=e1372]:
+                      - generic [ref=e1373]: 💬 1
+                      - generic [ref=e1374]: 🏷 feature
+                      - generic [ref=e1375]: 🏷 test-vert
+                      - generic [ref=e1376]: 🏷 à valider
+                      - generic [ref=e1377]: ⏫ 2
+                  - article [ref=e1378] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1380]: ⋯
+                    - generic [ref=e1381]: Désarchiver toutes les cartes d'une liste en un geste
+                    - generic [ref=e1382]: "Steve, 2026-07-20. Le menu ⋯ d'une liste permet « Archiver toutes les cartes », mais il n'y a pas le geste inverse : il faut désarchiver ca…"
+                    - generic [ref=e1384]:
+                      - generic [ref=e1385]: 💬 1
+                      - generic [ref=e1386]: 🏷 feature
+                      - generic [ref=e1387]: 🏷 steve
+                      - generic [ref=e1388]: 🏷 à valider
+                      - generic [ref=e1389]: 🔼 3
+                  - article [ref=e1390] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1392]: ⋯
+                    - generic [ref=e1393]: "sk_kanban.php : « done » doit viser Terminé, pas Archivé"
+                    - generic [ref=e1394]: Le helper « done » déplace vers la DERNIÈRE colonne ; sur un tableau Backlog/En cours/Terminé/Archivé ça tombe dans Archivé. Faire préférer…
+                    - generic [ref=e1397]: 🔼 3
+                  - article [ref=e1400] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1402]: ⋯
+                    - generic [ref=e1403]: Convention d'étiquettes (TDD rouge/vert + workflow)
+                    - generic [ref=e1404]: "Idée Alain 2026-07-20 : étiquettes pour suivre l'état TDD des cartes qui génèrent du code testable. Ma proposition : 2 jalons 🔴 test-rouge-…"
+                    - generic [ref=e1406]:
+                      - generic [ref=e1407]: 💬 1
+                      - generic [ref=e1408]: 🔼 3
+                  - article [ref=e1409] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1411]: ⋯
+                    - generic [ref=e1412]: Section Partagés par vous
+                    - generic [ref=e1413]: J’ai créé un tableau et l’ai partagé avec un groupe. Lorsque je regarde le tableau il devrait être dans la section “Partagés par vous” mais…
+                    - generic [ref=e1415]:
+                      - generic [ref=e1416]: 💬 1
+                      - generic [ref=e1417]: 🏷 bug
+                      - generic [ref=e1418]: 🏷 test-vert
+                      - generic [ref=e1419]: 🏷 à valider
+                      - generic [ref=e1420]: 🔽 4
+                - generic [ref=e1423]:
+                  - button "+ Carte" [ref=e1424] [cursor=pointer]:
+                    - generic [ref=e1426]: + Carte
+                  - generic "Nouvelle carte depuis un gabarit" [ref=e1427]:
+                    - button "Nouvelle carte depuis un gabarit" [ref=e1429] [cursor=pointer]:
+                      - generic [ref=e1432]: 📋
+              - generic [ref=e1433]:
+                - generic [ref=e1434]:
+                  - generic [ref=e1435]: ⠿
+                  - generic "Cliquer pour renommer la liste" [ref=e1436]: Archivé
+                  - generic [ref=e1437]: "9"
+                  - button "Menu de la liste" [ref=e1439] [cursor=pointer]:
+                    - generic [ref=e1441]: ⋯
+                - generic [ref=e1442]:
+                  - article [ref=e1443] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1445]: ⋯
+                    - generic [ref=e1446]: "Éditeur : champs pas rafraîchis en changeant de carte"
+                    - generic [ref=e1447]: Alain 2026-07-20. En cliquant d'une carte à l'autre, l'éditeur gardait les champs de l'ancienne carte (seuls dates + relations, liées à car…
+                    - generic [ref=e1449]:
+                      - generic [ref=e1450]: 💬 1
+                      - generic [ref=e1451]: 🔺 1
+                  - article [ref=e1452] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1454]: ⋯
+                    - generic [ref=e1455]: Mettre à jour SK sur Tshinanu et ET
+                    - generic [ref=e1458]: 🔺 1
+                  - article [ref=e1459] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1461]: ⋯
+                    - generic [ref=e1462]: Créer une carte est impossible dans les colonnes Terminé et Archivé
+                    - generic [ref=e1463]: "Steve, exploration du 2026-07-20 : le champ « + Carte » accepte le texte, Entrée ne fait rien, aucune carte n'apparaît. Reproduit plusieurs…"
+                    - generic [ref=e1465]:
+                      - generic [ref=e1466]: 💬 1
+                      - generic [ref=e1467]: 🏷 bug
+                      - generic [ref=e1468]: 🏷 steve
+                      - generic [ref=e1469]: 🏷 test-vert
+                      - generic [ref=e1470]: 🏷 à valider
+                      - generic [ref=e1471]: 🔺 1
+                  - article [ref=e1472] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1474]: ⋯
+                    - generic [ref=e1475]: Erreur à la création d'une carte depuis un gabarit
+                    - generic [ref=e1476]: Steve, 2026-07-20 — capture 7. Le bouton presse-papier à droite de « + Carte » propose 3 gabarits (Compte-rendu de réunion, Rencontre en 4 …
+                    - generic [ref=e1478]:
+                      - generic [ref=e1479]: 💬 1
+                      - generic [ref=e1480]: 🏷 bug
+                      - generic [ref=e1481]: 🏷 steve
+                      - generic [ref=e1482]: 🏷 à valider
+                      - generic [ref=e1483]: 🔺 1
+                  - article [ref=e1484] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1486]: ⋯
+                    - generic [ref=e1487]: "Carte-tableau : une carte-projet qui ouvre son tableau"
+                    - generic [ref=e1488]: Feature SK confirmée. Dans « Projets », chaque carte = un projet, avec vue résumée + bouton « Ouvrir le tableau → » qui mène au tableau déd…
+                    - generic [ref=e1490]:
+                      - generic [ref=e1491]: 💬 2
+                      - generic [ref=e1492]: 🏷 test-vert
+                      - generic [ref=e1493]: ⏫ 2
+                  - article [ref=e1496] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1498]: ⋯
+                    - generic [ref=e1499]: "Éditeur : sauvegarde auto en changeant de carte"
+                    - generic [ref=e1500]: Alain 2026-07-20. En passant d'une carte à l'autre dans l'éditeur, sauvegarder automatiquement les modifications de la carte qu'on quitte (…
+                    - generic [ref=e1503]: ⏫ 2
+                  - article [ref=e1504] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1506]: ⋯
+                    - generic [ref=e1507]: Installer l'application d'importation Deck sur SdP
+                    - generic [ref=e1510]: ⏫ 2
+                  - article [ref=e1511] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1513]: ⋯
+                    - generic [ref=e1514]: Mettre le focus sur l'entrée du nom de la carte
+                    - generic [ref=e1515]: Après avoir cliquer sur “+ Carte” un champ pour le nom de la carte s’affiche mais le focus n’est pas dedans. Je part à écrire et rien ne se…
+                    - generic [ref=e1517]:
+                      - generic [ref=e1518]: 💬 1
+                      - generic [ref=e1519]: 🏷 à valider
+                      - generic [ref=e1520]: 🔼 3
+                  - article [ref=e1523] [cursor=pointer]:
+                    - button "Menu de la carte" [ref=e1525]: ⋯
+                    - generic [ref=e1526]: Mettre la priorité et le nom des assignés sur la même ligne lorsque c'est possible
+                    - generic [ref=e1528]:
+                      - generic [ref=e1529]: 🏷 à valider
+                      - generic [ref=e1530]: 🔼 3
+                - generic [ref=e1531]:
+                  - button "+ Carte" [ref=e1532] [cursor=pointer]:
+                    - generic [ref=e1534]: + Carte
+                  - generic "Nouvelle carte depuis un gabarit" [ref=e1535]:
+                    - button "Nouvelle carte depuis un gabarit" [ref=e1537] [cursor=pointer]:
+                      - generic [ref=e1540]: 📋
+              - button "+ Liste" [ref=e1542] [cursor=pointer]:
+                - generic [ref=e1544]: + Liste
+          - generic [ref=e1546]:
+            - generic [ref=e1547]:
+              - button "Marquer comme fait" [ref=e1548] [cursor=pointer]:
+                - generic [ref=e1550]: Marquer comme fait
+              - textbox "Titre" [ref=e1551] [cursor=pointer]: Créer une conversation Talk intégré à une carte
+              - button "Fermer" [ref=e1552] [cursor=pointer]:
+                - generic [ref=e1554]: ✕
+            - paragraph [ref=e1555]: Créé 7 juin 2026, 14 h 00 · Modifié 20 juill. 2026, 22 h 33
+            - tablist [ref=e1556]:
+              - button "Détails" [ref=e1557] [cursor=pointer]:
+                - generic [ref=e1558]: 🏠
+                - generic [ref=e1559]: Détails
+              - button "Pièces jointes" [ref=e1560] [cursor=pointer]:
+                - generic [ref=e1561]: 📎
+                - generic [ref=e1562]: Pièces jointes
+              - button "Commentaires" [active] [ref=e1563] [cursor=pointer]:
+                - generic [ref=e1564]: 💬
+                - generic [ref=e1565]: Commentaires
+              - button "Activité" [ref=e1566] [cursor=pointer]:
+                - generic [ref=e1567]: ⚡
+                - generic [ref=e1568]: Activité
+            - text: Start writing or type '/' to add…
+            - generic [ref=e1570]:
+              - heading "Commentaires" [level=4] [ref=e1571]
+              - button "Ajouter un commentaire…" [ref=e1573]
+              - paragraph [ref=e1574]: Aucun commentaire.
+            - button "Enregistrer" [ref=e1576] [cursor=pointer]:
+              - generic [ref=e1578]: Enregistrer
+```
+
+# Test source
+
+```ts
+  1  | import { test, expect } from '@playwright/test'
+  2  | 
+  3  | // Carte 78fc32 / the case Alain caught twice in a screenshot: typing « @st » in a
+  4  | // card comment shows « No suggestion found » / « Aucune suggestion » instead of
+  5  | // suggesting the board member StevLauz.
+  6  | //
+  7  | // This is the RED test for that gap: it fails today (no suggestion is fed to the
+  8  | // Text editor) and turns green once SK feeds the editor its board members.
+  9  | //
+  10 | // Runs only against a real instance with a test credential in e2e/.env
+  11 | // (NC_TEST_URL/USER/PASSWORD). Selectors are a best first guess — adjust on the
+  12 | // first real run.
+  13 | test('typing @st in a card comment suggests StevLauz, not « Aucune suggestion »', async ({ page }) => {
+  14 | 	const board = process.env.NC_TEST_BOARD || 'bienvenue'
+  15 | 	await page.goto('/apps/sovereign-kanban/#' + board)
+  16 | 
+  17 | 	// Open the first card, then its Commentaires tab.
+  18 | 	await page.locator('.sk-vue-card').first().click()
+  19 | 	await page.getByRole('button', { name: /Commentaires/i }).click()
+  20 | 
+  21 | 	// Focus the comment field (Text editor contenteditable, or textarea fallback)
+  22 | 	// and start a mention.
+  23 | 	const field = page.locator('[contenteditable="true"], textarea').last()
+> 24 | 	await field.click()
+     |              ^ Error: locator.click: Test timeout of 30000ms exceeded.
+  25 | 	await field.type('@st')
+  26 | 
+  27 | 	// The exact failure Alain saw must NOT be on screen…
+  28 | 	await expect(page.getByText(/No suggestion found|Aucune suggestion/i)).toHaveCount(0)
+  29 | 	// …and a member suggestion (StevLauz / Steve) MUST be offered.
+  30 | 	await expect(page.getByText(/StevLauz|Steve/i).first()).toBeVisible()
+  31 | })
+  32 | 
+```

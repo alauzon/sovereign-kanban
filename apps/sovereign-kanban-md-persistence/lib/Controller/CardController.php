@@ -9,6 +9,7 @@ namespace OCA\SovereignKanbanMdPersistence\Controller;
 
 use OCA\SovereignKanbanMdPersistence\Kanban\Card;
 use OCA\SovereignKanbanMdPersistence\Kanban\CardConflictException;
+use OCA\SovereignKanbanMdPersistence\Notification\MentionService;
 use OCA\SovereignKanbanMdPersistence\Kanban\Comment;
 use OCA\SovereignKanbanMdPersistence\Kanban\FileCardRepository;
 use OCA\SovereignKanbanMdPersistence\Service\MarkdownRenderer;
@@ -24,6 +25,7 @@ use OCP\AppFramework\Http\DataResponse;
 use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
 use OCP\IRequest;
+use OCP\IGroupManager;
 use OCP\IUserManager;
 use OCP\IUserSession;
 
@@ -43,6 +45,8 @@ final class CardController extends Controller {
 		private readonly ReceivedBoardLocator $receivedLocator,
 		private readonly BoardShareService $shareService,
 		private readonly IUserManager $userManager,
+		private readonly IGroupManager $groupManager,
+		private readonly MentionService $mentionService,
 	) {
 		parent::__construct('sovereign-kanban-md-persistence', $request);
 	}
@@ -497,7 +501,8 @@ final class CardController extends Controller {
 		if ($body === '') {
 			return new DataResponse(['error' => 'body_required'], 400);
 		}
-		if ($repository->findById($cardId) === null) {
+		$card = $repository->findById($cardId);
+		if ($card === null) {
 			return new DataResponse(['error' => 'card_not_found'], 404);
 		}
 
@@ -505,6 +510,21 @@ final class CardController extends Controller {
 		$comment = Comment::create($author, $body);
 		$repository->addComment($cardId, $comment);
 		$repository->appendActivity($cardId, 'commented', $user->getUID());
+
+		// Notify @mentioned members (carte 78fc32). Never let a notification failure
+		// break posting the comment — it is a side effect, not the point.
+		try {
+			$this->mentionService->notifyMentions(
+				$boardId,
+				$cardId,
+				$card->title,
+				$body,
+				$user->getUID(),
+				$this->accessibleUidsForBoard($boardId),
+			);
+		} catch (\Throwable) {
+			// swallowed on purpose
+		}
 
 		return new DataResponse(['comment' => $comment->toArray()], 201);
 	}
@@ -786,6 +806,49 @@ final class CardController extends Controller {
 	 *
 	 * @return array{id: string, title: string, column: string, description: string, due_date: ?string, start_date: ?string, assignees: list<string>, procedures: list<string>, priority: ?string, tags: list<string>, phase: ?int}
 	 */
+	/**
+	 * uid => display name of everyone who can see a board, so a @mention only ever
+	 * notifies someone with access (carte 78fc32). Owner path lists the shares and
+	 * expands groups; an invitee (who cannot list shares) resolves at least the
+	 * board owner. Team/circle expansion and invitee-to-invitee come later.
+	 *
+	 * @return array<string,string>
+	 */
+	private function accessibleUidsForBoard(string $boardId): array {
+		$out = [];
+		$me = $this->userSession->getUser();
+		if ($me !== null) {
+			$out[$me->getUID()] = $me->getDisplayName() ?: $me->getUID();
+		}
+		try {
+			foreach ($this->shareService->listShares($boardId) as $share) {
+				if (($share['type'] ?? '') === 'user') {
+					$u = $this->userManager->get((string) $share['with']);
+					if ($u !== null) {
+						$out[$u->getUID()] = $u->getDisplayName() ?: $u->getUID();
+					}
+				} elseif (($share['type'] ?? '') === 'group') {
+					$g = $this->groupManager->get((string) $share['with']);
+					foreach ($g?->getUsers() ?? [] as $u) {
+						$out[$u->getUID()] = $u->getDisplayName() ?: $u->getUID();
+					}
+				}
+			}
+		} catch (\Throwable) {
+			// Not the owner: resolve at least the owner of this received board.
+			foreach ($this->shareService->receivedBoards() as $b) {
+				if (($b['id'] ?? '') === $boardId && !empty($b['owner'])) {
+					$o = $this->userManager->get((string) $b['owner']);
+					if ($o !== null) {
+						$out[$o->getUID()] = $o->getDisplayName() ?: $o->getUID();
+					}
+				}
+			}
+		}
+
+		return $out;
+	}
+
 	private function detail(Card $card, ?FileCardRepository $repository = null): array {
 		return [
 			'id' => $card->id,

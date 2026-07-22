@@ -55,6 +55,14 @@ try {
 	$n1 = $service->notifyMentions('board1', $testCard, 'Ma carte', '@StevLauz regarde ça', $author, $access);
 	check('[3] un mentionné qui a accès est notifié', $n1 === [$target], 'notifiés: [' . implode(', ', $n1) . ']');
 
+	// ---- notify: a name WITH A SPACE (« Alain Lauzon » is uid AND display name) ----
+	$nb = $service->notifyMentions('board1', $testCard, 'Ma carte', 'salut @Steve Lauzier ça va', $author, $access);
+	check('[3b] un nom avec espace (@Steve Lauzier) est reconnu', $nb === [$target], 'notifiés: [' . implode(', ', $nb) . ']');
+
+	// ---- notify: the quoted form @"..." ----
+	$nc = $service->notifyMentions('board1', $testCard, 'Ma carte', 'salut @"Steve Lauzier" !', $author, $access);
+	check('[3c] la forme entre guillemets @"…" est reconnue', $nc === [$target], 'notifiés: [' . implode(', ', $nc) . ']');
+
 	// ---- notify: mentioned but NO access ----
 	$n2 = $service->notifyMentions('board1', $testCard, 'Ma carte', '@personne-inconnue hello', $author, $access);
 	check('[4] un mentionné SANS accès n’est notifié de rien', $n2 === []);
