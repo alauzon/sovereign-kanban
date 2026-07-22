@@ -28,9 +28,6 @@
 						<NcButton @click="discardAndClose">
 							{{ t('Annuler') }}
 						</NcButton>
-						<NcButton type="error" @click="remove">
-							{{ t('Supprimer') }}
-						</NcButton>
 						<NcButton type="tertiary" @click="confirmClose = false">
 							{{ t('Continuer l\'édition') }}
 						</NcButton>
@@ -279,9 +276,6 @@
 			<p v-if="error" class="sk-detail-error">{{ error }}</p>
 
 			<div class="sk-detail-actions">
-				<NcButton v-if="!readOnly" type="error" @click="remove">
-					{{ t('Supprimer') }}
-				</NcButton>
 				<NcButton
 					type="primary"
 					:disabled="readOnly || saving"
@@ -330,7 +324,7 @@ export default {
 		boardCards: { type: Array, default: () => [] },
 	},
 
-	emits: ['saved', 'deleted', 'close', 'refresh'],
+	emits: ['saved', 'close', 'refresh'],
 
 	data() {
 		return {
@@ -845,13 +839,6 @@ export default {
 			}
 		},
 
-		async remove() {
-			if (!window.confirm(this.t('Supprimer cette carte ?'))) {
-				return
-			}
-			await axios.delete(this.url())
-			this.$emit('deleted')
-		},
 	},
 }
 </script>

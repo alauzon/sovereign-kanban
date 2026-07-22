@@ -51,6 +51,14 @@ describe('CardDetail concurrency guard', () => {
 		expect(w.vm.skipSave).toBe(true)
 	})
 
+	it('cannot delete a card from the editor — only the tile ⋯ menu (Steve, 3c5af1)', async () => {
+		const w = mount(CardDetail, { props: { card: makeCard(), boardId: 'b1' }, global: { stubs } })
+		await w.vm.$nextTick()
+		// The delete path is gone from CardDetail: no remove() method, never emits deleted.
+		expect(w.vm.remove).toBeUndefined()
+		expect(w.emitted('deleted')).toBeFalsy()
+	})
+
 	it('a normal save emits saved', async () => {
 		const w = mount(CardDetail, { props: { card: makeCard(), boardId: 'b1' }, global: { stubs } })
 		await w.vm.save()

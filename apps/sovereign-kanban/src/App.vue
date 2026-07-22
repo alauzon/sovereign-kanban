@@ -306,7 +306,6 @@
 					:palette="(currentBoard && currentBoard.tags) || []"
 					:board-cards="allCards"
 					@saved="onCardSaved"
-					@deleted="onCardDeleted"
 					@refresh="onBoardRefresh"
 					@close="openedCard = null" />
 				</div>
@@ -1023,11 +1022,6 @@ export default {
 		},
 
 		async onCardSaved() {
-			this.openedCard = null
-			await this.loadCards()
-		},
-
-		async onCardDeleted() {
 			this.openedCard = null
 			await this.loadCards()
 		},
