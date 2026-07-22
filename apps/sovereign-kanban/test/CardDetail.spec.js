@@ -65,4 +65,26 @@ describe('CardDetail concurrency guard', () => {
 		expect(w.emitted('saved')).toBeTruthy()
 		expect(w.emitted('close')).toBeFalsy()
 	})
-}) 
+})
+
+// A @mention notification deep-links to #<board>/<card>/comments, so CardDetail
+// must land on the Commentaires tab, not the default Détails (Alain, 2026-07-22).
+describe('CardDetail deep-link tab', () => {
+	it('opens on Détails by default (no initialTab)', async () => {
+		const w = mount(CardDetail, { props: { card: makeCard(), boardId: 'b1' }, global: { stubs } })
+		await w.vm.$nextTick()
+		expect(w.vm.tab).toBe('details')
+	})
+
+	it('opens on Commentaires when initialTab=comments (the @mention landing)', async () => {
+		const w = mount(CardDetail, { props: { card: makeCard(), boardId: 'b1', initialTab: 'comments' }, global: { stubs } })
+		await w.vm.$nextTick()
+		expect(w.vm.tab).toBe('comments')
+	})
+
+	it('opens on Activité via the lazy opener when initialTab=activity', async () => {
+		const w = mount(CardDetail, { props: { card: makeCard(), boardId: 'b1', initialTab: 'activity' }, global: { stubs } })
+		await w.vm.$nextTick()
+		expect(w.vm.tab).toBe('activity')
+	})
+})

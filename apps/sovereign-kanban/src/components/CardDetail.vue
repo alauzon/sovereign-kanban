@@ -322,6 +322,9 @@ export default {
 		palette: { type: Array, default: () => [] },
 		// Flat list of the board's cards ([{id, title}]) for the relation search.
 		boardCards: { type: Array, default: () => [] },
+		// Tab to open on mount — a @mention notification deep-links to 'comments'
+		// so the reader lands where the message is (Alain, 2026-07-22).
+		initialTab: { type: String, default: '' },
 	},
 
 	emits: ['saved', 'close', 'refresh'],
@@ -432,6 +435,11 @@ export default {
 	mounted() {
 		this.loadProcedures()
 		this.loadBoardMembers()
+		// Land on the tab named by the deep link (a @mention notification opens
+		// Commentaires) — via the openers so a lazy tab loads (Alain, 2026-07-22).
+		if (this.initialTab && this.initialTab !== 'details') {
+			this.selectTab(this.initialTab)
+		}
 		// Mount the rich editor once the DOM (and $refs.editorEl) exist.
 		this.$nextTick(() => this.mountEditor(this.form.description))
 	},
@@ -566,6 +574,20 @@ export default {
 			this.$emit('refresh')
 			if (this.activityLoaded) {
 				this.loadActivity()
+			}
+		},
+
+		// Select a tab by key, routing through the lazy openers so attachments and
+		// activity load their content (used by the deep link — Alain, 2026-07-22).
+		selectTab(key) {
+			if (key === 'attachments') {
+				this.openAttachments()
+			} else if (key === 'activity') {
+				this.openActivity()
+			} else if (key === 'comments') {
+				this.tab = 'comments'
+			} else {
+				this.tab = 'details'
 			}
 		},
 

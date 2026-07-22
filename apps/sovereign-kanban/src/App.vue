@@ -306,6 +306,7 @@
 					:known-tags="knownTags"
 					:palette="(currentBoard && currentBoard.tags) || []"
 					:board-cards="allCards"
+					:initial-tab="openedCardTab"
 					@saved="onCardSaved"
 					@refresh="onBoardRefresh"
 					@close="openedCard = null" />
@@ -398,6 +399,9 @@ export default {
 			currentId: null,
 			cardsByColumn: {},
 			openedCard: null,
+			// Tab CardDetail should open on — set by a deep link (#board/card/tab),
+			// empty for a normal click (Alain, 2026-07-22).
+			openedCardTab: '',
 			// The board's own side panel. It shares the right-hand dock with
 			// CardDetail, so the two are mutually exclusive (Steve, 2026-07-20).
 			boardPanelOpen: false,
@@ -541,6 +545,20 @@ export default {
 				}
 			}
 		},
+		// Reflect the open card in the URL so a refresh (or a shared link) reopens it:
+		// #<board>/<card> when one is open, #<board> when none is. Setting the hash
+		// re-fires onHashChange, but openCardFromHash is idempotent so it settles
+		// (Alain, 2026-07-22).
+		openedCard(card) {
+			if (!this.currentId) {
+				return
+			}
+			const base = '#' + encodeURIComponent(this.currentId)
+			const hash = card ? base + '/' + encodeURIComponent(card.id) : base
+			if (window.location.hash !== hash) {
+				window.location.hash = hash
+			}
+		},
 	},
 
 	async mounted() {
@@ -654,9 +672,11 @@ export default {
 				this.boards = res.data.boards || []
 				if (!this.currentId && this.boards.length) {
 					// Prefer the board named in the URL (#<board>), then the last-viewed
-					// (localStorage), then the first board (Alain, 2026-07-20).
+					// (localStorage), then the first board (Alain, 2026-07-20). Read the
+					// card/tab NOW — select() re-writes the hash to #<board> and would
+					// drop them before we get to open the card (Alain, 2026-07-22).
 					const has = (id) => id && this.boards.some((b) => b.id === id)
-					const fromHash = this.boardIdFromHash()
+					const { board: fromHash, card: cardHash, tab: tabHash } = this.parseHash()
 					let saved = null
 					try {
 						saved = window.localStorage.getItem('sk-last-board')
@@ -664,6 +684,11 @@ export default {
 						saved = null
 					}
 					await this.select(has(fromHash) ? fromHash : (has(saved) ? saved : this.boards[0].id))
+					// Deep link from a @mention notification: open the card on its tab
+					// once the chosen board's cards are loaded (Alain, 2026-07-22).
+					if (has(fromHash) && cardHash) {
+						this.openCardFromHash(cardHash, tabHash)
+					}
 				}
 			} catch (e) {
 				this.boards = []
@@ -672,21 +697,51 @@ export default {
 			}
 		},
 
+		// The URL hash carries the open board and, optionally, a deep-linked card and
+		// tab: #<board> · #<board>/<card> · #<board>/<card>/<tab>. A @mention
+		// notification links to #<board>/<card>/comments so the click lands on the
+		// card, on the Commentaires tab (Alain, 2026-07-22).
+		parseHash() {
+			const raw = (window.location.hash || '').replace(/^#/, '')
+			const dec = (s) => {
+				try {
+					return decodeURIComponent(s || '')
+				} catch (e) {
+					return s || ''
+				}
+			}
+			const parts = raw.split('/')
+			return { board: dec(parts[0]), card: dec(parts[1]), tab: dec(parts[2]) }
+		},
+
 		boardIdFromHash() {
-			try {
-				return decodeURIComponent((window.location.hash || '').replace(/^#/, ''))
-			} catch (e) {
-				return ''
+			return this.parseHash().board
+		},
+
+		// Open (or close) the card named in the hash, on the named tab. Idempotent:
+		// re-opening the already-open card is a no-op, so the hash we write ourselves
+		// when a card opens doesn't loop back (Alain, 2026-07-22).
+		openCardFromHash(cardId, tab) {
+			const openId = this.openedCard && this.openedCard.id
+			if (cardId && cardId !== openId) {
+				const card = this.allCards.find((c) => c.id === cardId)
+				if (card) {
+					this.openCard(card, tab || '')
+				}
+			} else if (!cardId && this.openedCard) {
+				this.openedCard = null
 			}
 		},
 
-		// Follow the URL hash to a board — the « Ouvrir → » button of a carte-tableau
-		// navigates by just setting window.location.hash (Alain, 2026-07-20).
-		onHashChange() {
-			const id = this.boardIdFromHash()
-			if (id && id !== this.currentId && this.boards.some((b) => b.id === id)) {
-				this.select(id)
+		// Follow the URL hash to a board (and, if present, a card) — the « Ouvrir → »
+		// button of a carte-tableau and a @mention notification both navigate by just
+		// setting window.location.hash (Alain, 2026-07-20 / 2026-07-22).
+		async onHashChange() {
+			const { board, card, tab } = this.parseHash()
+			if (board && board !== this.currentId && this.boards.some((b) => b.id === board)) {
+				await this.select(board)
 			}
+			this.openCardFromHash(card, tab)
 		},
 
 		async select(id) {
@@ -1007,7 +1062,7 @@ export default {
 			await this.loadCards()
 		},
 
-		async openCard(card) {
+		async openCard(card, tab = '') {
 			// One panel at a time on the right — two stacked panels is the overlap
 			// bug (8f173f) made worse.
 			this.boardPanelOpen = false
@@ -1017,6 +1072,9 @@ export default {
 			const res = await axios.get(
 				this.url('/boards/' + encodeURIComponent(this.currentId) + '/cards/' + encodeURIComponent(card.id)),
 			)
+			// tab is set only by a deep link (#board/card/tab); a plain click leaves it
+			// empty so CardDetail opens on Détails (Alain, 2026-07-22).
+			this.openedCardTab = tab
 			this.openedCard = { created_at: card.created_at, ...res.data.card }
 		},
 
