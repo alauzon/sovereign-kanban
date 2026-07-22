@@ -8,6 +8,7 @@
 namespace OCA\SovereignKanbanMdPersistence\Controller;
 
 use OCA\SovereignKanbanMdPersistence\Kanban\Card;
+use OCA\SovereignKanbanMdPersistence\Kanban\CardConflictException;
 use OCA\SovereignKanbanMdPersistence\Kanban\Comment;
 use OCA\SovereignKanbanMdPersistence\Kanban\FileCardRepository;
 use OCA\SovereignKanbanMdPersistence\Service\MarkdownRenderer;
@@ -163,6 +164,7 @@ final class CardController extends Controller {
 		?string $color = null,
 		?string $archived = null,
 		?string $linked_board = null,
+		?int $baseRev = null,
 	): DataResponse {
 		if (!$this->validCardId($cardId)) {
 			return new DataResponse(['error' => 'unavailable'], 400);
@@ -297,8 +299,18 @@ final class CardController extends Controller {
 			// If you add a field to Card, add it here too.
 			linked_board: $newLinkedBoard,
 			extra: $card->extra,
+			// The concurrency token MUST be carried through, or every edit resets it
+			// to 0 and the guard never fires — the exact drop this block warns of.
+			rev: $card->rev,
 		);
-		$repository->update($updated);
+		try {
+			$repository->update($updated, $baseRev);
+		} catch (CardConflictException $e) {
+			return new DataResponse(
+				['error' => 'conflict', 'rev' => $e->actualRev, 'message' => 'La carte a été modifiée entre-temps.'],
+				409,
+			);
+		}
 
 		// Sovereign activity journal (option C): record what changed. done/reopened
 		// are their own verbs; every other field edit folds into one 'updated' event
@@ -800,6 +812,10 @@ final class CardController extends Controller {
 			// linked_board was missing, so editing a linked card's title silently
 			// unlinked it (Alain, 2026-07-20).
 			'linked_board' => $card->linked_board,
+			// Exposed so the editor echoes it back as baseRev; without it a card's
+			// concurrency guard never fires (Nisha, carte 523b3b) — the same lesson
+			// as linked_board's absence here this morning.
+			'rev' => $card->rev,
 			'checklist' => $card->checklist(),
 		];
 	}

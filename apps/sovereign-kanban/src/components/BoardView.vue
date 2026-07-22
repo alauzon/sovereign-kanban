@@ -668,8 +668,17 @@ export default {
 	cursor: default;
 }
 
+/* « Supprimer la carte » read as disabled because the dark red at rest looked
+   greyed-out next to the black items (Steve, 2026-07-20, carte ec062a). Keep it
+   the normal colour at rest — an active item — and reveal the danger only on
+   hover, the Nextcloud convention for a destructive action. */
 .sk-col-menu-danger {
-	color: var(--color-error, #e9322d);
+	color: var(--color-main-text);
+}
+
+.sk-col-menu-danger:hover:not([disabled]) {
+	background: var(--color-error, #e9322d);
+	color: var(--color-primary-element-text, #fff);
 }
 
 .sk-vue-card-rename {

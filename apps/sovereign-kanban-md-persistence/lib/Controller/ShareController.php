@@ -72,8 +72,10 @@ final class ShareController extends Controller {
 		$needle = mb_strtolower($search);
 
 		$out = [];
-		$add = static function (string $type, string $id, string $label) use (&$out): void {
-			$out[$type . '|' . $id] = ['type' => $type, 'id' => $id, 'label' => $label];
+		$add = static function (string $type, string $id, string $label, string $email = '') use (&$out): void {
+			// email lets the picker show account · name · email like Nextcloud's own
+			// share dialog (Steve, capture 4) so one confirms the right person.
+			$out[$type . '|' . $id] = ['type' => $type, 'id' => $id, 'label' => $label, 'email' => $email];
 		};
 
 		if ($type === 'group') {
@@ -116,7 +118,7 @@ final class ShareController extends Controller {
 			);
 			if ($mode === 'all') {
 				foreach ($this->userManager->searchDisplayName($search, self::SHAREE_LIMIT) as $user) {
-					$add('user', $user->getUID(), $user->getDisplayName());
+					$add('user', $user->getUID(), $user->getDisplayName(), (string) ($user->getEMailAddress() ?? ''));
 				}
 			} elseif ($mode === 'group') {
 				foreach ($this->groupManager->getUserGroups($current) as $group) {
@@ -126,7 +128,7 @@ final class ShareController extends Controller {
 						}
 						if (str_contains(mb_strtolower($member->getUID()), $needle)
 							|| str_contains(mb_strtolower($member->getDisplayName()), $needle)) {
-							$add('user', $member->getUID(), $member->getDisplayName());
+							$add('user', $member->getUID(), $member->getDisplayName(), (string) ($member->getEMailAddress() ?? ''));
 						}
 						if (count($out) >= self::SHAREE_LIMIT) {
 							break 2;
@@ -137,11 +139,11 @@ final class ShareController extends Controller {
 				// 'exact' — and the fail-closed fallback for any unknown value.
 				$user = $this->userManager->get($search);
 				if ($user instanceof IUser) {
-					$add('user', $user->getUID(), $user->getDisplayName());
+					$add('user', $user->getUID(), $user->getDisplayName(), (string) ($user->getEMailAddress() ?? ''));
 				}
 				foreach ($this->userManager->searchDisplayName($search, 5) as $candidate) {
 					if ($candidate->getDisplayName() === $search) {
-						$add('user', $candidate->getUID(), $candidate->getDisplayName());
+						$add('user', $candidate->getUID(), $candidate->getDisplayName(), (string) ($candidate->getEMailAddress() ?? ''));
 					}
 				}
 			}

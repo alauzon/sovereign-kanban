@@ -812,12 +812,24 @@ export default {
 					phase: this.form.phase,
 					linked_board: this.form.linkedBoard,
 					completed_at: this.completedAt === null ? '' : this.completedAt,
+					// The rev we opened the card at, so a stale save is refused rather
+					// than silently overwriting a concurrent edit (Nisha, carte 523b3b).
+					baseRev: this.card.rev,
 				})
 				this.$emit('saved')
 			} catch (e) {
 				const status = e.response && e.response.status
 				const code = e.response && e.response.data && e.response.data.error
-				if (status === 401 || status === 403 || status >= 500) {
+				if (status === 409 && code === 'conflict') {
+					// Someone saved this card while it was open. Blocking alert (survives
+					// the re-render), then refresh the tiles and close so the user reopens
+					// the up-to-date card — their edit is refused, not the other's lost.
+					// eslint-disable-next-line no-alert
+					window.alert(this.t('La carte a été modifiée par quelqu\'un d\'autre. Ta version n\'a pas été enregistrée — rouvre la carte à jour et refais ta modification.'))
+					this.skipSave = true
+					this.$emit('refresh')
+					this.$emit('close')
+				} else if (status === 401 || status === 403 || status >= 500) {
 					// A stale session/CSRF token after the page sat open a long time
 					// returns HTML, not our JSON (Alain, 2026-07-18).
 					this.error = this.t('La session a peut-être expiré. Rafraîchissez la page (F5), puis réessayez.')

@@ -4,9 +4,9 @@
   -
   - Board sharing in Vue — migration of the vanilla renderSharePanel (owner only).
   - Lists the current shares with a revoke button and a small add form, backed by
-  - GET/POST/DELETE /boards/{id}/shares. The recipient field autocompletes from
-  - GET /sharees, the TYPE selector driving the suggestions (a datalist, same as
-  - the vanilla app — portable, no extra dependency).
+  - GET/POST/DELETE /boards/{id}/shares. The recipient field is an NcSelect fed by
+  - GET /sharees, showing avatar · name · email for accounts like Nextcloud's own
+  - share dialog (Steve, 2026-07-20, carte e85179) — the datalist showed the raw id.
 -->
 <template>
 	<section class="sk-share-panel">
@@ -29,16 +29,34 @@
 				<option value="group">{{ t('Groupe') }}</option>
 				<option value="team">{{ t('Équipe') }}</option>
 			</select>
-			<input
-				v-model="shareWith"
-				type="text"
+			<NcSelect
+				class="sk-sharee-select"
+				:options="sharees"
+				:model-value="selectedSharee"
+				:user-select="type === 'user'"
+				:filterable="false"
+				label="label"
+				input-label=""
 				:placeholder="t('Usager ou groupe…')"
-				:aria-label="t('Usager ou groupe avec qui partager')"
-				:list="listId"
-				@input="onSearch">
-			<datalist :id="listId">
-				<option v-for="s in sharees" :key="s.id" :value="s.id" :label="s.label" />
-			</datalist>
+				:aria-label-combobox="t('Usager ou groupe avec qui partager')"
+				@search="onSearch"
+				@option:selected="onPick">
+				<template #option="option">
+					<span class="sk-sharee-opt">
+						<NcAvatar
+							v-if="option.type === 'user'"
+							:user="option.id"
+							:size="24"
+							:hide-status="true"
+							:disable-menu="true" />
+						<span v-else class="sk-sharee-glyph" aria-hidden="true">{{ option.type === 'group' ? '👥' : '🔵' }}</span>
+						<span class="sk-sharee-text">
+							<span class="sk-sharee-name">{{ option.label }}</span>
+							<span v-if="option.email" class="sk-sharee-email">{{ option.email }}</span>
+						</span>
+					</span>
+				</template>
+			</NcSelect>
 			<select v-model="level" :aria-label="t('Niveau de partage')">
 				<option value="read">{{ t('Lecture seule') }}</option>
 				<option value="collaborate">{{ t('Collaboration') }}</option>
@@ -55,14 +73,16 @@
 <script>
 import axios from '@nextcloud/axios'
 import { generateUrl } from '@nextcloud/router'
+import NcAvatar from '@nextcloud/vue/components/NcAvatar'
 import NcButton from '@nextcloud/vue/components/NcButton'
+import NcSelect from '@nextcloud/vue/components/NcSelect'
 
 const BASE = '/apps/sovereign-kanban-md-persistence/api/v1'
 
 export default {
 	name: 'SharePanel',
 
-	components: { NcButton },
+	components: { NcAvatar, NcButton, NcSelect },
 
 	props: {
 		boardId: { type: String, required: true },
@@ -74,12 +94,12 @@ export default {
 			sharees: [],
 			type: 'user',
 			shareWith: '',
+			selectedSharee: null,
 			level: 'read',
 			loading: true,
 			busy: false,
 			error: '',
 			searchTimer: null,
-			listId: 'sk-sharees-' + this.boardId,
 		}
 	},
 
@@ -118,13 +138,15 @@ export default {
 
 		onTypeChange() {
 			this.sharees = []
+			this.selectedSharee = null
+			this.shareWith = ''
 		},
 
-		onSearch() {
-			const val = this.shareWith.trim()
-			if (this.sharees.some((s) => s.id === val)) {
-				return
-			}
+		// NcSelect emits the raw query string on @search. Debounced server lookup
+		// (the results carry avatar/name/email — filtering is server-side, so the
+		// component's own filter is off via :filterable="false").
+		onSearch(query) {
+			const val = (query || '').trim()
 			clearTimeout(this.searchTimer)
 			if (val.length < 2) {
 				this.sharees = []
@@ -135,11 +157,24 @@ export default {
 					const res = await axios.get(generateUrl(BASE + '/sharees'), {
 						params: { search: val, type: this.type },
 					})
-					this.sharees = res.data.sharees || []
+					// displayName + user let NcSelect's user-select render the avatar and
+					// name on its own; the #option template adds the email on top.
+					this.sharees = (res.data.sharees || []).map((sh) => ({
+						...sh,
+						displayName: sh.label,
+						user: sh.type === 'user' ? sh.id : undefined,
+					}))
 				} catch (e) {
 					// Autocomplete is best-effort; a failed lookup just yields no hints.
 				}
 			}, 250)
+		},
+
+		// A suggestion was picked: the id is what we share with, the object is what
+		// the field shows (name, not the raw handle — Steve's whole complaint).
+		onPick(option) {
+			this.selectedSharee = option || null
+			this.shareWith = option ? option.id : ''
 		},
 
 		async add() {
@@ -156,6 +191,7 @@ export default {
 					level: this.level,
 				})
 				this.shareWith = ''
+				this.selectedSharee = null
 				this.sharees = []
 				await this.load()
 			} catch (e) {
@@ -227,5 +263,43 @@ export default {
 .sk-share-error {
 	color: var(--color-error);
 	margin: 0;
+}
+
+.sk-sharee-select {
+	flex: 1 1 180px;
+	min-width: 0;
+}
+
+.sk-sharee-opt {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+}
+
+.sk-sharee-glyph {
+	flex: 0 0 auto;
+	width: 24px;
+	text-align: center;
+}
+
+.sk-sharee-text {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.sk-sharee-name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.sk-sharee-email {
+	color: var(--color-text-maxcontrast);
+	font-size: 0.85em;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 </style>

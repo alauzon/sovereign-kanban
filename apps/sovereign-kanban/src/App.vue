@@ -290,7 +290,7 @@
 					:board-name="currentBoard.name"
 					:can-share="!currentBoard.shared"
 					:docked="wide"
-					@refresh="loadCards"
+					@refresh="onBoardRefresh"
 					@close="boardPanelOpen = false" />
 
 				<CardDetail
@@ -307,7 +307,7 @@
 					:board-cards="allCards"
 					@saved="onCardSaved"
 					@deleted="onCardDeleted"
-					@refresh="loadCards"
+					@refresh="onBoardRefresh"
 					@close="openedCard = null" />
 				</div>
 			</template>
@@ -713,29 +713,10 @@ export default {
 				title,
 				column,
 			})
-			// Default priority 3 (Alain, 2026-07-18). The create endpoint doesn't
-			// take a priority, so set it with a follow-up update, preserving the
-			// rest of the new card.
-			const c = res.data && res.data.card
-			if (c && c.id) {
-				try {
-					await axios.put(
-						this.url('/boards/' + encodeURIComponent(this.currentId) + '/cards/' + encodeURIComponent(c.id)),
-						{
-							title: c.title,
-							description: c.description || '',
-							start_date: c.start_date || '',
-							due_date: c.due_date || '',
-							assignees: c.assignees || [],
-							priority: '3',
-							tags: c.tags || [],
-							phase: c.phase != null ? String(c.phase) : '',
-						},
-					)
-				} catch (e) {
-					// Best effort: the card exists even if the priority didn't stick.
-				}
-			}
+			// No default priority (Steve, 2026-07-20, carte b108bf): a new card starts
+			// with NO priority, so the priority sort stays honest — a card is ranked
+			// only once someone deliberately sets one. It used to be forced to 3 by a
+			// follow-up update, which made every new card claim urgency 3.
 			await this.loadCards()
 		},
 

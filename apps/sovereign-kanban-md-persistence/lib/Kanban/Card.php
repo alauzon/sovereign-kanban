@@ -55,6 +55,10 @@ final class Card {
 		public readonly array $relations = [],
 		public readonly ?string $linked_board = null,
 		public readonly array $extra = [],
+		// Optimistic-concurrency token, bumped on every repository update (Nisha,
+		// e0442c / carte 523b3b). A stale card edit — one carrying an older rev —
+		// is refused rather than silently overwriting a concurrent change.
+		public readonly int $rev = 0,
 	) {
 	}
 
@@ -68,7 +72,7 @@ final class Card {
 	private const KNOWN_KEYS = [
 		'id', 'title', 'column', 'created_at', 'assignees', 'due_date',
 		'start_date', 'procedures', 'priority', 'tags', 'phase', 'completed_at',
-		'author', 'color', 'archived', 'relations', 'linked_board',
+		'author', 'color', 'archived', 'relations', 'linked_board', 'rev',
 		// Legacy French spellings: read, never written. Files created before
 		// 2026-07-15 carry them; they migrate silently on the next app write.
 		'procédures', 'priorité', 'étiquettes',
@@ -126,6 +130,7 @@ final class Card {
 			relations: $this->relations,
 			linked_board: $this->linked_board,
 			extra: $this->extra,
+			rev: $this->rev,
 		);
 	}
 
@@ -158,6 +163,25 @@ final class Card {
 			relations: array_values($relations),
 			linked_board: $this->linked_board,
 			extra: $this->extra,
+			rev: $this->rev,
+		);
+	}
+
+	/**
+	 * Return a copy at a given revision. Set only by the repository on update;
+	 * every other wither carries the current rev through unchanged.
+	 */
+	public function withRev(int $rev): self {
+		return new self(
+			id: $this->id, title: $this->title, column: $this->column,
+			description: $this->description, created_at: $this->created_at,
+			assignees: $this->assignees, due_date: $this->due_date,
+			procedures: $this->procedures, priority: $this->priority,
+			tags: $this->tags, phase: $this->phase, start_date: $this->start_date,
+			completed_at: $this->completed_at, author: $this->author,
+			color: $this->color, archived: $this->archived,
+			relations: $this->relations, linked_board: $this->linked_board,
+			extra: $this->extra, rev: $rev,
 		);
 	}
 
@@ -202,6 +226,7 @@ final class Card {
 			relations: self::normalizeRelations($frontmatter['relations'] ?? []),
 			linked_board: (isset($frontmatter["linked_board"]) && $frontmatter["linked_board"] !== "") ? (string) $frontmatter["linked_board"] : null,
 			extra: array_diff_key($frontmatter, array_flip(self::KNOWN_KEYS)),
+			rev: (int) ($frontmatter["rev"] ?? 0),
 		);
 	}
 
@@ -330,6 +355,7 @@ final class Card {
 			'archived' => $this->archived,
 			'relations' => $this->relations,
 			'linked_board' => $this->linked_board,
+			'rev' => $this->rev,
 			'checklist' => $this->checklist(),
 			'excerpt' => $this->excerpt(),
 		];
@@ -449,6 +475,8 @@ final class Card {
 			$frontmatter['linked_board'] = $this->linked_board;
 
 		}
+
+		$frontmatter['rev'] = $this->rev;
 
 		if (!empty($this->relations)) {
 			$frontmatter['relations'] = array_values($this->relations);

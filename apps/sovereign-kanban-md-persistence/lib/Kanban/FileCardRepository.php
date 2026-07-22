@@ -161,13 +161,21 @@ final class FileCardRepository {
 	/**
 	 * Rewrite an existing card's card.md in place (keeps its directory).
 	 */
-	public function update(Card $card): void {
+	public function update(Card $card, ?int $expectedRev = null): void {
 		$dir = $this->findCardDir($card->column, $card->id);
 		if ($dir === null) {
 			throw new \RuntimeException('Card not found: ' . $card->id);
 		}
 
-		$this->storage->write($dir . '/card.md', $this->serialize($card));
+		// Optimistic concurrency (Nisha, carte 523b3b): refuse a stale write instead
+		// of silently overwriting a concurrent edit. The rev written is disk+1,
+		// computed here — never trusted from the incoming card, which may be stale.
+		// Passing null keeps the old unconditional behaviour (auto-save, helper).
+		$diskRev = $this->findById($card->id)?->rev ?? 0;
+		if ($expectedRev !== null && $expectedRev !== $diskRev) {
+			throw new CardConflictException($card->id, $expectedRev, $diskRev);
+		}
+		$this->storage->write($dir . '/card.md', $this->serialize($card->withRev($diskRev + 1)));
 	}
 
 	/**

@@ -96,7 +96,12 @@ export default {
 				this.$emit('saved')
 			} catch (e) {
 				if (e.response && e.response.status === 409 && e.response.data && e.response.data.error === 'conflict') {
-					this.error = this.t('La palette a été modifiée entre-temps. Recharge le tableau pour repartir de l’état à jour.')
+					// Blocking alert, NOT this.error: emitting 'saved' reloads the board
+					// and rebuilds this component, wiping any inline message before it is
+					// seen (Alain, 2026-07-21: « aucun message d'erreur »). Alert first,
+					// then reload once it is acknowledged.
+					// eslint-disable-next-line no-alert
+					window.alert(this.t('La palette a été modifiée par quelqu’un d’autre. Le tableau va être rechargé — refais ton geste.'))
 					this.$emit('saved')
 				} else {
 					this.error = this.t('Erreur à l’enregistrement de la palette.')
