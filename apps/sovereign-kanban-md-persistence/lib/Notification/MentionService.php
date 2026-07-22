@@ -173,6 +173,22 @@ final class MentionService {
 			}
 		}
 
+		// Also recognize the canonical Nextcloud Text mention markdown, produced when
+		// a mention is inserted as a rich node: @[Label](mention://user/<uid>), the uid
+		// URI-encoded (Alain, 2026-07-22, from the Text editor contract). The plain
+		// forms above miss it entirely, so a node mention would notify no one.
+		if (preg_match_all('#@\[[^\]]*\]\(mention://user/([^)]+)\)#u', $text, $mm)) {
+			foreach ($mm[1] as $encoded) {
+				$uid = rawurldecode($encoded);
+				if ($uid === $authorUid || in_array($uid, $out, true) || !isset($accessibleUids[$uid])) {
+					continue;
+				}
+				if ($this->userManager->get($uid) !== null) {
+					$out[] = $uid;
+				}
+			}
+		}
+
 		return $out;
 	}
 

@@ -28,6 +28,7 @@ return [
 		['name' => 'card#activity', 'url' => '/api/v1/boards/{boardId}/cards/{cardId}/activity', 'verb' => 'GET'],
 		// The whole board's journal, every card folded together (Steve, 2026-07-20).
 		['name' => 'card#boardActivity', 'url' => '/api/v1/boards/{boardId}/activity', 'verb' => 'GET'],
+		['name' => 'card#members', 'url' => '/api/v1/boards/{boardId}/members', 'verb' => 'GET'],
 		['name' => 'card#addRelation', 'url' => '/api/v1/boards/{boardId}/cards/{cardId}/relations', 'verb' => 'POST'],
 		['name' => 'card#removeRelation', 'url' => '/api/v1/boards/{boardId}/cards/{cardId}/relations/{target}', 'verb' => 'DELETE'],
 		['name' => 'presence#heartbeat', 'url' => '/api/v1/boards/{boardId}/presence', 'verb' => 'POST'],

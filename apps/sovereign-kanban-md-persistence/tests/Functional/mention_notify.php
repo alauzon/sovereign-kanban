@@ -84,6 +84,10 @@ try {
 	check('[9] s’assigner soi-même ne notifie pas', $a2 === []);
 	$a3 = $service->notifyAssignees('board1', $testCard, 'Ma carte', ['personne-sans-acces'], $author, $access);
 	check('[10] assigner quelqu’un SANS accès ne notifie de rien', $a3 === []);
+
+	// ---- canonical NC Text mention markdown: @[Label](mention://user/uid) ----
+	$c1 = $service->notifyMentions('board1', $testCard, 'Ma carte', 'coucou @[Steve Lauzier](mention://user/StevLauz) !', $author, $access);
+	check('[11] la mention canonique @[…](mention://user/uid) est reconnue', $c1 === [$target], 'notifiés: [' . implode(', ', $c1) . ']');
 } finally {
 	// Remove the real notifications this test pushed to StevLauz.
 	$cleanup = $manager->createNotification();

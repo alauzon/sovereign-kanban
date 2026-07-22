@@ -830,6 +830,30 @@ final class CardController extends Controller {
 	 * @return array{id: string, title: string, column: string, description: string, due_date: ?string, start_date: ?string, assignees: list<string>, procedures: list<string>, priority: ?string, tags: list<string>, phase: ?int}
 	 */
 	/**
+	 * The board's members, for the comment/description @mention autocomplete — the
+	 * exact set a mention can notify, so the dropdown never offers a stranger who
+	 * would silently drop (Alain, 2026-07-22). Same source as the notifier's access
+	 * check: accessibleUidsForBoard.
+	 *
+	 * @return DataResponse [{uid, displayName}], the current user excluded (you do
+	 *   not @mention yourself).
+	 */
+	#[NoAdminRequired]
+	#[NoCSRFRequired]
+	public function members(string $boardId): DataResponse {
+		$me = $this->userSession->getUser()?->getUID();
+		$members = [];
+		foreach ($this->accessibleUidsForBoard($boardId) as $uid => $displayName) {
+			if ((string) $uid === (string) $me) {
+				continue;
+			}
+			$members[] = ['uid' => (string) $uid, 'displayName' => (string) $displayName];
+		}
+
+		return new DataResponse(['members' => $members]);
+	}
+
+	/**
 	 * uid => display name of everyone who can see a board, so a @mention only ever
 	 * notifies someone with access (carte 78fc32). Owner path lists the shares and
 	 * expands groups; an invitee (who cannot list shares) resolves at least the

@@ -32,6 +32,26 @@
 					class="sk-comment-input"
 					rows="3"
 					:placeholder="t('Commentaire (Markdown)…')" />
+				<div v-if="members.length" class="sk-comment-mentionrow">
+					<NcSelect
+						class="sk-comment-mention"
+						:options="members"
+						:model-value="mentionValue"
+						:user-select="true"
+						:filterable="true"
+						label="label"
+						input-label=""
+						:placeholder="t('Mentionner un membre…')"
+						:aria-label-combobox="t('Mentionner un membre du tableau')"
+						@option:selected="mention">
+						<template #option="option">
+							<span class="sk-mention-opt">
+								<NcAvatar :user="option.id" :size="24" :hide-status="true" :disable-menu="true" />
+								<span class="sk-mention-name">{{ option.label }}</span>
+							</span>
+						</template>
+					</NcSelect>
+				</div>
 				<div class="sk-comment-editactions">
 					<NcButton type="primary" :disabled="posting" @click="submit">
 						{{ t('Commenter') }}
@@ -80,13 +100,15 @@
 <script>
 import axios from '@nextcloud/axios'
 import { generateUrl } from '@nextcloud/router'
+import NcAvatar from '@nextcloud/vue/components/NcAvatar'
 import NcButton from '@nextcloud/vue/components/NcButton'
+import NcSelect from '@nextcloud/vue/components/NcSelect'
 import { loadTextEditor } from '../text-editor.js'
 
 export default {
 	name: 'CommentsSection',
 
-	components: { NcButton },
+	components: { NcAvatar, NcButton, NcSelect },
 
 	props: {
 		boardId: { type: String, required: true },
@@ -105,6 +127,11 @@ export default {
 			editingId: null,
 			editDraft: '',
 			savingEdit: false,
+			// Board members for the @mention picker ({id: uid, label: displayName}).
+			// The NC rich editor won't feed custom @ suggestions in our mode, so we
+			// offer them through a picker instead (Alain, 2026-07-22, option B).
+			members: [],
+			mentionValue: null,
 		}
 	},
 
@@ -149,6 +176,7 @@ export default {
 		async startAdd() {
 			this.adding = true
 			this.draft = ''
+			this.loadMembers()
 			await this.$nextTick()
 			const createEditor = await loadTextEditor()
 			if (!createEditor || !this.$refs.editorEl) {
@@ -170,6 +198,51 @@ export default {
 			} catch (e) {
 				this.editorMounted = false
 			}
+		},
+
+		// The board members a mention can reach (the notifier's access set). Fetched
+		// once per add so the picker only ever offers someone who would be notified.
+		async loadMembers() {
+			if (this.members.length) {
+				return
+			}
+			try {
+				const res = await axios.get(generateUrl(
+					'/apps/sovereign-kanban-md-persistence/api/v1/boards/'
+					+ encodeURIComponent(this.boardId) + '/members',
+				))
+				this.members = (res.data.members || []).map((m) => ({ id: m.uid, label: m.displayName }))
+			} catch (e) {
+				this.members = []
+			}
+		},
+
+		// Insert a mention where the cursor is. In the rich editor we insert a real
+		// mention node ({id,label}) — it renders as a chip and serializes to the
+		// canonical @[label](mention://user/uid) the server parses. Textarea fallback:
+		// append that same markdown. Reset the picker so it shows the placeholder again.
+		mention(option) {
+			if (!option || !option.id) {
+				this.mentionValue = null
+				return
+			}
+			const canonical = '@[' + option.label + '](mention://user/' + encodeURIComponent(option.id) + ') '
+			let inserted = false
+			if (this.editorMounted && this.editorInstance && typeof this.editorInstance.insertAtCursor === 'function') {
+				try {
+					this.editorInstance.insertAtCursor([
+						{ type: 'mention', attrs: { id: option.id, label: option.label } },
+						{ type: 'text', text: ' ' },
+					])
+					inserted = true
+				} catch (e) {
+					inserted = false
+				}
+			}
+			if (!inserted) {
+				this.draft = (this.draft ? this.draft.replace(/\s*$/, '') + ' ' : '') + canonical
+			}
+			this.mentionValue = null
 		},
 
 		async cancelAdd() {
@@ -281,6 +354,28 @@ export default {
 .sk-comment-input {
 	width: 100%;
 	box-sizing: border-box;
+}
+
+.sk-comment-mentionrow {
+	margin-top: 6px;
+	max-width: 320px;
+}
+
+.sk-comment-mention {
+	width: 100%;
+}
+
+.sk-mention-opt {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+}
+
+.sk-mention-name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .sk-comment-editactions {
