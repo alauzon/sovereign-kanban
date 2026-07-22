@@ -352,6 +352,29 @@ final class CardController extends Controller {
 			$repository->appendActivity($card->id, 'updated', $actor, ['fields' => $changed]);
 		}
 
+		// Same clickable notification as a comment mention, on two more triggers
+		// (Alain, 2026-07-22): a @mention newly added to the DESCRIPTION (link opens
+		// Détails), and a member newly ASSIGNED to the card. Best-effort: a
+		// notification failure must never break the card edit.
+		if ($actor !== null && $actor !== '') {
+			try {
+				$accessible = $this->accessibleUidsForBoard($boardId);
+				if ($description !== null && $description !== $card->description) {
+					$this->mentionService->notifyNewMentions(
+						$boardId, $cardId, $newTitle, $description, $card->description, $actor, $accessible, 'details',
+					);
+				}
+				$addedAssignees = array_values(array_diff($newAssignees, $card->assignees));
+				if ($addedAssignees !== []) {
+					$this->mentionService->notifyAssignees(
+						$boardId, $cardId, $newTitle, $addedAssignees, $actor, $accessible,
+					);
+				}
+			} catch (\Throwable) {
+				// swallowed on purpose
+			}
+		}
+
 		return new DataResponse(['card' => $this->detail($updated, $repository)]);
 	}
 

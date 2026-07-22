@@ -70,6 +70,20 @@ try {
 	// ---- notify: the author mentions himself ----
 	$n3 = $service->notifyMentions('board1', $testCard, 'Ma carte', '@StevLauz coucou', $target, $access);
 	check('[5] l’auteur n’est pas notifié de sa propre mention', $n3 === []);
+
+	// ---- description delta: notify only mentions ADDED since the previous text ----
+	$d1 = $service->notifyNewMentions('board1', $testCard, 'Ma carte', 'desc @StevLauz', '', $author, $access, 'details');
+	check('[6] une mention ajoutée à la description notifie', $d1 === [$target], 'notifiés: [' . implode(', ', $d1) . ']');
+	$d2 = $service->notifyNewMentions('board1', $testCard, 'Ma carte', 'desc @StevLauz encore', 'desc @StevLauz', $author, $access, 'details');
+	check('[7] une mention DÉJÀ présente ne re-notifie pas', $d2 === [], 'notifiés: [' . implode(', ', $d2) . ']');
+
+	// ---- assignment: notify a newly-assigned member with access ----
+	$a1 = $service->notifyAssignees('board1', $testCard, 'Ma carte', [$target], $author, $access);
+	check('[8] un membre nouvellement assigné est notifié', $a1 === [$target], 'notifiés: [' . implode(', ', $a1) . ']');
+	$a2 = $service->notifyAssignees('board1', $testCard, 'Ma carte', [$author], $author, $access);
+	check('[9] s’assigner soi-même ne notifie pas', $a2 === []);
+	$a3 = $service->notifyAssignees('board1', $testCard, 'Ma carte', ['personne-sans-acces'], $author, $access);
+	check('[10] assigner quelqu’un SANS accès ne notifie de rien', $a3 === []);
 } finally {
 	// Remove the real notifications this test pushed to StevLauz.
 	$cleanup = $manager->createNotification();
