@@ -180,6 +180,9 @@
 				<button type="button" class="sk-col-menu-item" @click="archiveColumnFromMenu(menuColumn)">
 					📦 {{ t('Archiver toutes les cartes') }}
 				</button>
+				<button type="button" class="sk-col-menu-item" @click="unarchiveColumnFromMenu(menuColumn)">
+					📤 {{ t('Désarchiver toutes les cartes') }}
+				</button>
 				<button type="button" class="sk-col-menu-item sk-col-menu-danger" @click="removeColumnFromMenu(menuColumn)">
 					🗑 {{ t('Supprimer la liste') }}
 				</button>
@@ -254,7 +257,7 @@ export default {
 		showId: { type: Boolean, default: false },
 	},
 
-	emits: ['open', 'add-card', 'move-card', 'add-from-template', 'add-column', 'rename-column', 'remove-column', 'reorder-column', 'toggle-done', 'delete-card', 'mark-column-done', 'rename-card', 'set-card-color', 'archive-card', 'archive-column'],
+	emits: ['open', 'add-card', 'move-card', 'add-from-template', 'add-column', 'rename-column', 'remove-column', 'reorder-column', 'toggle-done', 'delete-card', 'mark-column-done', 'rename-card', 'set-card-color', 'archive-card', 'archive-column', 'unarchive-column'],
 
 	data() {
 		return {
@@ -395,6 +398,11 @@ export default {
 
 		archiveColumnFromMenu(column) {
 			this.$emit('archive-column', column)
+			this.menuColumn = null
+		},
+
+		unarchiveColumnFromMenu(column) {
+			this.$emit('unarchive-column', column)
 			this.menuColumn = null
 		},
 

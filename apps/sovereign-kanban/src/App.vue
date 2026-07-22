@@ -279,7 +279,8 @@
 					@rename-card="renameCardTitle"
 					@set-card-color="setCardColor"
 					@archive-card="archiveCard"
-					@archive-column="archiveColumn" />
+					@archive-column="archiveColumn"
+					@unarchive-column="unarchiveColumn" />
 				</div>
 
 				<BoardPanel
@@ -853,6 +854,27 @@ export default {
 			} catch (e) {
 				// eslint-disable-next-line no-alert
 				window.alert(this.t('Impossible d\'archiver les cartes de la liste.'))
+			}
+		},
+
+		// Symmetric to archiveColumn (Steve, ee60e9): clear archived on every archived
+		// card of the column. cardsByColumn holds archived cards regardless of the
+		// « Afficher les archivées » toggle (that filter is display-only), so this
+		// works even when they are hidden.
+		async unarchiveColumn(column) {
+			const cards = (this.cardsByColumn[column] || []).filter((c) => c.archived)
+			if (!cards.length) {
+				return
+			}
+			try {
+				await Promise.all(cards.map((c) => axios.put(
+					this.url('/boards/' + encodeURIComponent(this.currentId) + '/cards/' + encodeURIComponent(c.id)),
+					{ archived: '' },
+				)))
+				await this.loadCards()
+			} catch (e) {
+				// eslint-disable-next-line no-alert
+				window.alert(this.t('Impossible de désarchiver les cartes de la liste.'))
 			}
 		},
 
