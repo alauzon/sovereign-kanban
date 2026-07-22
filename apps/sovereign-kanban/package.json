@@ -12,7 +12,8 @@
     "dev": "vite --mode development build",
     "watch": "vite --mode development build --watch",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@nextcloud/axios": "^2.6.0",
@@ -23,6 +24,7 @@
   },
   "devDependencies": {
     "@nextcloud/vite-config": "^2.5.4",
+    "@playwright/test": "^1.61.1",
     "@vitejs/plugin-vue": "^6.0.8",
     "@vue/test-utils": "^2.4.11",
     "browserslist": "^4.28.6",
