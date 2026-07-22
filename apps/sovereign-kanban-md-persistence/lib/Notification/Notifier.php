@@ -52,6 +52,19 @@ final class Notifier implements INotifier {
 			return $notification;
 		}
 
+		if ($notification->getSubject() === 'card_mention') {
+			// « X vous a mentionné sur la carte Y » (carte 78fc32). Link to the board
+			// via the SPA hash; the deep link to the exact card follows with 6ef9a7.
+			$author = $params['author'] ?? '';
+			$title = $params['title'] ?? '';
+			$board = $params['board'] ?? '';
+			$notification
+				->setParsedSubject($author . ' vous a mentionné sur la carte « ' . $title . ' »')
+				->setLink($this->url->linkToRouteAbsolute('sovereign-kanban.page.index')
+					. ($board !== '' ? '#' . rawurlencode($board) : ''));
+			return $notification;
+		}
+
 		if ($notification->getSubject() !== 'card_due') {
 			throw new UnknownNotificationException();
 		}
