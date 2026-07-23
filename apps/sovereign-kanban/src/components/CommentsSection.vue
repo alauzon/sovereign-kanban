@@ -217,30 +217,31 @@ export default {
 			}
 		},
 
-		// Insert a mention where the cursor is. In the rich editor we insert a real
-		// mention node ({id,label}) — it renders as a chip and serializes to the
-		// canonical @[label](mention://user/uid) the server parses. Textarea fallback:
-		// append that same markdown. Reset the picker so it shows the placeholder again.
+		// Insert « @Display Name » at the cursor. The Text editor's own insert API
+		// (insertAtCursor / a mention node) is a NO-OP in our useSession:false mode —
+		// its internal `editor` handle is null once the picker steals focus, verified
+		// in a real browser (Alain, 2026-07-22). What DOES work is re-focusing the
+		// ProseMirror element and letting execCommand feed it an input event, so we
+		// insert plain text the server matches by display name. Textarea fallback:
+		// append to the draft. Reset the picker so it shows the placeholder again.
 		mention(option) {
 			if (!option || !option.id) {
 				this.mentionValue = null
 				return
 			}
-			const canonical = '@[' + option.label + '](mention://user/' + encodeURIComponent(option.id) + ') '
+			const text = '@' + option.label + ' '
 			let inserted = false
-			if (this.editorMounted && this.editorInstance && typeof this.editorInstance.insertAtCursor === 'function') {
+			const pm = this.$refs.editorEl && this.$refs.editorEl.querySelector('.ProseMirror')
+			if (this.editorMounted && pm && typeof document.execCommand === 'function') {
 				try {
-					this.editorInstance.insertAtCursor([
-						{ type: 'mention', attrs: { id: option.id, label: option.label } },
-						{ type: 'text', text: ' ' },
-					])
-					inserted = true
+					pm.focus()
+					inserted = document.execCommand('insertText', false, text)
 				} catch (e) {
 					inserted = false
 				}
 			}
 			if (!inserted) {
-				this.draft = (this.draft ? this.draft.replace(/\s*$/, '') + ' ' : '') + canonical
+				this.draft = (this.draft ? this.draft.replace(/\s*$/, '') + ' ' : '') + text
 			}
 			this.mentionValue = null
 		},

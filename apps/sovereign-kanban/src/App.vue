@@ -402,6 +402,10 @@ export default {
 			// Tab CardDetail should open on — set by a deep link (#board/card/tab),
 			// empty for a normal click (Alain, 2026-07-22).
 			openedCardTab: '',
+			// False until the first board load (and any deep-linked card) has settled,
+			// so onHashChange ignores the transient hash churn of booting a
+			// #board/card cold load (Alain, 2026-07-22).
+			hashReady: false,
 			// The board's own side panel. It shares the right-hand dock with
 			// CardDetail, so the two are mutually exclusive (Steve, 2026-07-20).
 			boardPanelOpen: false,
@@ -533,8 +537,16 @@ export default {
 			if (id) {
 				// Reflect the open board in the URL (#<board>) so it is shareable and
 				// survives a refresh; the « Ouvrir → » button of a carte-tableau just
-				// sets this hash (Alain, 2026-07-20).
-				const hash = '#' + encodeURIComponent(id)
+				// sets this hash (Alain, 2026-07-20). But PRESERVE a deep-linked card
+				// already in the hash for THIS board (cold load of #<board>/<card>):
+				// overwriting it with a bare #<board> fires a hashchange that closes
+				// the just-opened card — the shareable-link bug (Alain, 2026-07-22).
+				const parsed = this.parseHash()
+				const keepCard = parsed.board === id && parsed.card
+				const hash = keepCard
+					? '#' + encodeURIComponent(id) + '/' + encodeURIComponent(parsed.card)
+						+ (parsed.tab ? '/' + parsed.tab : '')
+					: '#' + encodeURIComponent(id)
 				if (window.location.hash !== hash) {
 					window.location.hash = hash
 				}
@@ -687,13 +699,15 @@ export default {
 					// Deep link from a @mention notification: open the card on its tab
 					// once the chosen board's cards are loaded (Alain, 2026-07-22).
 					if (has(fromHash) && cardHash) {
-						this.openCardFromHash(cardHash, tabHash)
+						await this.openCardFromHash(cardHash, tabHash)
 					}
 				}
 			} catch (e) {
 				this.boards = []
 			} finally {
 				this.loading = false
+				// Boot settled: from now on, hash changes are real navigations to react to.
+				this.hashReady = true
 			}
 		},
 
@@ -721,12 +735,12 @@ export default {
 		// Open (or close) the card named in the hash, on the named tab. Idempotent:
 		// re-opening the already-open card is a no-op, so the hash we write ourselves
 		// when a card opens doesn't loop back (Alain, 2026-07-22).
-		openCardFromHash(cardId, tab) {
+		async openCardFromHash(cardId, tab) {
 			const openId = this.openedCard && this.openedCard.id
 			if (cardId && cardId !== openId) {
 				const card = this.allCards.find((c) => c.id === cardId)
 				if (card) {
-					this.openCard(card, tab || '')
+					await this.openCard(card, tab || '')
 				}
 			} else if (!cardId && this.openedCard) {
 				this.openedCard = null
@@ -737,6 +751,13 @@ export default {
 		// button of a carte-tableau and a @mention notification both navigate by just
 		// setting window.location.hash (Alain, 2026-07-20 / 2026-07-22).
 		async onHashChange() {
+			// Ignore the transient hash churn during the initial boot: select() sets
+			// openedCard=null and its watcher writes #<board>, whose hashchange would
+			// otherwise close the deep-linked card before loadBoards opens it — the
+			// shareable-link cold-load bug (Alain, 2026-07-22).
+			if (!this.hashReady) {
+				return
+			}
 			const { board, card, tab } = this.parseHash()
 			if (board && board !== this.currentId && this.boards.some((b) => b.id === board)) {
 				await this.select(board)

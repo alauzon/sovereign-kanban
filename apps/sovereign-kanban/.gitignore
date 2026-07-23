@@ -1,3 +1,5 @@
 
 e2e/.auth/
 e2e/.env
+test-results/
+playwright-report/
