@@ -345,7 +345,7 @@ export default {
 			assigneeTimer: null,
 			selectedTags: [...(this.card.tags || [])],
 			priorities: ['1', '2', '3', '4', '5'],
-			phases: ['1', '2', '3', '4'],
+			phases: ['1', '2', '3', '4', '5'],
 			saving: false,
 			creatingBoard: false,
 			error: '',

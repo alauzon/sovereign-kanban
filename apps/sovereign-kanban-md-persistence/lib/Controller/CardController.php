@@ -240,7 +240,7 @@ final class CardController extends Controller {
 			$newTags = array_values(array_filter(array_map('trim', $tags), static fn ($t) => $t !== ''));
 		}
 
-		// phase: null = leave, '' = clear, else set (1-4 expected).
+		// phase: null = leave, '' = clear, else set (1-5 expected).
 		$newPhase = $card->phase;
 		if ($phase !== null) {
 			$newPhase = ($phase === '') ? null : (int) $phase;

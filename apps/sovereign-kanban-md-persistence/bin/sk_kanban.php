@@ -19,7 +19,7 @@
  *   done  <boardId> <cardId>                # move to the board's last column
  *   comment  <boardId> <cardId> [texte]        # liste, ou ajoute un commentaire
  *   priority <boardId> <cardId> <1-5|clear>    # 1 = urgent … 5 = bas
- *   phase    <boardId> <cardId> <1-4|clear>
+ *   phase    <boardId> <cardId> <1-5|clear>
  *   relate   <boardId> <cardId> <cibleId> <type>   # child|parent|depends|required|related
  *   tag      <boardId> <cardId> add|rm <étiquette>
  *
@@ -306,12 +306,12 @@ try {
 		}
 
 		case 'phase': {
-			$boardId = $pos[1] ?? fail('usage: phase <boardId> <cardId> <1-4|clear>');
+			$boardId = $pos[1] ?? fail('usage: phase <boardId> <cardId> <1-5|clear>');
 			$cardArg = $pos[2] ?? fail('phase: <cardId> requis');
-			$value = $pos[3] ?? fail('phase: 1-4 ou « clear »');
+			$value = $pos[3] ?? fail('phase: 1-5 ou « clear »');
 			$ph = ($value === 'clear' || $value === '') ? null : (int) $value;
-			if ($ph !== null && ($ph < 1 || $ph > 4)) {
-				fail('phase: 1 à 4, ou « clear »');
+			if ($ph !== null && ($ph < 1 || $ph > 5)) {
+				fail('phase: 1 à 5, ou « clear »');
 			}
 			$repo = cardRepoFor($kanban, $boardId);
 			$card = findCard($repo, $cardArg);
