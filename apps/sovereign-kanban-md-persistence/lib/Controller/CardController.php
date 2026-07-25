@@ -872,35 +872,53 @@ final class CardController extends Controller {
 		}
 		try {
 			foreach ($this->shareService->listShares($boardId) as $share) {
-				if (($share['type'] ?? '') === 'user') {
-					$u = $this->userManager->get((string) $share['with']);
-					if ($u !== null) {
-						$out[$u->getUID()] = $u->getDisplayName() ?: $u->getUID();
-					}
-				} elseif (($share['type'] ?? '') === 'group') {
-					$g = $this->groupManager->get((string) $share['with']);
-					foreach ($g?->getUsers() ?? [] as $u) {
-						$out[$u->getUID()] = $u->getDisplayName() ?: $u->getUID();
-					}
-				} elseif (($share['type'] ?? '') === 'team') {
-					foreach ($this->teamResolver->memberUids((string) $share['with']) as $uid => $label) {
-						$out[$uid] = $label;
-					}
-				}
+				$this->addPrincipal($out, (string) ($share['type'] ?? ''), (string) ($share['with'] ?? ''));
 			}
 		} catch (\Throwable) {
-			// Not the owner: resolve at least the owner of this received board.
-			foreach ($this->shareService->receivedBoards() as $b) {
-				if (($b['id'] ?? '') === $boardId && !empty($b['owner'])) {
-					$o = $this->userManager->get((string) $b['owner']);
-					if ($o !== null) {
-						$out[$o->getUID()] = $o->getDisplayName() ?: $o->getUID();
-					}
+			// Not the owner: an invitee can't listShares. Rebuild the access set
+			// from the channels THEY received the board through, so the picker
+			// offers co-members, not just the owner (Alain saw only Steve — the
+			// invitee side of the 2026-07-25 team-mention fix).
+			foreach ($this->receivedLocator->receivedPrincipals($boardId) as $p) {
+				$owner = $this->userManager->get((string) $p['owner']);
+				if ($owner !== null) {
+					$out[$owner->getUID()] = $owner->getDisplayName() ?: $owner->getUID();
 				}
+				$this->addPrincipal($out, (string) $p['type'], (string) $p['with']);
 			}
 		}
 
 		return $out;
+	}
+
+	/**
+	 * Add a share principal's user accounts to the access set, by type.
+	 *
+	 * The owner path (listShares) and the invitee path (receivedPrincipals)
+	 * expand principals identically — one place so a group/team handled one way
+	 * can't drift from the other.
+	 *
+	 * @param array<string,string> $out uid => display name, mutated in place.
+	 */
+	private function addPrincipal(array &$out, string $type, string $with): void {
+		if ($with === '') {
+			return;
+		}
+		if ($type === 'user') {
+			$u = $this->userManager->get($with);
+			if ($u !== null) {
+				$out[$u->getUID()] = $u->getDisplayName() ?: $u->getUID();
+			}
+		} elseif ($type === 'group') {
+			$g = $this->groupManager->get($with);
+			foreach ($g?->getUsers() ?? [] as $u) {
+				$out[$u->getUID()] = $u->getDisplayName() ?: $u->getUID();
+			}
+		} elseif ($type === 'team') {
+			foreach ($this->teamResolver->memberUids($with) as $uid => $label) {
+				$out[$uid] = $label;
+			}
+		}
 	}
 
 	private function detail(Card $card, ?FileCardRepository $repository = null): array {

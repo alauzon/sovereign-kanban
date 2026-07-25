@@ -10,9 +10,20 @@
  * cachait silencieusement. accessibleUidsForBoard n'étendait que user+group ;
  * le type 'team' tombait dans le vide (« come later » du docblock).
  *
- * Ce test crée un cercle jetable (Test 1 propriétaire, Test 2 membre), partage
- * un tableau jetable UNIQUEMENT via ce cercle, et vérifie que members() du
- * propriétaire contient Test 2. Rouge avant le correctif, vert après.
+ * Ce test crée un cercle jetable (Test 1 propriétaire, Test 2 + un tiers
+ * membres), partage un tableau jetable UNIQUEMENT via ce cercle, et vérifie que
+ * members() liste toute l'équipe — pour le PROPRIÉTAIRE (le bug de Steve) ET
+ * pour un INVITÉ (Alain, invité, ne voyait que Steve — 2026-07-25). Deux volets
+ * du correctif, chacun rouge avant / vert après.
+ *
+ * PIÈGES CIRCLES (durement gagnés sur 211, 2026-07-25) :
+ *  - addMember juste après createCircle échoue « Insufficient rights » tant que
+ *    la propriété n'est pas confirmée → rouvrir la session en forceSync d'abord.
+ *  - une session NC active (actAs) fausse la résolution de l'initiateur Circles
+ *    pour les ops privilégiées (add/destroy) → monter le cercle AVANT tout actAs,
+ *    et vider la session NC avant de détruire le cercle.
+ *  - detruire un cercle puis en créer un dans le même process meurt (course
+ *    d'événement fédéré) → nom unique par run, tout le destroy en toute fin.
  *
  * Nextcloud bufferise stdout en CLI et avale les fatals — flush pour voir.
  *
@@ -47,14 +58,18 @@ register_shutdown_function(function () use (&$completed) {
 
 $OWNER = 'Test 1';
 $RECIPIENT = 'Test 2';
+// A THIRD circle member, neither owner nor the invitee under test — proves an
+// invitee sees co-members, not just the board owner (Alain saw only Steve).
+$THIRD = 'test@alainlauzon.com';
 $BOARD = 'zzz-e2e-team-mentions';
-$CIRCLE_NAME = 'zzz-e2e-team-mentions';
+$CIRCLE_PREFIX = 'zzz-e2e-team-mentions';
+$CIRCLE_NAME = $CIRCLE_PREFIX . '-' . substr(md5(uniqid('', true)), 0, 8);
 
 $server = \OC::$server;
 $userManager = $server->get(\OCP\IUserManager::class);
 $appManager = $server->get(\OCP\App\IAppManager::class);
 
-foreach ([$OWNER, $RECIPIENT] as $uid) {
+foreach ([$OWNER, $RECIPIENT, $THIRD] as $uid) {
 	if ($userManager->get($uid) === null) {
 		fwrite(STDERR, "FATAL: compte '$uid' absent (lancer sur CT211)\n");
 		$completed = true;
@@ -80,6 +95,13 @@ function actAs(string $uid): void {
 	\OC_User::setUserId($uid);
 	\OC_Util::tearDownFS();
 	\OC_Util::setupFS($uid);
+}
+
+/** Drop the NC user session — Circles privileged ops need no stale initiator. */
+function clearSession(): void {
+	\OC::$server->get(\OCP\IUserSession::class)->setUser(null);
+	\OC_User::setUserId(null);
+	\OC_Util::tearDownFS();
 }
 
 function check(string $label, bool $ok, string $detail = ''): void {
@@ -109,15 +131,16 @@ function dropBoard(BoardController $boardCtrl, string $boardId): void {
 	}
 }
 
-/** Détruit tout cercle jetable résiduel d'un run précédent (par NOM exact). */
-function dropCircles(CirclesManager $cm, string $ownerUid, string $name): void {
+/** Détruit tout cercle jetable (le nôtre + restes de runs morts) par PRÉFIXE.
+ *  À n'appeler qu'en TOUTE FIN : destroy→exit, jamais destroy→create. */
+function dropCircles(CirclesManager $cm, string $ownerUid, string $prefix): void {
 	try {
 		$fed = $cm->getFederatedUser($ownerUid, Member::TYPE_USER);
 		$cm->startSession($fed);
 		$probe = new CircleProbe();
 		$probe->mustBeMember();
 		foreach ($cm->getCircles($probe) as $c) {
-			if ($c->getName() === $name) {
+			if (str_starts_with($c->getName(), $prefix)) {
 				$cm->destroyCircle($c->getSingleId());
 			}
 		}
@@ -131,61 +154,67 @@ $cardCtrl = $server->get(CardController::class);
 $shareService = $server->get(BoardShareService::class);
 $circlesManager = $server->get(CirclesManager::class);
 
-// --- 0. nettoyer les restes d'un run précédent ------------------------------
+// --- 1. cercle Test 1 (proprio) + Test 2 + tiers — AVANT tout actAs ---------
 
-echo "\n[0] Nettoyage des restes (en tant que $OWNER)\n";
-actAs($OWNER);
-dropBoard($boardCtrl, $BOARD);
-dropCircles($circlesManager, $OWNER, $CIRCLE_NAME);
-
-// --- 1. setup : cercle (Test 1 + Test 2) + tableau partagé SEULEMENT au cercle
-
-echo "[1] Setup cercle + tableau (en tant que $OWNER)\n";
-actAs($OWNER);
-
+echo "\n[1] Setup cercle (avant toute session NC)\n";
 $fedOwner = $circlesManager->getFederatedUser($OWNER, Member::TYPE_USER);
 $circlesManager->startSession($fedOwner);
 $circle = $circlesManager->createCircle($CIRCLE_NAME);
 $circleId = $circle->getSingleId();
-$fedRecipient = $circlesManager->getFederatedUser($RECIPIENT, Member::TYPE_USER);
-$circlesManager->addMember($circleId, $fedRecipient);
-echo "      cercle $CIRCLE_NAME ($circleId) : $OWNER propriétaire, $RECIPIENT membre\n";
+// forceSync : la propriété tout juste créée doit être confirmée avant addMember.
+$circlesManager->startSession($fedOwner, true);
+$circlesManager->addMember($circleId, $circlesManager->getFederatedUser($RECIPIENT, Member::TYPE_USER));
+$circlesManager->addMember($circleId, $circlesManager->getFederatedUser($THIRD, Member::TYPE_USER));
+echo "      cercle $CIRCLE_NAME ($circleId) : $OWNER proprio, $RECIPIENT + $THIRD membres\n";
 
+// --- 2. tableau partagé SEULEMENT au cercle (avec session NC) ----------------
+
+echo "[2] Setup tableau partagé au cercle (en tant que $OWNER)\n";
+actAs($OWNER);
+dropBoard($boardCtrl, $BOARD);
 $r = $boardCtrl->create('zzz e2e team mentions', '#2e8b57');
 check("le propriétaire crée le tableau ($BOARD) -> 201", status($r) === 201);
-
 $shareService->share($BOARD, 'team', $circleId, 'collaborate');
 echo "      $BOARD partagé au cercle (collaborate) — AUCUN partage direct\n";
 
-// --- 2. la liste de mention du propriétaire contient les membres du cercle --
+// --- 3. côté PROPRIÉTAIRE : toute l'équipe est offerte à la mention ----------
 
-echo "[2] members() du propriétaire (le bug de Steve)\n";
+echo "[3] members() du propriétaire (le bug de Steve)\n";
 actAs($OWNER);
 $uids = memberUids($cardCtrl, $BOARD);
 check(
-	'le membre du cercle est offert à la mention (le RED attendu avant correctif)',
+	'le propriétaire voit le membre du cercle',
 	isset($uids[$RECIPIENT]),
 	'obtenu: [' . implode(', ', array_keys($uids)) . ']'
 );
+check('le propriétaire voit aussi le tiers du cercle', isset($uids[$THIRD]));
 check('le propriétaire ne se mentionne pas lui-même', !isset($uids[$OWNER]));
 
-// --- 3. non-régression : l'invité (via cercle) résout au moins le propriétaire
+// --- 4. côté INVITÉ : toute l'équipe, pas seulement le propriétaire ----------
+// (Alain, invité sur le tableau de Steve, ne voyait que Steve — 2026-07-25.)
 
-echo "[3] members() de l'invité (repli existant — doit rester vert)\n";
+echo "[4] members() de l'invité (voir un AUTRE membre que le propriétaire)\n";
 actAs($RECIPIENT);
 $uids = memberUids($cardCtrl, $BOARD);
 check(
-	"l'invité via cercle voit au moins le propriétaire",
+	"l'invité voit le propriétaire du tableau",
 	isset($uids[$OWNER]),
 	'obtenu: [' . implode(', ', array_keys($uids)) . ']'
 );
+check(
+	"l'invité voit un AUTRE membre du cercle (pas que le propriétaire)",
+	isset($uids[$THIRD]),
+	'obtenu: [' . implode(', ', array_keys($uids)) . ']'
+);
+check('l\'invité ne se mentionne pas lui-même', !isset($uids[$RECIPIENT]));
 
-// --- 4. teardown ------------------------------------------------------------
+// --- 5. teardown : tableau (session NC), puis cercles (session NC vidée) -----
 
-echo "[4] Teardown\n";
+echo "[5] Teardown\n";
 actAs($OWNER);
 dropBoard($boardCtrl, $BOARD);
-dropCircles($circlesManager, $OWNER, $CIRCLE_NAME);
+clearSession();
+dropCircles($circlesManager, $OWNER, $CIRCLE_PREFIX);
 
 $completed = true;
 echo "\nRésultat : $pass PASS · $fail FAIL\n";
