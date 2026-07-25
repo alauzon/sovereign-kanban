@@ -66,3 +66,43 @@ describe('CommentsSection @mention picker', () => {
 		expect(w.vm.mentionValue).toBe(null)
 	})
 })
+
+describe('CommentsSection mention row visibility', () => {
+	// A board shared to nobody used to HIDE the picker with no explanation —
+	// indistinguishable from the team-share bug of 2026-07-25. The empty state
+	// must say why, and only once the fetch has actually answered.
+	async function startAdding(w) {
+		w.vm.adding = true
+		await w.vm.$nextTick()
+	}
+
+	it('says why when the fetch answered with nobody', async () => {
+		const w = makeWrapper()
+		await startAdding(w)
+		w.vm.members = []
+		w.vm.membersLoaded = true
+		await w.vm.$nextTick()
+		expect(w.find('.sk-comment-mentionempty').exists()).toBe(true)
+		expect(w.find('.sk-comment-mentionrow').exists()).toBe(false)
+	})
+
+	it('shows neither row nor hint before the fetch answers', async () => {
+		const w = makeWrapper()
+		await startAdding(w)
+		w.vm.members = []
+		w.vm.membersLoaded = false
+		await w.vm.$nextTick()
+		expect(w.find('.sk-comment-mentionempty').exists()).toBe(false)
+		expect(w.find('.sk-comment-mentionrow').exists()).toBe(false)
+	})
+
+	it('shows the picker, not the hint, when members exist', async () => {
+		const w = makeWrapper()
+		await startAdding(w)
+		w.vm.members = [steve]
+		w.vm.membersLoaded = true
+		await w.vm.$nextTick()
+		expect(w.find('.sk-comment-mentionrow').exists()).toBe(true)
+		expect(w.find('.sk-comment-mentionempty').exists()).toBe(false)
+	})
+})

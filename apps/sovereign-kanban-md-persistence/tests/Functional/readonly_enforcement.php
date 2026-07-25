@@ -29,7 +29,6 @@ require_once '/var/www/nextcloud/lib/base.php';
 
 use OCA\SovereignKanbanMdPersistence\Controller\BoardController;
 use OCA\SovereignKanbanMdPersistence\Controller\CardController;
-use OCA\SovereignKanbanMdPersistence\Service\MarkdownRenderer;
 use OCA\SovereignKanbanMdPersistence\Sharing\BoardShareService;
 use OCA\SovereignKanbanMdPersistence\Sharing\NextcloudShareGateway;
 use OCA\SovereignKanbanMdPersistence\Sharing\ReceivedBoardLocator;
@@ -70,9 +69,10 @@ $request = $server->get(\OCP\IRequest::class);
 $gateway = new NextcloudShareGateway($shareManager, $rootFolder, $userSession);
 $shareService = new BoardShareService($gateway);
 $receivedLocator = new ReceivedBoardLocator($shareManager, $userSession);
-$markdown = new MarkdownRenderer();
 $boardCtrl = new BoardController($request, $userSession, $rootFolder, $shareService, $receivedLocator);
-$cardCtrl = new CardController($request, $userSession, $rootFolder, $markdown, $receivedLocator, $shareService);
+// Container-resolved: CardController's dependency list grows with each feature
+// (mentions, teams) and hand-wiring it broke this test once already.
+$cardCtrl = $server->get(CardController::class);
 
 // --- harness ---------------------------------------------------------------
 

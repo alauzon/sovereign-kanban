@@ -52,6 +52,9 @@
 						</template>
 					</NcSelect>
 				</div>
+				<p v-else-if="membersLoaded" class="sk-comment-mentionempty">
+					{{ t('Personne à mentionner : partagez d’abord le tableau.') }}
+				</p>
 				<div class="sk-comment-editactions">
 					<NcButton type="primary" :disabled="posting" @click="submit">
 						{{ t('Commenter') }}
@@ -131,6 +134,9 @@ export default {
 			// The NC rich editor won't feed custom @ suggestions in our mode, so we
 			// offer them through a picker instead (Alain, 2026-07-22, option B).
 			members: [],
+			// Distinguishes « not fetched yet » from « fetched, nobody there » so
+			// the empty hint never flashes before the first response arrives.
+			membersLoaded: false,
 			mentionValue: null,
 		}
 	},
@@ -214,6 +220,8 @@ export default {
 				this.members = (res.data.members || []).map((m) => ({ id: m.uid, label: m.displayName }))
 			} catch (e) {
 				this.members = []
+			} finally {
+				this.membersLoaded = true
 			}
 		},
 
@@ -360,6 +368,12 @@ export default {
 .sk-comment-mentionrow {
 	margin-top: 6px;
 	max-width: 320px;
+}
+
+.sk-comment-mentionempty {
+	margin: 6px 0 0;
+	color: var(--color-text-maxcontrast);
+	font-size: 0.9em;
 }
 
 .sk-comment-mention {

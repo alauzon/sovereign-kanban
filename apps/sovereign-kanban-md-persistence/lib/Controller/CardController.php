@@ -16,6 +16,7 @@ use OCA\SovereignKanbanMdPersistence\Service\MarkdownRenderer;
 use OCA\SovereignKanbanMdPersistence\Sharing\BoardShareService;
 use OCA\SovereignKanbanMdPersistence\Sharing\ReceivedBoardLocator;
 use OCA\SovereignKanbanMdPersistence\Sharing\SharePermissions;
+use OCA\SovereignKanbanMdPersistence\Sharing\TeamResolver;
 use OCA\SovereignKanbanMdPersistence\Storage\NextcloudStorage;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
@@ -47,6 +48,7 @@ final class CardController extends Controller {
 		private readonly IUserManager $userManager,
 		private readonly IGroupManager $groupManager,
 		private readonly MentionService $mentionService,
+		private readonly TeamResolver $teamResolver,
 	) {
 		parent::__construct('sovereign-kanban-md-persistence', $request);
 	}
@@ -856,8 +858,9 @@ final class CardController extends Controller {
 	/**
 	 * uid => display name of everyone who can see a board, so a @mention only ever
 	 * notifies someone with access (carte 78fc32). Owner path lists the shares and
-	 * expands groups; an invitee (who cannot list shares) resolves at least the
-	 * board owner. Team/circle expansion and invitee-to-invitee come later.
+	 * expands groups and teams (a team-only board hid the picker for its owner —
+	 * Steve, 2026-07-25); an invitee (who cannot list shares) resolves at least
+	 * the board owner. Invitee-to-invitee comes later.
 	 *
 	 * @return array<string,string>
 	 */
@@ -878,6 +881,10 @@ final class CardController extends Controller {
 					$g = $this->groupManager->get((string) $share['with']);
 					foreach ($g?->getUsers() ?? [] as $u) {
 						$out[$u->getUID()] = $u->getDisplayName() ?: $u->getUID();
+					}
+				} elseif (($share['type'] ?? '') === 'team') {
+					foreach ($this->teamResolver->memberUids((string) $share['with']) as $uid => $label) {
+						$out[$uid] = $label;
 					}
 				}
 			}
