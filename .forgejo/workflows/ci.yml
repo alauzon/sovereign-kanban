@@ -1,0 +1,27 @@
+name: CI
+# Forgejo Actions natif — tourne sur le runner self-hosted « ci-runner » (CT 252,
+# réseau privé, mode host). Contrairement à l'ancien .github/workflows/test.yml,
+# il teste TOUTES les branches et PR (pas seulement main) et n'installe pas PHP
+# via setup-php : le runner porte déjà PHP 8.2 + extensions (dont yaml), composer,
+# git et gitleaks. Gate de la charte « Le code à plusieurs ».
+on: [push, pull_request]
+
+jobs:
+  tests:
+    runs-on: debian-host
+    steps:
+      - uses: actions/checkout@v4
+      - name: Composer install (racine)
+        run: composer install --no-progress --prefer-dist --no-interaction
+      - name: PHPUnit — unités Kanban
+        run: vendor/bin/phpunit apps/sovereign-kanban-md-persistence/tests/Unit/Kanban/
+
+  gitleaks:
+    runs-on: debian-host
+    steps:
+      - uses: actions/checkout@v4
+      - name: Gitleaks — aucun secret dans l'arbre courant
+        # --no-git : on scanne les fichiers du checkout, pas tout l'historique, pour
+        # ne pas bloquer sur un éventuel secret hérité d'un vieux commit. Durcir vers
+        # le scan du diff de PR quand la base est prouvée propre.
+        run: gitleaks detect --source . --no-git --no-banner --redact
