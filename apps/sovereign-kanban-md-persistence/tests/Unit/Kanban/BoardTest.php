@@ -125,6 +125,8 @@ final class BoardTest extends TestCase {
 				'color' => '#e85444',
 				'columns' => ['Backlog', 'En cours'],
 				'tags' => [['name' => 'infra', 'color' => '#e9322d']],
+				'archived' => null,
+				'rev' => 0,
 			],
 			$board->toArray(),
 		);
